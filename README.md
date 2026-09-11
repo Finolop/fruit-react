@@ -44,3 +44,37 @@ You don’t have to ever use `eject`. The curated feature set is suitable for sm
 You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
 
 To learn React, check out the [React documentation](https://reactjs.org/).
+
+
+
+## Auth Service
+
+access_token живёт 15 минут (expires_in: 900), поэтому на защищённых запросах нужен авто-рефреш при 401.
+
+```
+register(email, password, first_name, last_name): Promise<AuthResponse>
+login(email, password): Promise<AuthResponse>
+refresh(): Promise<AuthResponse>              // refresh_token берётся из cookie сам
+getMe(accessToken): Promise<User>
+logout(): Promise<{ message: string }>        // тоже по cookie
+logoutAll(accessToken): Promise<{ message: string }>
+```
+
+Любой не-2xx парсится в AuthApiError
+
+Авто-рефреш (createAuthFetch) oборачивает fetch для защищённых ручек: при 401 сам вызывает refresh(), обновляет токен и повторяет запрос.
+
+## API
+
+Загрузка изображения - uploadImage(file)
+Отправляет изображение на backend.
+
+Получение результатов анализа - getAnalysis()
+Получает результаты анализа фруктов с backend.
+
+`
+Загружает результаты сразу после открытия страницы.
+Каждые 5 секунд отправляет GET запрос.
+Обновляет состояние с полученными результатами.
+Останавливает интервал при размонтировании компонента.
+`
