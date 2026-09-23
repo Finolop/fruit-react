@@ -1,58 +1,107 @@
-import React, { useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import React, { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 
-import { AppDispatch, RootState } from '../../store';
-import { loginThunk } from '../../features/auth/authSlice';
+import { AppDispatch, RootState } from "../../store";
+import { loginThunk } from "../../features/auth/authSlice";
 
 export const LoginForm = () => {
-    const dispatch = useDispatch<AppDispatch>();
+  const dispatch = useDispatch<AppDispatch>();
+  const navigate = useNavigate();
 
-    const { isLoading, error } = useSelector(
-        (state: RootState) => state.auth
+  const { isLoading, error } = useSelector((state: RootState) => state.auth);
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const result = await dispatch(
+      loginThunk({
+        email,
+        password,
+      }),
     );
 
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
+    if (loginThunk.fulfilled.match(result)) {
+      navigate("/");
+    }
+  };
 
-    const handleSubmit = (event: React.SubmitEvent) => {
-        event.preventDefault();
+  return (
+    <form className="form" onSubmit={handleSubmit}>
+      <h1 className="title">Вход</h1>
 
-        dispatch(
-            loginThunk({
-                email,
-                password,
-            })
-        );
-    };
+      <div className="fields">
+        <div className="field">
+          <label className="label" htmlFor="email">
+            Email
+          </label>
 
-    return (
-        <form onSubmit={handleSubmit}>
-            <h2>Вход</h2>
+          <input
+            className="input"
+            id="email"
+            name="email"
+            type="email"
+            placeholder="Введите email"
+            autoComplete="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            required
+          />
+        </div>
 
-            <input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-            />
+        <div className="field">
+          <label className="label" htmlFor="password">
+            Пароль
+          </label>
 
-            <input
-                type="password"
-                placeholder="Пароль"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-            />
+          <input
+            className="input"
+            id="password"
+            name="password"
+            type="password"
+            placeholder="Введите пароль"
+            autoComplete="current-password"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            required
+          />
+        </div>
 
-            {error && (
-                <p>{error}</p>
-            )}
+        <div className="field-checkbox">
+          <input
+            className="checkbox"
+            id="rememberMe"
+            name="rememberMe"
+            type="checkbox"
+          />
 
-            <button
-                type="submit"
-                disabled={isLoading}
-            >
-                {isLoading ? 'Вход...' : 'Войти'}
-            </button>
-        </form>
-    );
+          <label className="label-checkbox" htmlFor="rememberMe">
+            Запомнить меня
+          </label>
+        </div>
+      </div>
+
+      {error && (
+        <p className="error" role="alert">
+          {error}
+        </p>
+      )}
+
+      <button className="button" type="submit" disabled={isLoading}>
+        {isLoading ? "Вход..." : "Войти"}
+      </button>
+      <div className="register-link">
+        <span>Нет аккаунта?</span>
+        <span
+          className="register-link-text"
+          onClick={() => navigate("/register")}
+        >
+          Зарегистрироваться
+        </span>
+      </div>
+    </form>
+  );
 };

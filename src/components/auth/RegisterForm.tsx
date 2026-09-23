@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 
 import { AppDispatch, RootState } from '../../store';
 import { registerThunk } from '../../features/auth/authSlice';
+import '../../styles/RegisterForm.css';
 
 export const RegisterForm = () => {
     const dispatch = useDispatch<AppDispatch>();
+    const navigate = useNavigate();
 
     const { isLoading, error } = useSelector(
         (state: RootState) => state.auth
@@ -16,10 +19,10 @@ export const RegisterForm = () => {
     const [firstName, setFirstName] = useState('');
     const [lastName, setLastName] = useState('');
 
-    const handleSubmit = (event: React.SubmitEvent) => {
+    const handleSubmit = async (event: React.SubmitEvent) => {
         event.preventDefault();
 
-        dispatch(
+        const result = await dispatch(
             registerThunk({
                 email,
                 password,
@@ -27,50 +30,110 @@ export const RegisterForm = () => {
                 last_name: lastName,
             })
         );
+
+        if (registerThunk.fulfilled.match(result)) {
+            navigate('/');
+        }
     };
 
     return (
-        <form onSubmit={handleSubmit}>
-            <h2>Регистрация</h2>
+<form className="form" onSubmit={handleSubmit}>
+        <h1 className="title">Регистрация</h1>
+
+        <div className="fields">
+          <div className="field">
+            <label htmlFor="firstName" className="label">
+              Имя
+            </label>
 
             <input
-                type="text"
-                placeholder="Имя"
-                value={firstName}
-                onChange={(event) => setFirstName(event.target.value)}
+              id="firstName"
+              name="firstName"
+              type="text"
+              placeholder="Введите имя"
+              className="input"
+              value={firstName}
+              onChange={(event) => setFirstName(event.target.value)}
+              required
             />
+          </div>
+
+          <div className="field">
+            <label htmlFor="lastName" className="label">
+              Фамилия
+            </label>
 
             <input
-                type="text"
-                placeholder="Фамилия"
-                value={lastName}
-                onChange={(event) => setLastName(event.target.value)}
+              id="lastName"
+              name="lastName"
+              type="text"
+              placeholder="Введите фамилию"
+              className="input"
+              value={lastName}
+              onChange={(event) => setLastName(event.target.value)}
+              required
             />
+          </div>
+
+          <div className="field">
+            <label htmlFor="email" className="label">
+              Email
+            </label>
 
             <input
-                type="email"
-                placeholder="Email"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
+              id="email"
+              name="email"
+              type="email"
+              placeholder="Введите email"
+              className="input"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              required
             />
+          </div>
+
+          <div className="field">
+            <label htmlFor="password" className="label">
+              Пароль
+            </label>
 
             <input
-                type="password"
-                placeholder="Пароль"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
+              id="password"
+              name="password"
+              type="password"
+              placeholder="Введите пароль"
+              className="input"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
             />
+          </div>
+        </div>
 
-            {error && (
-                <p>{error}</p>
-            )}
+        {error && (
+          <p className="error" role="alert">
+            {error}
+          </p>
+        )}
 
-            <button
-                type="submit"
-                disabled={isLoading}
-            >
-                {isLoading ? 'Регистрация...' : 'Зарегистрироваться'}
-            </button>
-        </form>
+        <button
+          type="submit"
+          className="button"
+          disabled={isLoading}
+        >
+          {isLoading ? "Регистрация..." : "Зарегистрироваться"}
+        </button>
+
+        <div className="login-link">
+          <span>Есть аккаунт?</span>
+
+          <span
+            className="login-link-text"
+            onClick={() => navigate("/login")}
+          >
+            Войти
+          </span>
+        </div>
+      </form>
     );
 };

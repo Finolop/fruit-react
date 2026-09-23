@@ -102,7 +102,6 @@ export const logoutThunk = createAsyncThunk(
       if (error instanceof AuthApiError) {
         return rejectWithValue(error.message);
       }
-
       return rejectWithValue("Ошибка выхода");
     }
   },
