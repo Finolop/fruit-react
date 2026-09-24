@@ -4,7 +4,7 @@ import "../styles/LoginForm.css";
 
 const LoginPage = () => {
     return (
-        <main className="page">
+        <main className="login-page">
             <LoginForm />
         </main>
     );

@@ -78,3 +78,12 @@ logoutAll(accessToken): Promise<{ message: string }>
 Обновляет состояние с полученными результатами.
 Останавливает интервал при размонтировании компонента.
 `
+
+# TODO
+Когда backend будет готов, если GET /api/v1/users начнёт возвращать, например:
+{
+    "data": [...],
+    "total": 57
+}
+мы легко сделаем:
+const totalPages = Math.ceil(total / ITEMS_PER_PAGE);

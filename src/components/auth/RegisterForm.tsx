@@ -37,12 +37,12 @@ export const RegisterForm = () => {
     };
 
     return (
-<form className="form" onSubmit={handleSubmit}>
-        <h1 className="title">Регистрация</h1>
+<form className="register-form" onSubmit={handleSubmit}>
+        <h1 className="register-title">Регистрация</h1>
 
-        <div className="fields">
-          <div className="field">
-            <label htmlFor="firstName" className="label">
+        <div className="register-fields">
+          <div className="register-field">
+            <label htmlFor="firstName" className="register-label">
               Имя
             </label>
 
@@ -51,15 +51,15 @@ export const RegisterForm = () => {
               name="firstName"
               type="text"
               placeholder="Введите имя"
-              className="input"
+              className="register-input"
               value={firstName}
               onChange={(event) => setFirstName(event.target.value)}
               required
             />
           </div>
 
-          <div className="field">
-            <label htmlFor="lastName" className="label">
+          <div className="register-field">
+            <label htmlFor="lastName" className="register-label">
               Фамилия
             </label>
 
@@ -68,15 +68,15 @@ export const RegisterForm = () => {
               name="lastName"
               type="text"
               placeholder="Введите фамилию"
-              className="input"
+              className="register-input"
               value={lastName}
               onChange={(event) => setLastName(event.target.value)}
               required
             />
           </div>
 
-          <div className="field">
-            <label htmlFor="email" className="label">
+          <div className="register-field">
+            <label htmlFor="email" className="register-label">
               Email
             </label>
 
@@ -85,15 +85,15 @@ export const RegisterForm = () => {
               name="email"
               type="email"
               placeholder="Введите email"
-              className="input"
+              className="register-input"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
               required
             />
           </div>
 
-          <div className="field">
-            <label htmlFor="password" className="label">
+          <div className="register-field">
+            <label htmlFor="password" className="register-label">
               Пароль
             </label>
 
@@ -102,7 +102,7 @@ export const RegisterForm = () => {
               name="password"
               type="password"
               placeholder="Введите пароль"
-              className="input"
+              className="register-input"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               required
@@ -111,24 +111,24 @@ export const RegisterForm = () => {
         </div>
 
         {error && (
-          <p className="error" role="alert">
+          <p className="register-error" role="alert">
             {error}
           </p>
         )}
 
         <button
           type="submit"
-          className="button"
+          className="register-button"
           disabled={isLoading}
         >
           {isLoading ? "Регистрация..." : "Зарегистрироваться"}
         </button>
 
-        <div className="login-link">
+        <div className="register-login-link">
           <span>Есть аккаунт?</span>
 
           <span
-            className="login-link-text"
+            className="register-login-link-text"
             onClick={() => navigate("/login")}
           >
             Войти

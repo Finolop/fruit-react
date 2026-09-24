@@ -1,150 +1,155 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
 import { useAuthFetch } from "../../hooks/useAuthFetch";
-import { createProject } from "../../api/apiAdmin";
+import {
+  createProject,
+  getProjectTypes,
+  ProjectType,
+} from "../../api/apiAdmin";
 
 const CreateOks = () => {
-    const authFetch = useAuthFetch();
+  const authFetch = useAuthFetch();
 
-    const [name, setName] = useState("");
-    const [address, setAddress] = useState("");
-    const [typeId, setTypeId] = useState("");
+  const [name, setName] = useState("");
+  const [address, setAddress] = useState("");
+  const [typeId, setTypeId] = useState("");
 
-    const [isLoading, setIsLoading] = useState(false);
-    const [successMessage, setSuccessMessage] = useState("");
-    const [errorMessage, setErrorMessage] = useState("");
+  const [projectTypes, setProjectTypes] = useState<ProjectType[]>([]);
 
-    const handleSubmit = async (
-        event: React.FormEvent<HTMLFormElement>
-    ) => {
-        event.preventDefault();
+  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingTypes, setIsLoadingTypes] = useState(false);
 
-        setSuccessMessage("");
-        setErrorMessage("");
-        setIsLoading(true);
+  const [successMessage, setSuccessMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
 
-        try {
-            await createProject(authFetch, {
-                name,
-                address,
-                type_id: typeId,
-            });
+  useEffect(() => {
+    const loadProjectTypes = async () => {
+      setIsLoadingTypes(true);
+      setErrorMessage("");
 
-            setSuccessMessage("ОКС успешно создан");
+      try {
+        const result = await getProjectTypes(authFetch);
 
-            setName("");
-            setAddress("");
-            setTypeId("");
-        } catch (error) {
-            if (error instanceof Error) {
-                setErrorMessage(error.message);
-            } else {
-                setErrorMessage("Не удалось создать ОКС");
-            }
-        } finally {
-            setIsLoading(false);
+        setProjectTypes(result.filter((type) => type.is_active));
+      } catch (error) {
+        if (error instanceof Error) {
+          setErrorMessage(error.message);
+        } else {
+          setErrorMessage("Не удалось загрузить типы объектов");
         }
+      } finally {
+        setIsLoadingTypes(false);
+      }
     };
 
-    return (
-        <section className="admin-container">
-            <div className="admin-card-header">
-                <span className="admin-card-label">
-                    ОКС
-                </span>
+    loadProjectTypes();
+  }, [authFetch]);
 
-                <h1>Создание объекта</h1>
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
 
-                <p>
-                    Создайте объект капитального строительства.
-                </p>
-            </div>
+    setSuccessMessage("");
+    setErrorMessage("");
+    setIsLoading(true);
 
-            <form
-                className="admin-form"
-                onSubmit={handleSubmit}
-            >
-                <div className="form-field">
-                    <label htmlFor="oks-name">
-                        Наименование объекта
-                    </label>
+    try {
+      await createProject(authFetch, {
+        name,
+        address,
+        type_id: typeId,
+      });
 
-                    <input
-                        id="oks-name"
-                        type="text"
-                        value={name}
-                        onChange={(event) =>
-                            setName(event.target.value)
-                        }
-                        placeholder="Введите наименование объекта"
-                        required
-                    />
-                </div>
+      setSuccessMessage("ОКС успешно создан");
 
-                <div className="form-field">
-                    <label htmlFor="oks-address">
-                        Адрес объекта
-                    </label>
+      setName("");
+      setAddress("");
+      setTypeId("");
+    } catch (error) {
+      if (error instanceof Error) {
+        setErrorMessage(error.message);
+      } else {
+        setErrorMessage("Не удалось создать ОКС");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-                    <input
-                        id="oks-address"
-                        type="text"
-                        value={address}
-                        onChange={(event) =>
-                            setAddress(event.target.value)
-                        }
-                        placeholder="Введите адрес объекта"
-                        required
-                    />
-                </div>
+  return (
+    <section className="admin-container">
+      <div className="admin-card-header">
+        <h1>Создание объекта</h1>
 
-                <div className="form-field">
-                    <label htmlFor="oks-type">
-                        Тип объекта
-                    </label>
+        <p>Создайте объект капитального строительства.</p>
+      </div>
 
-                    <select
-                        id="oks-type"
-                        value={typeId}
-                        onChange={(event) =>
-                            setTypeId(event.target.value)
-                        }
-                        required
-                    >
-                        <option value="">
-                            Выберите тип объекта
-                        </option>
+      <form className="admin-form" onSubmit={handleSubmit}>
+        <div className="form-field">
+          <label htmlFor="oks-name">Наименование объекта</label>
 
-                        <option value="3fa85f64-5717-4562-b3fc-2c963f66afa6">
-                            Объект здравоохранения
-                        </option>
-                    </select>
-                </div>
+          <input
+            id="oks-name"
+            type="text"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="Введите наименование объекта"
+            required
+          />
+        </div>
 
-                <button
-                    type="submit"
-                    className="admin-primary-button"
-                    disabled={isLoading}
-                >
-                    {isLoading
-                        ? "Создание..."
-                        : "Создать ОКС"}
-                </button>
+        <div className="form-field">
+          <label htmlFor="oks-address">Адрес объекта</label>
 
-                {successMessage && (
-                    <div className="admin-success-message">
-                        {successMessage}
-                    </div>
-                )}
+          <input
+            id="oks-address"
+            type="text"
+            value={address}
+            onChange={(event) => setAddress(event.target.value)}
+            placeholder="Введите адрес объекта"
+            required
+          />
+        </div>
 
-                {errorMessage && (
-                    <div className="admin-error-message">
-                        {errorMessage}
-                    </div>
-                )}
-            </form>
-        </section>
-    );
+        <div className="form-field">
+          <label htmlFor="oks-type">Тип объекта</label>
+
+          <select
+            id="oks-type"
+            value={typeId}
+            onChange={(event) => setTypeId(event.target.value)}
+            disabled={isLoadingTypes}
+            required
+          >
+            <option value="">
+              {isLoadingTypes ? "Загрузка типов..." : "Выберите тип объекта"}
+            </option>
+
+            {projectTypes.map((type) => (
+              <option key={type.id} value={type.id}>
+                {type.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <button
+          type="submit"
+          className="admin-primary-button"
+          disabled={isLoading || isLoadingTypes}
+        >
+          {isLoading ? "Создание..." : "Создать ОКС"}
+        </button>
+
+        {successMessage && (
+          <div className="admin-success-message">{successMessage}</div>
+        )}
+
+        {errorMessage && (
+          <div className="admin-error-message">{errorMessage}</div>
+        )}
+      </form>
+    </section>
+  );
 };
 
 export default CreateOks;

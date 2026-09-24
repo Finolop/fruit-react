@@ -30,17 +30,17 @@ export const LoginForm = () => {
   };
 
   return (
-    <form className="form" onSubmit={handleSubmit}>
-      <h1 className="title">Вход</h1>
+    <form className="login-form" onSubmit={handleSubmit}>
+      <h1 className="login-title">Вход</h1>
 
-      <div className="fields">
-        <div className="field">
-          <label className="label" htmlFor="email">
+      <div className="login-fields">
+        <div className="login-field">
+          <label className="login-label" htmlFor="email">
             Email
           </label>
 
           <input
-            className="input"
+            className="login-input"
             id="email"
             name="email"
             type="email"
@@ -52,13 +52,13 @@ export const LoginForm = () => {
           />
         </div>
 
-        <div className="field">
-          <label className="label" htmlFor="password">
+        <div className="login-field">
+          <label className="login-label" htmlFor="password">
             Пароль
           </label>
 
           <input
-            className="input"
+            className="login-input"
             id="password"
             name="password"
             type="password"
@@ -70,33 +70,33 @@ export const LoginForm = () => {
           />
         </div>
 
-        <div className="field-checkbox">
+        <div className="login-field-checkbox">
           <input
-            className="checkbox"
+            className="login-checkbox"
             id="rememberMe"
             name="rememberMe"
             type="checkbox"
           />
 
-          <label className="label-checkbox" htmlFor="rememberMe">
+          <label className="login-label-checkbox" htmlFor="rememberMe">
             Запомнить меня
           </label>
         </div>
       </div>
 
       {error && (
-        <p className="error" role="alert">
+        <p className="login-error" role="alert">
           {error}
         </p>
       )}
 
-      <button className="button" type="submit" disabled={isLoading}>
+      <button className="login-button" type="submit" disabled={isLoading}>
         {isLoading ? "Вход..." : "Войти"}
       </button>
-      <div className="register-link">
+      <div className="login-register-link">
         <span>Нет аккаунта?</span>
         <span
-          className="register-link-text"
+          className="login-register-link-text"
           onClick={() => navigate("/register")}
         >
           Зарегистрироваться

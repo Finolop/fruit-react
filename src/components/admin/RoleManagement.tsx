@@ -1,103 +1,254 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
+
+import { useAuthFetch } from "../../hooks/useAuthFetch";
+import { getUsers, User } from "../../api/apiAdmin";
+
+const ITEMS_PER_PAGE = 6;
 
 const RoleManagement = () => {
-    const [email, setEmail] = useState("");
-    const [role, setRole] = useState("");
+  const authFetch = useAuthFetch();
 
-    const handleSubmit = (
-        event: React.FormEvent<HTMLFormElement>
-    ) => {
-        event.preventDefault();
+  const [users, setUsers] = useState<User[]>([]);
 
-        console.log({
-            email,
-            role,
+  const [currentPage, setCurrentPage] = useState(1);
+
+  const [isLoading, setIsLoading] = useState(false);
+
+  const [errorMessage, setErrorMessage] = useState("");
+
+  const loadUsers = useCallback(
+    async (page: number) => {
+      setIsLoading(true);
+      setErrorMessage("");
+
+      try {
+        const offset = (page - 1) * ITEMS_PER_PAGE;
+
+        const result = await getUsers(authFetch, {
+          limit: ITEMS_PER_PAGE,
+          offset,
         });
-    };
 
-    return (
-        <div className="admin-container">
-            <div className="admin-card-header">
-                <h2>Выдача ролей</h2>
+        setUsers(result);
+        setCurrentPage(page);
+      } catch (error) {
+        if (error instanceof Error) {
+          setErrorMessage(error.message);
+        } else {
+          setErrorMessage("Не удалось загрузить пользователей");
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [authFetch],
+  );
 
-                <p>
-                    Назначьте роль пользователю по email
-                </p>
-            </div>
+  useEffect(() => {
+    loadUsers(1);
+  }, [loadUsers]);
 
-            <form
-                onSubmit={handleSubmit}
-                className="admin-form"
-            >
-                <div className="form-field">
-                    <label htmlFor="user-email">
-                        Email пользователя
-                    </label>
+  const handlePageChange = (page: number) => {
+    if (page < 1) {
+      return;
+    }
 
-                    <input
-                        id="user-email"
-                        type="email"
-                        value={email}
-                        onChange={(event) =>
-                            setEmail(event.target.value)
-                        }
-                        placeholder="Введите email пользователя"
-                    />
-                </div>
+    loadUsers(page);
+  };
 
-                <div className="form-field">
-                    <label htmlFor="user-role">
-                        Роль
-                    </label>
+  const handleEdit = (user: User) => {
+    console.log("Редактирование пользователя:", user);
+  };
 
-                    <select
-                        id="user-role"
-                        value={role}
-                        onChange={(event) =>
-                            setRole(event.target.value)
-                        }
-                    >
-                        <option value="">
-                            Выберите роль
-                        </option>
+  return (
+    <section className="admin-container">
+      <div className="admin-card-header">
+        <h2>Управление ролями</h2>
 
-                        <option value="engineer">
-                            Инженер технадзора
-                        </option>
+        <p>Управление ролями пользователей и привязанными ОКС.</p>
+      </div>
 
-                        <option value="foreman">
-                            Ответственный прораб
-                        </option>
+      {errorMessage && (
+        <div className="admin-error-message">{errorMessage}</div>
+      )}
 
-                        <option value="department">
-                            Департамент
-                        </option>
-                    </select>
-                </div>
+      <div className="roles-table-wrapper">
+        <table className="roles-table">
+          <thead>
+            <tr>
+              <th>ID пользователя</th>
+              <th>ФИО / должность</th>
+              <th>Текущая роль</th>
+              <th>Привязанные ОКС</th>
+              <th>Управление</th>
+            </tr>
+          </thead>
 
-                <button
-                    type="submit"
-                    className="admin-primary-button"
-                >
-                    Выдать роль
-                </button>
-            </form>
+          <tbody>
+            {isLoading ? (
+              <tr>
+                <td colSpan={5} className="roles-table-loading">
+                  Загрузка пользователей...
+                </td>
+              </tr>
+            ) : users.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="roles-table-empty">
+                  Пользователи не найдены
+                </td>
+              </tr>
+            ) : (
+              users.map((user) => {
+                const role = user.roles[0];
 
-            <div className="roles-table">
-                <h3>Выданные роли</h3>
+                return (
+                  <tr key={user.id}>
+                    <td>
+                      <span className="user-id">{user.id}</span>
+                    </td>
 
-                <div className="roles-table-header">
-                    <span>Email</span>
-                    <span>Роль</span>
-                </div>
+                    <td>
+                      <div className="user-info">
+                        <span className="user-name">
+                          {user.first_name} {user.last_name}
+                        </span>
 
-                <div className="roles-table-row">
-                    <span>Пока нет данных</span>
-                    <span>—</span>
-                </div>
-            </div>
+                        <span className="user-position">{user.email}</span>
+                      </div>
+                    </td>
+
+                    <td>
+                      <span
+                        className={`role-badge ${
+                          role === "engineer"
+                            ? "role-engineer"
+                            : role === "foreman"
+                              ? "role-foreman"
+                              : "role-department"
+                        }`}
+                      >
+                        {role === "engineer"
+                          ? "Инженер"
+                          : role === "foreman"
+                            ? "Прораб"
+                            : role === "admin"
+                              ? "Департамент"
+                              : "Пользователь"}
+                      </span>
+                    </td>
+
+                    <td>
+                      <div className="oks-list">
+                        <span className="oks-item">—</span>
+                      </div>
+                    </td>
+
+                    <td>
+                      <button
+                        type="button"
+                        className="role-edit-button"
+                        onClick={() => handleEdit(user)}
+                      >
+                        Редактировать
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
+
+        <div className="roles-pagination">
+          <button
+            type="button"
+            className="pagination-button pagination-arrow"
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1 || isLoading}
+          >
+            Назад
+          </button>
+
+          <button
+            type="button"
+            className={`pagination-button ${
+              currentPage === 1 ? "pagination-active" : ""
+            }`}
+            onClick={() => handlePageChange(1)}
+            disabled={isLoading}
+          >
+            1
+          </button>
+
+          <button
+            type="button"
+            className={`pagination-button ${
+              currentPage === 2 ? "pagination-active" : ""
+            }`}
+            onClick={() => handlePageChange(2)}
+            disabled={isLoading}
+          >
+            2
+          </button>
+
+          <button
+            type="button"
+            className={`pagination-button ${
+              currentPage === 3 ? "pagination-active" : ""
+            }`}
+            onClick={() => handlePageChange(3)}
+            disabled={isLoading}
+          >
+            3
+          </button>
+
+          <span className="pagination-dots">...</span>
+
+          <button
+            type="button"
+            className={`pagination-button ${
+              currentPage === 8 ? "pagination-active" : ""
+            }`}
+            onClick={() => handlePageChange(8)}
+            disabled={isLoading}
+          >
+            8
+          </button>
+
+          <button
+            type="button"
+            className={`pagination-button ${
+              currentPage === 9 ? "pagination-active" : ""
+            }`}
+            onClick={() => handlePageChange(9)}
+            disabled={isLoading}
+          >
+            9
+          </button>
+
+          <button
+            type="button"
+            className={`pagination-button ${
+              currentPage === 10 ? "pagination-active" : ""
+            }`}
+            onClick={() => handlePageChange(10)}
+            disabled={isLoading}
+          >
+            10
+          </button>
+
+          <button
+            type="button"
+            className="pagination-button pagination-arrow"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={isLoading}
+          >
+            Вперед
+          </button>
         </div>
-    );
+      </div>
+    </section>
+  );
 };
 
 export default RoleManagement;
