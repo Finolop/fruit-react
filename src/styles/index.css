@@ -33,7 +33,6 @@ body,
 #root {
     min-height: 100%;
     margin: 0;
-    overflow: hidden;
 }
 
 body {
@@ -74,4 +73,29 @@ button {
 img {
     display: block;
     max-width: 100%;
+}
+
+html {
+  scrollbar-gutter: stable;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.4);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.7);
+  background-clip: padding-box;
 }

@@ -5,68 +5,50 @@
 
 .admin-content {
   display: grid;
-  grid-template-columns: 730px 1fr;
+  grid-template-columns: minmax(480px, 680px) 1fr;
   gap: 24px;
-
   width: 100%;
   max-width: 1920px;
   margin: 20px 0 0;
-  padding: 0 25px;
-
+  padding: 0 25px 40px;
   box-sizing: border-box;
+  align-items: start;
 }
 
 .admin-container {
   padding: 38px;
-
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
   box-shadow: var(--shadow-md);
-
   box-sizing: border-box;
 }
 
-/* Левая карточка */
-
-.admin-content > .admin-container:first-child {
-  width: 730px;
-  height: 650px;
-}
-
-/* Заголовок карточки */
-
 .admin-card-header {
-  margin-bottom: 32px;
+  margin-bottom: 28px;
 }
 
 .admin-card-header h1,
 .admin-card-header h2 {
   margin: 0 0 8px;
-
   color: var(--color-text);
-
-  font-size: 32px;
+  font-size: 24px;
   font-weight: 600;
   line-height: 1.2;
 }
 
 .admin-card-header p {
   margin: 0;
-
   color: var(--color-text-secondary);
-
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   line-height: 1.4;
 }
 
-/* Форма */
-
 .admin-form {
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 20px;
 }
 
 .form-field {
@@ -77,31 +59,23 @@
 
 .form-field label {
   color: var(--color-text);
-
   font-size: 14px;
   font-weight: 500;
 }
 
-/* Input / Select */
-
 .form-field input,
 .form-field select {
   width: 100%;
-  height: 50px;
+  height: 48px;
   padding: 0 14px;
-
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-
   background: var(--color-surface);
   color: var(--color-text);
-
   font-family: inherit;
   font-size: 14px;
-
   outline: none;
   box-sizing: border-box;
-
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease;
@@ -111,9 +85,7 @@
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
-
   padding-right: 42px;
-
   background-image: url("../assets/images/arrow_down.svg");
   background-repeat: no-repeat;
   background-position: right 14px center;
@@ -130,25 +102,18 @@
   color: var(--color-text-muted);
 }
 
-/* Основная кнопка */
-
 .admin-primary-button {
   width: 100%;
-  height: 50px;
+  height: 48px;
   margin-top: 8px;
-
   border: 0;
   border-radius: var(--radius-md);
-
   background: var(--color-primary);
   color: var(--color-surface);
-
   font-family: inherit;
   font-size: 14px;
   font-weight: 600;
-
   cursor: pointer;
-
   transition:
     background-color 0.2s ease,
     transform 0.1s ease;
@@ -167,50 +132,37 @@
   cursor: not-allowed;
 }
 
-/* Сообщения */
-
 .admin-success-message {
   padding: 12px 14px;
-
-  border: 1px solid var(--color-success);
+  border: 1px solid #10b981;
   border-radius: var(--radius-md);
-
-  background: var(--color-success-light);
-  color: var(--color-success);
-
+  background: #ecfdf5;
+  color: #047857;
   font-size: 14px;
+  margin-bottom: 16px;
 }
 
 .admin-error-message {
   padding: 12px 14px;
-
-  border: 1px solid var(--color-error);
+  border: 1px solid var(--color-primary);
   border-radius: var(--radius-md);
-
-  background: var(--color-error-light);
-  color: var(--color-error);
-
+  background: var(--color-primary-soft);
+  color: var(--color-primary-dark);
   font-size: 14px;
+  margin-bottom: 16px;
 }
-
-/* Таблица ролей */
 
 .roles-table-wrapper {
   width: 100%;
-
   overflow: hidden;
-
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-
   background: var(--color-surface);
 }
 
 .roles-table {
   width: 100%;
-
   border-collapse: collapse;
-
   color: var(--color-text);
   font-size: 14px;
 }
@@ -218,21 +170,16 @@
 .roles-table th,
 .roles-table td {
   padding: 14px 16px;
-
   border-bottom: 1px solid var(--color-border);
-
   text-align: left;
   vertical-align: middle;
 }
 
 .roles-table th {
   background: var(--color-background);
-
   color: var(--color-text-secondary);
-
-  font-size: 14px;
-  font-weight: 400;
-
+  font-size: 13px;
+  font-weight: 500;
   white-space: nowrap;
 }
 
@@ -244,11 +191,8 @@
   background: var(--color-primary-soft);
 }
 
-/* Пользователь */
-
 .user-id {
   color: var(--color-text-secondary);
-
   font-family: monospace;
   font-size: 12px;
 }
@@ -256,38 +200,27 @@
 .user-info {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .user-name {
   color: var(--color-text);
-
   font-size: 14px;
   font-weight: 500;
 }
 
 .user-position {
   color: var(--color-text-secondary);
-
   font-size: 12px;
 }
-
-/* Роли */
 
 .role-badge {
   display: inline-flex;
   align-items: center;
-
   padding: 5px 9px;
-
   border-radius: var(--radius-md);
-
-  background: var(--color-primary-light);
-  color: var(--color-primary-dark);
-
   font-size: 12px;
   font-weight: 500;
-
   white-space: nowrap;
 }
 
@@ -298,7 +231,7 @@
 
 .role-foreman {
   background: #dbeafe;
-  color: #2563eb;
+  color: #1d4ed8;
 }
 
 .role-department {
@@ -306,41 +239,30 @@
   color: var(--color-primary-dark);
 }
 
-/* ОКС */
-
 .oks-list {
   display: flex;
   flex-direction: column;
-  gap: 5px;
-
-  min-width: 220px;
+  gap: 4px;
+  min-width: 180px;
 }
 
 .oks-item {
   color: var(--color-text-secondary);
-
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.4;
 }
 
-/* Кнопка редактирования */
-
 .role-edit-button {
-  padding: 7px 10px;
-
+  padding: 7px 12px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-
   background: var(--color-surface);
   color: var(--color-text);
-
   font-family: inherit;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: 500;
-
   white-space: nowrap;
   cursor: pointer;
-
   transition:
     background-color 0.2s ease,
     border-color 0.2s ease,
@@ -349,31 +271,24 @@
 
 .role-edit-button:hover {
   border-color: var(--color-primary);
-
   background: var(--color-primary-light);
   color: var(--color-primary-dark);
 }
 
-/* Состояния таблицы */
-
 .roles-table td.roles-table-loading,
 .roles-table td.roles-table-empty {
-  padding: 32px 16px;
+  padding: 36px 16px;
   color: var(--color-text-secondary);
-  font-size: 13px;
+  font-size: 14px;
   text-align: center;
 }
-
-/* Пагинация */
 
 .roles-pagination {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
-
   padding: 14px 16px;
-
   border-top: 1px solid var(--color-border);
   background: var(--color-surface);
 }
@@ -382,23 +297,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-
   min-width: 32px;
   height: 32px;
   padding: 0 8px;
-
   border: 1px solid transparent;
   border-radius: var(--radius-md);
-
   background: transparent;
   color: var(--color-text-secondary);
-
   font-family: inherit;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
-
   cursor: pointer;
-
   transition:
     background-color 0.2s ease,
     border-color 0.2s ease,
@@ -412,17 +321,15 @@
 
 .pagination-active {
   border-color: var(--color-border);
-
   background: var(--color-surface);
   color: var(--color-text);
-
   box-shadow: var(--shadow-sm);
 }
 
 .pagination-button:disabled {
   color: var(--color-text-muted);
   cursor: not-allowed;
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
 .pagination-arrow {
@@ -433,40 +340,30 @@
   display: flex;
   align-items: center;
   justify-content: center;
-
   min-width: 24px;
   height: 32px;
-
   color: var(--color-text-muted);
-
-  font-size: 12px;
+  font-size: 13px;
 }
 
-/* Адаптив */
-
-@media (max-width: 1200px) {
+@media (max-width: 1280px) {
   .admin-content {
     grid-template-columns: 1fr;
-  }
-
-  .admin-content > .admin-container:first-child {
-    width: 100%;
-    height: auto;
   }
 }
 
 @media (max-width: 600px) {
   .admin-content {
-    margin-top: 20px;
-    padding: 0 20px;
+    margin-top: 16px;
+    padding: 0 16px 24px;
   }
 
   .admin-container {
-    padding: 24px;
+    padding: 20px;
   }
 
   .admin-card-header h1,
   .admin-card-header h2 {
-    font-size: 26px;
+    font-size: 20px;
   }
 }

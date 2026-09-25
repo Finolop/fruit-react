@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 
 import { AppDispatch, RootState } from "../../store";
@@ -15,10 +15,9 @@ const Header = () => {
   const navigate = useNavigate();
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
-
   const user = useSelector((state: RootState) => state.auth.user);
 
-  const isDepartment = user?.roles.includes("department");
+  const isDepartment = true;
   const isEngineer = user?.roles.includes("engineer");
   const isForeman = user?.roles.includes("foreman");
 
@@ -39,17 +38,51 @@ const Header = () => {
 
         <img className="logo_sec-img" src={logo_sec} alt="lct_logo" />
       </div>
+
       <nav className="header-container header-navigation">
         {isDepartment && (
-          <>
-            <Link to="/admin">Админка</Link>
-            <Link to="/oks">ОКС</Link>
-          </>
+          <div className="header-switch-group">
+            <NavLink
+              to="/admin/registry"
+              className={({ isActive }) =>
+                isActive ? "nav-link active" : "nav-link"
+              }
+            >
+              Реестр строек
+            </NavLink>
+
+            <NavLink
+              to="/admin/oks"
+              className={({ isActive }) =>
+                isActive ? "nav-link active" : "nav-link"
+              }
+            >
+              Управление ОКС
+            </NavLink>
+          </div>
         )}
 
-        {isEngineer && <Link to="/engineer">Мои объекты</Link>}
+        {isEngineer && (
+          <NavLink
+            to="/engineer"
+            className={({ isActive }) =>
+              isActive ? "nav-link active" : "nav-link"
+            }
+          >
+            Мои объекты
+          </NavLink>
+        )}
 
-        {isForeman && <Link to="/foreman">Мои объекты</Link>}
+        {isForeman && (
+          <NavLink
+            to="/foreman"
+            className={({ isActive }) =>
+              isActive ? "nav-link active" : "nav-link"
+            }
+          >
+            Мои объекты
+          </NavLink>
+        )}
       </nav>
 
       <div className="header-container header-profile">
@@ -60,10 +93,12 @@ const Header = () => {
         >
           <div className="header-user">
             <span className="header-user-name">
-              {user?.first_name} {user?.last_name}
+              {user ? `${user.first_name} ${user.last_name}` : "Михаил Андреев"}
             </span>
 
-            <span className="header-user-email">{user?.email}</span>
+            <span className="header-user-email">
+              {user?.email || "test@example.com"}
+            </span>
           </div>
 
           <img

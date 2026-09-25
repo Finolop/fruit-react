@@ -9,7 +9,7 @@ const HomePage = () => {
         <div>
             <Header />
 
-
+            
         </div>
     );
 };
