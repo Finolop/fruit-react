@@ -20,7 +20,10 @@ interface AuthState {
 
 const initialState: AuthState = {
   user: null,
-  accessToken: null,
+  accessToken:
+    localStorage.getItem("access_token") ||
+    localStorage.getItem("token") ||
+    null,
   isLoading: false,
   error: null,
 };
@@ -32,12 +35,27 @@ export const loginThunk = createAsyncThunk(
     { rejectWithValue },
   ) => {
     try {
-      return await login(email, password);
+      const response = await login(email, password);
+
+      // 1. Сохраняем токен авторизации для всех API запросов
+      if (response.access_token) {
+        localStorage.setItem("access_token", response.access_token);
+        localStorage.setItem("token", response.access_token);
+      }
+
+      // 2. Сохраняем системную роль
+      const primaryRole = response.user?.roles?.[0];
+      if (primaryRole) {
+        localStorage.setItem("userRole", primaryRole);
+      } else {
+        localStorage.setItem("userRole", "FOREMAN");
+      }
+
+      return response;
     } catch (error) {
       if (error instanceof AuthApiError) {
         return rejectWithValue(error.message);
       }
-
       return rejectWithValue("Ошибка входа");
     }
   },
@@ -60,7 +78,19 @@ export const registerThunk = createAsyncThunk(
     { rejectWithValue },
   ) => {
     try {
-      return await register(email, password, first_name, last_name);
+      const response = await register(email, password, first_name, last_name);
+
+      if (response.access_token) {
+        localStorage.setItem("access_token", response.access_token);
+        localStorage.setItem("token", response.access_token);
+      }
+
+      const primaryRole = response.user?.roles?.[0];
+      if (primaryRole) {
+        localStorage.setItem("userRole", primaryRole);
+      }
+
+      return response;
     } catch (error) {
       if (error instanceof AuthApiError) {
         return rejectWithValue(error.message);
@@ -77,13 +107,27 @@ export const restoreSessionThunk = createAsyncThunk(
     try {
       const { access_token } = await refresh();
 
+      if (access_token) {
+        localStorage.setItem("access_token", access_token);
+        localStorage.setItem("token", access_token);
+      }
+
       const user = await getMe(access_token);
+
+      const primaryRole = user?.roles?.[0];
+      if (primaryRole) {
+        localStorage.setItem("userRole", primaryRole);
+      }
 
       return {
         access_token,
         user,
       };
     } catch (error) {
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("token");
+      localStorage.removeItem("userRole");
+
       if (error instanceof AuthApiError) {
         return rejectWithValue(error.message);
       }
@@ -97,12 +141,18 @@ export const logoutThunk = createAsyncThunk(
   "auth/logout",
   async (_, { rejectWithValue }) => {
     try {
-      return await logout();
+      await logout();
+      return;
     } catch (error) {
       if (error instanceof AuthApiError) {
         return rejectWithValue(error.message);
       }
       return rejectWithValue("Ошибка выхода");
+    } finally {
+      // Всегда очищаем локальные токены и роли
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("token");
+      localStorage.removeItem("userRole");
     }
   },
 );
@@ -118,30 +168,32 @@ const authSlice = createSlice({
 
     setAccessToken(state, action: PayloadAction<string>) {
       state.accessToken = action.payload;
+      localStorage.setItem("access_token", action.payload);
+      localStorage.setItem("token", action.payload);
     },
 
     clearAuth(state) {
       state.user = null;
       state.accessToken = null;
       state.error = null;
+      localStorage.removeItem("access_token");
+      localStorage.removeItem("token");
+      localStorage.removeItem("userRole");
     },
   },
 
   extraReducers: (builder) => {
     builder
-
       // LOGIN
       .addCase(loginThunk.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
-
       .addCase(loginThunk.fulfilled, (state, action) => {
         state.isLoading = false;
         state.accessToken = action.payload.access_token;
         state.user = action.payload.user ?? null;
       })
-
       .addCase(loginThunk.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
@@ -152,13 +204,11 @@ const authSlice = createSlice({
         state.isLoading = true;
         state.error = null;
       })
-
       .addCase(registerThunk.fulfilled, (state, action) => {
         state.isLoading = false;
         state.accessToken = action.payload.access_token;
         state.user = action.payload.user ?? null;
       })
-
       .addCase(registerThunk.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
@@ -169,13 +219,11 @@ const authSlice = createSlice({
         state.isLoading = true;
         state.error = null;
       })
-
       .addCase(restoreSessionThunk.fulfilled, (state, action) => {
         state.isLoading = false;
         state.accessToken = action.payload.access_token;
         state.user = action.payload.user;
       })
-
       .addCase(restoreSessionThunk.rejected, (state) => {
         state.isLoading = false;
         state.accessToken = null;
@@ -187,14 +235,12 @@ const authSlice = createSlice({
         state.isLoading = true;
         state.error = null;
       })
-
       .addCase(logoutThunk.fulfilled, (state) => {
         state.isLoading = false;
         state.user = null;
         state.accessToken = null;
         state.error = null;
       })
-
       .addCase(logoutThunk.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;

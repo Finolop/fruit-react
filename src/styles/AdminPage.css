@@ -5,7 +5,7 @@
 
 .admin-content {
   display: grid;
-  grid-template-columns: minmax(480px, 680px) 1fr;
+  grid-template-columns: 440px 1fr;
   gap: 24px;
   width: 100%;
   max-width: 1920px;
@@ -16,7 +16,7 @@
 }
 
 .admin-container {
-  padding: 38px;
+  padding: 32px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: var(--color-surface);
@@ -25,14 +25,14 @@
 }
 
 .admin-card-header {
-  margin-bottom: 28px;
+  margin-bottom: 24px;
 }
 
 .admin-card-header h1,
 .admin-card-header h2 {
   margin: 0 0 8px;
   color: var(--color-text);
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 600;
   line-height: 1.2;
 }
@@ -48,7 +48,7 @@
 .admin-form {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 18px;
 }
 
 .form-field {
@@ -63,8 +63,12 @@
   font-weight: 500;
 }
 
+/* Базовый стиль инпутов и селектов админки */
 .form-field input,
-.form-field select {
+.form-field select,
+.roles-search-input,
+.roles-filter-select,
+.modal-search-field {
   width: 100%;
   height: 48px;
   padding: 0 14px;
@@ -81,7 +85,8 @@
     box-shadow 0.2s ease;
 }
 
-.form-field select {
+.form-field select,
+.roles-filter-select {
   appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
@@ -93,13 +98,35 @@
 }
 
 .form-field input:focus,
-.form-field select:focus {
+.form-field select:focus,
+.roles-search-input:focus,
+.roles-filter-select:focus,
+.modal-search-field:focus {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px rgba(229, 57, 53, 0.1);
 }
 
-.form-field input::placeholder {
+.form-field input::placeholder,
+.roles-search-input::placeholder,
+.modal-search-field::placeholder {
   color: var(--color-text-muted);
+}
+
+/* Панель поиска и фильтра */
+.roles-search-bar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+  align-items: center;
+}
+
+.roles-search-input {
+  flex: 1;
+}
+
+.roles-filter-select {
+  width: 220px;
+  flex-shrink: 0;
 }
 
 .admin-primary-button {
@@ -239,17 +266,32 @@
   color: var(--color-primary-dark);
 }
 
-.oks-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 180px;
+.table-inline-select {
+  height: 36px;
+  padding: 0 32px 0 10px;
+  font-size: 13px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  color: var(--color-text);
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("../assets/images/arrow_down.svg");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 12px;
 }
 
-.oks-item {
-  color: var(--color-text-secondary);
-  font-size: 13px;
-  line-height: 1.4;
+.table-inline-select:focus {
+  border-color: var(--color-primary);
+}
+
+.table-actions-cell {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  white-space: nowrap;
 }
 
 .role-edit-button {
@@ -336,17 +378,62 @@
   padding: 0 10px;
 }
 
-.pagination-dots {
+/* =========================================
+   МОДАЛКА НАЗНАЧЕНИЯ НА ОБЪЕКТ
+========================================= */
+.admin-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.45);
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 24px;
-  height: 32px;
-  color: var(--color-text-muted);
-  font-size: 13px;
+  z-index: 1000;
+  backdrop-filter: blur(3px);
 }
 
-@media (max-width: 1280px) {
+.admin-modal-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  width: 100%;
+  max-width: 520px;
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.admin-modal-card .admin-card-header {
+  margin-bottom: 20px;
+}
+
+.admin-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.admin-modal-actions .role-edit-button {
+  height: 48px;
+  padding: 0 20px;
+  font-size: 14px;
+}
+
+.admin-modal-actions .admin-primary-button {
+  width: auto;
+  margin-top: 0;
+  padding: 0 24px;
+}
+
+/* =========================================
+   АДАПТИВНОСТЬ
+========================================= */
+@media (max-width: 1180px) {
   .admin-content {
     grid-template-columns: 1fr;
   }
@@ -358,7 +445,8 @@
     padding: 0 16px 24px;
   }
 
-  .admin-container {
+  .admin-container,
+  .admin-modal-card {
     padding: 20px;
   }
 
@@ -366,4 +454,256 @@
   .admin-card-header h2 {
     font-size: 20px;
   }
+
+  .roles-search-bar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .roles-filter-select {
+    width: 100%;
+  }
+}
+
+/* =========================================
+   БЛОК УПРАВЛЕНИЯ РОЛЯМИ И НАЗНАЧЕНИЯМИ
+========================================= */
+.role-management-flow {
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
+}
+
+.role-section-divider {
+  border: 0;
+  border-top: 1px solid var(--color-border);
+  margin: 0;
+}
+
+.subform-header {
+  margin-bottom: 14px;
+}
+
+.subform-header h3 {
+  margin: 0 0 4px;
+  color: var(--color-text);
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.subform-header p {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 13px;
+}
+
+.role-change-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.role-change-row .form-field-email {
+  flex: 1;
+}
+
+.role-change-row .form-field-role {
+  width: 200px;
+}
+
+.role-change-row .btn-role-submit {
+  width: 160px;
+  height: 48px;
+  margin-top: 0;
+  flex-shrink: 0;
+}
+
+.assign-grid-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.known-users-badge-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.known-users-label {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.user-quick-chip {
+  padding: 4px 10px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-text);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.user-quick-chip:hover {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary);
+  color: var(--color-primary-dark);
+}
+
+.user-quick-chip.chip-active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: var(--color-surface);
+}
+
+.assignments-preview-box {
+  background: var(--color-background);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.assignments-preview-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0;
+}
+
+.assignments-preview-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.assignment-item-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.assignment-item-tag code {
+  font-family: monospace;
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 900px) {
+  .role-change-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .role-change-row .form-field-role,
+  .role-change-row .btn-role-submit {
+    width: 100%;
+  }
+
+  .assign-grid-fields {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* =========================================
+   ВЫПАДАЮЩИЙ СПИСОК ПОЛЬЗОВАТЕЛЕЙ (AUTOCOMPLETE)
+========================================= */
+.autocomplete-field-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.autocomplete-dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  width: 100%;
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+}
+
+.autocomplete-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--color-border);
+  transition: background-color 0.15s ease;
+}
+
+.autocomplete-item:last-child {
+  border-bottom: none;
+}
+
+.autocomplete-item:hover {
+  background: var(--color-primary-soft);
+}
+
+.autocomplete-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.autocomplete-user-email {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.autocomplete-user-name {
+  font-size: 12px;
+  color: var(--color-text-secondary);
+}
+
+.autocomplete-user-id {
+  font-size: 11px;
+  font-family: monospace;
+  color: var(--color-text-muted, #9ca3af);
+}
+
+.autocomplete-empty {
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  text-align: center;
+}
+
+.btn-unassign-chip {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0 2px;
+  margin-left: 4px;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--color-text-secondary);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.btn-unassign-chip:hover {
+  color: var(--color-primary-dark);
+  background: #fee2e2;
 }

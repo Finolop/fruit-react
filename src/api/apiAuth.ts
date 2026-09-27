@@ -7,7 +7,8 @@ import {
   ErrorDetail,
 } from "../types/auth";
 
-const API_URL = '';
+// Фоллбек на http://localhost:8000, если в .env пусто
+const API_URL = process.env.REACT_APP_API_URL;
 
 export class AuthApiError extends Error {
   code: string;
@@ -15,20 +16,31 @@ export class AuthApiError extends Error {
   status: number;
 
   constructor(status: number, body: ApiErrorBody) {
-    super(body.error.message);
+    super(body?.error?.message || "Ошибка авторизации");
     this.status = status;
-    this.code = body.error.code;
-    this.details = body.error.details;
+    this.code = body?.error?.code || "UNKNOWN_ERROR";
+    this.details = body?.error?.details || null;
   }
 }
 
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
-    let body: ApiErrorBody;
+    let body: any;
     try {
       body = await res.json();
     } catch {
       throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
+    // Поддержка стандартного формата ошибок FastAPI (detail)
+    if (body.detail && !body.error) {
+      body = {
+        error: {
+          message:
+            typeof body.detail === "string" ? body.detail : "Validation Error",
+          code: "VALIDATION_ERROR",
+          details: Array.isArray(body.detail) ? body.detail : null,
+        },
+      };
     }
     throw new AuthApiError(res.status, body);
   }
@@ -41,7 +53,7 @@ export const register = async (
   first_name: string,
   last_name: string,
 ): Promise<AuthResponse> => {
-  const res = await fetch(`${API_URL}/api/auth/register`, {
+  const res = await fetch(`${API_URL}/api/v1/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -59,7 +71,7 @@ export const login = async (
   email: string,
   password: string,
 ): Promise<AuthResponse> => {
-  const res = await fetch(`${API_URL}/api/auth/login`, {
+  const res = await fetch(`${API_URL}/api/v1/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -69,7 +81,7 @@ export const login = async (
 };
 
 export const refresh = async (): Promise<AuthResponse> => {
-  const res = await fetch(`${API_URL}/api/auth/refresh`, {
+  const res = await fetch(`${API_URL}/api/v1/auth/refresh`, {
     method: "POST",
     credentials: "include",
   });
@@ -77,7 +89,7 @@ export const refresh = async (): Promise<AuthResponse> => {
 };
 
 export const getMe = async (accessToken: string): Promise<User> => {
-  const res = await fetch(`${API_URL}/api/auth/me`, {
+  const res = await fetch(`${API_URL}/api/v1/auth/me`, {
     method: "GET",
     headers: { Authorization: `Bearer ${accessToken}` },
     credentials: "include",
@@ -86,7 +98,7 @@ export const getMe = async (accessToken: string): Promise<User> => {
 };
 
 export const logout = async (): Promise<{ message: string }> => {
-  const res = await fetch(`${API_URL}/api/auth/logout`, {
+  const res = await fetch(`${API_URL}/api/v1/auth/logout`, {
     method: "POST",
     credentials: "include",
   });
@@ -96,7 +108,7 @@ export const logout = async (): Promise<{ message: string }> => {
 export const logoutAll = async (
   accessToken: string,
 ): Promise<{ message: string }> => {
-  const res = await fetch(`${API_URL}/api/auth/logout-all`, {
+  const res = await fetch(`${API_URL}/api/v1/auth/logout-all`, {
     method: "POST",
     headers: { Authorization: `Bearer ${accessToken}` },
     credentials: "include",
@@ -107,7 +119,7 @@ export const logoutAll = async (
 type AccessTokenGetter = () => string | null;
 type AccessTokenSetter = (token: string) => void;
 
-//  При 401 один раз пытается обновить access_token через /api/auth/refresh
+// При 401 один раз пытается обновить access_token через /api/v1/auth/refresh
 export const createAuthFetch = (
   getAccessToken: AccessTokenGetter,
   setAccessToken: AccessTokenSetter,

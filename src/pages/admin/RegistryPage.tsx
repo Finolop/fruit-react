@@ -1,6 +1,6 @@
 import React from "react";
 
-import Header from "../../components/auth/Header";
+import Header from "../../components/Header";
 import RegistryList from "../../components/admin/RegistryList";
 
 import "../../styles/RegistryPage.css";

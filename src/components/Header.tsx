@@ -2,13 +2,13 @@ import React, { useState } from "react";
 import { NavLink, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 
-import { AppDispatch, RootState } from "../../store";
-import { logoutThunk } from "../../features/auth/authSlice";
+import { AppDispatch, RootState } from "../store";
+import { logoutThunk } from "../features/auth/authSlice";
 
-import "../../styles/Header.css";
-import logo from "../../assets/images/logo.svg";
-import logo_sec from "../../assets/images/logo_sec.png";
-import arrow_down from "../../assets/images/arrow_down.svg";
+import "../styles/Header.css";
+import logo from "../assets/images/logo.svg";
+import logo_sec from "../assets/images/logo_sec.png";
+import arrow_down from "../assets/images/arrow_down.svg";
 
 const Header = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -17,7 +17,7 @@ const Header = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const user = useSelector((state: RootState) => state.auth.user);
 
-  const isDepartment = true;
+  const isDepartment = user?.roles.includes("admin");
   const isEngineer = user?.roles.includes("engineer");
   const isForeman = user?.roles.includes("foreman");
 

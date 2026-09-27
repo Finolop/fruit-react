@@ -1,5 +1,5 @@
 :root {
-    --font-family: "Montserrat", sans-serif;
+    --font-family: "Poppins", sans-serif;
 
     --color-primary: #E53935;
     --color-primary-dark: #C62828;
@@ -37,11 +37,11 @@ body,
 
 body {
     min-height: 100vh;
-
-    background-color: var(--color-background);
     color: var(--color-text);
 
     font-family: var(--font-family);
+
+    background-color: var(--color-background);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
 }
@@ -66,8 +66,8 @@ select {
 }
 
 button {
-    cursor: pointer;
     border: 0px;
+    cursor: pointer;
 }
 
 img {
@@ -89,9 +89,9 @@ html {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(156, 163, 175, 0.4);
-  border-radius: 999px;
   border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(156, 163, 175, 0.4);
   background-clip: padding-box;
 }
 

@@ -1,0 +1,440 @@
+.gantt-root {
+  width: 100%;
+  margin: 0;
+  padding: 16px 24px 32px;
+  box-sizing: border-box;
+}
+
+.gantt-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--color-surface, #ffffff);
+  padding: 18px 24px;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--color-border, #e2e8f0);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-bottom: 16px;
+}
+
+.gantt-title-wrap h1 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text, #0f172a);
+  margin: 0 0 4px 0;
+}
+
+.gantt-title-wrap p {
+  font-size: 13px;
+  color: var(--color-text-secondary, #64748b);
+  margin: 0;
+}
+
+.gantt-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.btn-gantt-secondary {
+  background: #ffffff;
+  border: 1px solid var(--color-border, #cbd5e1);
+  color: var(--color-text, #1e293b);
+  border-radius: var(--radius-md, 8px);
+  padding: 9px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-gantt-secondary:hover:not(:disabled) {
+  background: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.btn-gantt-success {
+  background-color: #16a34a;
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-md, 8px);
+  padding: 9px 18px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.btn-gantt-success:hover:not(:disabled) {
+  background-color: #15803d;
+}
+
+.btn-gantt-secondary:disabled,
+.btn-gantt-success:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.gantt-msg-banner {
+  padding: 12px 18px;
+  border-radius: var(--radius-md, 8px);
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.msg-success {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.msg-error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.gantt-empty-card {
+  background: var(--color-surface, #ffffff);
+  border: 1px dashed var(--color-border, #cbd5e1);
+  border-radius: var(--radius-md, 8px);
+  padding: 48px 24px;
+  text-align: center;
+  max-width: 640px;
+  margin: 32px auto;
+}
+
+.gantt-empty-card h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text, #0f172a);
+  margin: 0 0 8px 0;
+}
+
+.gantt-empty-card p {
+  font-size: 14px;
+  color: var(--color-text-secondary, #64748b);
+  line-height: 1.5;
+  margin: 0 0 20px 0;
+}
+
+.btn-gantt-primary {
+  background: var(--color-primary, #2563eb);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-md, 8px);
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.btn-gantt-primary:hover:not(:disabled) {
+  background: #1d4ed8;
+}
+
+.btn-gantt-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   GRID TABLE - WIDE LAYOUT
+   ========================================================================== */
+
+.gantt-grid {
+  width: 100%;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-md, 8px);
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.gantt-head {
+  display: grid;
+  grid-template-columns: 360px 100px 110px 1fr 300px;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
+  padding: 12px 20px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-text-secondary, #64748b);
+  letter-spacing: 0.04em;
+  align-items: center;
+}
+
+.gantt-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.gantt-parent-row {
+  display: grid;
+  grid-template-columns: 360px 100px 110px 1fr 300px;
+  background: #f1f5f9;
+  padding: 12px 20px;
+  align-items: center;
+  border-bottom: 1px solid #e2e8f0;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--color-text, #0f172a);
+  transition: background-color 0.15s ease;
+}
+
+.gantt-parent-row:hover {
+  background: #e2e8f0;
+}
+
+.gantt-parent-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gantt-toggle {
+  font-size: 11px;
+  color: #64748b;
+  display: inline-block;
+  width: 14px;
+}
+
+.gantt-child-row {
+  display: grid;
+  grid-template-columns: 360px 100px 110px 1fr 300px;
+  padding: 12px 20px;
+  align-items: center;
+  border-bottom: 1px solid #f1f5f9;
+  background: #ffffff;
+  transition: background-color 0.15s ease;
+}
+
+.gantt-child-row:hover {
+  background: #f8fafc;
+}
+
+.gantt-child-row-critical {
+  border-left: 3px solid #dc2626;
+}
+
+.gantt-child-title {
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.substage-name-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text, #1e293b);
+  line-height: 1.4;
+}
+
+.substage-risk-alert {
+  font-size: 11px;
+  color: #b45309;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.gantt-status-badge {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: var(--radius-md, 6px);
+  background: #f1f5f9;
+  color: #64748b;
+  border: 1px solid #cbd5e1;
+}
+
+.gantt-status-active {
+  background: #eff6ff;
+  color: #1d4ed8;
+  border-color: #bfdbfe;
+}
+
+.duration-ctrl {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.duration-num-input {
+  width: 52px;
+  padding: 5px 6px;
+  border: 1px solid var(--color-border, #cbd5e1);
+  border-radius: var(--radius-md, 6px);
+  font-size: 13px;
+  text-align: center;
+  color: var(--color-text, #0f172a);
+}
+
+.duration-num-input:focus {
+  outline: none;
+  border-color: var(--color-primary, #2563eb);
+}
+
+.unit-txt {
+  font-size: 12px;
+  color: var(--color-text-secondary, #64748b);
+}
+
+/* ==========================================================================
+   EQUIPMENT SECTION
+   ========================================================================== */
+
+.eq-chip-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.eq-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: var(--radius-md, 6px);
+  padding: 3px 8px;
+  font-size: 12px;
+  color: #334155;
+}
+
+.eq-chip-required {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.eq-chip-allowed {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #15803d;
+}
+
+.eq-chip-label {
+  font-weight: 500;
+}
+
+.eq-btn {
+  background: #e2e8f0;
+  border: none;
+  border-radius: 3px;
+  width: 18px;
+  height: 18px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1e293b;
+  transition: background-color 0.15s ease;
+}
+
+.eq-btn:hover {
+  background: #cbd5e1;
+}
+
+.eq-count {
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.eq-add-sel {
+  border: 1px dashed #94a3b8;
+  border-radius: var(--radius-md, 6px);
+  padding: 3px 8px;
+  font-size: 12px;
+  background: #ffffff;
+  color: #475569;
+  cursor: pointer;
+  outline: none;
+}
+
+.eq-add-sel:hover {
+  border-color: var(--color-primary, #2563eb);
+  color: var(--color-primary, #2563eb);
+}
+
+/* ==========================================================================
+   GANTT TIMELINE ENGINE (СТРОГИЕ ПРЯМОУГОЛЬНИКИ БЕЗ СКРУГЛЕНИЙ)
+   ========================================================================== */
+
+.timeline-cell {
+  position: relative;
+  width: 100%;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+}
+
+.gantt-timeline-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #f8fafc;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 0;
+  background-image: repeating-linear-gradient(
+    to right,
+    transparent,
+    transparent calc(25% - 1px),
+    rgba(226, 232, 240, 0.8) calc(25% - 1px),
+    rgba(226, 232, 240, 0.8) 25%
+  );
+  pointer-events: none;
+}
+
+.gantt-svg-track {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: visible;
+  z-index: 1;
+}
+
+/* Прямоугольный сводный бар этапа */
+.gantt-rect-parent {
+  fill: #334155;
+  stroke: #1e293b;
+  stroke-width: 0.5px;
+}
+
+/* Прямоугольный бар подэтапа */
+.gantt-rect-child {
+  fill: #2563eb;
+  stroke: #1d4ed8;
+  stroke-width: 0.5px;
+  transition: x 0.2s ease, width 0.2s ease;
+}
+
+.gantt-rect-child:hover {
+  fill: #1d4ed8;
+}
+
+/* Прямоугольный бар критического пути */
+.gantt-rect-critical {
+  fill: #dc2626;
+  stroke: #b91c1c;
+  stroke-width: 0.5px;
+  transition: x 0.2s ease, width 0.2s ease;
+}
+
+.gantt-rect-critical:hover {
+  fill: #b91c1c;
+}

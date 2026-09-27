@@ -1,0 +1,373 @@
+.engineer-console-root {
+  width: 100%;
+  max-width: 1920px;
+  margin: 0 auto;
+  padding: 16px 24px 36px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.engineer-top-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ==========================================================================
+   СВЕТОФОР И СПЕЦСТАТУСЫ ОБЪЕКТА
+   ========================================================================== */
+
+.console-summary-card {
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-md, 8px);
+  padding: 18px 24px;
+  display: grid;
+  grid-template-columns: 1.5fr 1fr 1fr 1fr 1.2fr;
+  gap: 16px;
+  align-items: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.console-obj-title h2 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text, #0f172a);
+  margin: 0 0 6px 0;
+}
+
+.status-badge-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.traffic-light-badge {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 4px;
+  letter-spacing: 0.04em;
+}
+
+.traffic-light-badge.green {
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.traffic-light-badge.yellow {
+  background: #fefce8;
+  color: #ca8a04;
+  border: 1px solid #fef08a;
+}
+
+.traffic-light-badge.red {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+/* Специальные статусы */
+.special-mode-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 4px;
+}
+
+.special-mode-badge.purple {
+  background: #f5f3ff;
+  color: #7c3aed;
+  border: 1px solid #ddd6fe;
+}
+
+.special-mode-badge.orange {
+  background: #fff7ed;
+  color: #ea580c;
+  border: 1px solid #fed7aa;
+}
+
+.console-stat-box {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.console-stat-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-text-secondary, #64748b);
+  letter-spacing: 0.03em;
+}
+
+.console-stat-val {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-text, #0f172a);
+}
+
+.console-stat-sub {
+  font-size: 12px;
+  color: var(--color-text-secondary, #64748b);
+}
+
+.console-eq-row {
+  display: flex;
+  gap: 12px;
+}
+
+.eq-unit {
+  display: flex;
+  flex-direction: column;
+}
+
+.eq-unit-val {
+  font-size: 18px;
+  font-weight: 700;
+  color: #2563eb;
+}
+
+.eq-unit-val.idle {
+  color: #dc2626;
+}
+
+.eq-unit-lbl {
+  font-size: 11px;
+  color: var(--color-text-secondary, #64748b);
+}
+
+/* ==========================================================================
+   БЛОКИ ДЕЙСТВИЙ ИНЖЕНЕРА: АЛЕРТ, СПЕЦСТАТУС И СДВИГ
+   ========================================================================== */
+
+.console-workflow-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.console-card {
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-md, 8px);
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.console-card.alert-active {
+  border-color: #fecaca;
+  border-left: 5px solid #dc2626;
+}
+
+.console-card.purple-active {
+  border-color: #ddd6fe;
+  border-left: 5px solid #7c3aed;
+}
+
+.console-card.orange-active {
+  border-color: #fed7aa;
+  border-left: 5px solid #ea580c;
+}
+
+.console-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--color-border, #f1f5f9);
+  padding-bottom: 10px;
+}
+
+.console-card-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text, #0f172a);
+}
+
+.console-card-desc {
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* 3 сценария решения при красном алерте */
+.incident-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.incident-btn-option {
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 6px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: all 0.15s ease;
+}
+
+.incident-btn-option.opt-purple {
+  background: #f5f3ff;
+  border-color: #ddd6fe;
+  color: #6d28d9;
+}
+
+.incident-btn-option.opt-purple:hover {
+  background: #ede9fe;
+}
+
+.incident-btn-option.opt-orange {
+  background: #fff7ed;
+  border-color: #ffedd5;
+  color: #c2410c;
+}
+
+.incident-btn-option.opt-orange:hover {
+  background: #ffedd5;
+}
+
+.incident-btn-option.opt-green {
+  background: #f0fdf4;
+  border-color: #dcfce7;
+  color: #15803d;
+}
+
+.incident-btn-option.opt-green:hover {
+  background: #dcfce7;
+}
+
+.opt-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.opt-desc {
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.action-trigger-btn {
+  background: #2563eb;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: background-color 0.15s ease;
+}
+
+.action-trigger-btn:hover {
+  background: #1d4ed8;
+}
+
+.action-trigger-btn.purple {
+  background: #7c3aed;
+}
+
+.action-trigger-btn.purple:hover {
+  background: #6d28d9;
+}
+
+.action-trigger-btn.orange {
+  background: #ea580c;
+}
+
+.action-trigger-btn.orange:hover {
+  background: #c2410c;
+}
+
+/* ==========================================================================
+   ШТРАФНОЙ ОТЧЕТ (ORANGE REPORT FORM)
+   ========================================================================== */
+
+.orange-report-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  background: #f8fafc;
+  padding: 14px;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+}
+
+.report-input-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.report-input-row label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.report-input-row input,
+.report-input-row select {
+  padding: 8px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+  background: #fff;
+}
+
+.report-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1e293b;
+  cursor: pointer;
+}
+
+/* ==========================================================================
+   ТАБЛИЦА ГАНТА (ТОЛЬКО ПРОСМОТР ДЛЯ ИНЖЕНЕРА)
+   ========================================================================== */
+
+.console-gantt-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.console-gantt-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text, #0f172a);
+  margin: 0;
+}
+
+@media (max-width: 1200px) {
+  .console-summary-card {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .console-workflow-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 600px) {
+  .console-summary-card {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,251 +1,412 @@
-import React, { useCallback, useEffect, useState } from "react";
-
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useAuthFetch } from "../../hooks/useAuthFetch";
-import { getUsers, User } from "../../api/apiAdmin";
+import {
+  updateUserRoleByEmail,
+  getProjects,
+  assignUserToProject,
+  getProjectAssignments,
+  removeUserFromProject,
+  ProjectListItem,
+  ProjectAssignment,
+  User,
+} from "../../api/apiAdmin";
 
-const ITEMS_PER_PAGE = 6;
+interface RoleManagementProps {
+  refreshTrigger?: number;
+}
 
-const RoleManagement = () => {
+const STORAGE_USERS_KEY = "admin_cached_known_users";
+
+const RoleManagement: React.FC<RoleManagementProps> = ({ refreshTrigger = 0 }) => {
   const authFetch = useAuthFetch();
 
-  const [users, setUsers] = useState<User[]>([]);
-
-  const [currentPage, setCurrentPage] = useState(1);
-
-  const [isLoading, setIsLoading] = useState(false);
-
+  const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [errorMessage, setErrorMessage] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
 
-  const loadUsers = useCallback(
-    async (page: number) => {
-      setIsLoading(true);
-      setErrorMessage("");
+  // Форма 1: смена роли по Email
+  const [targetEmail, setTargetEmail] = useState("");
+  const [selectedRole, setSelectedRole] = useState("foreman");
+  const [isUpdatingRole, setIsUpdatingRole] = useState(false);
 
+  // Реестр пользователей (сохраняется в localStorage между перезагрузками страницы)
+  const [knownUsers, setKnownUsers] = useState<User[]>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_USERS_KEY);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const saveUsers = (updater: (prev: User[]) => User[]) => {
+    setKnownUsers((prev) => {
+      const next = updater(prev);
       try {
-        const offset = (page - 1) * ITEMS_PER_PAGE;
+        localStorage.setItem(STORAGE_USERS_KEY, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
 
-        const result = await getUsers(authFetch, {
-          limit: ITEMS_PER_PAGE,
-          offset,
-        });
+  // Форма 2: привязка к ОКС
+  const [userInputValue, setUserInputValue] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
-        setUsers(result);
-        setCurrentPage(page);
-      } catch (error) {
-        if (error instanceof Error) {
-          setErrorMessage(error.message);
-        } else {
-          setErrorMessage("Не удалось загрузить пользователей");
-        }
-      } finally {
-        setIsLoading(false);
-      }
-    },
-    [authFetch],
-  );
+  const [assignProjectId, setAssignProjectId] = useState("");
+  const [assignRoleInProject, setAssignRoleInProject] = useState("foreman");
+  const [projectSearch, setProjectSearch] = useState("");
+  const [currentAssignments, setCurrentAssignments] = useState<ProjectAssignment[]>([]);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [isFindingByEmail, setIsFindingByEmail] = useState(false);
 
   useEffect(() => {
-    loadUsers(1);
-  }, [loadUsers]);
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
-  const handlePageChange = (page: number) => {
-    if (page < 1) {
+  useEffect(() => {
+    getProjects(authFetch, { limit: 100 })
+      .then((data) => {
+        setProjects(data);
+        if (data.length > 0 && !assignProjectId) {
+          setAssignProjectId(data[0].id);
+        }
+      })
+      .catch(() => {});
+  }, [refreshTrigger, authFetch, assignProjectId]);
+
+  useEffect(() => {
+    if (!assignProjectId) return;
+    getProjectAssignments(authFetch, assignProjectId)
+      .then((assignments) => setCurrentAssignments(assignments || []))
+      .catch(() => setCurrentAssignments([]));
+  }, [assignProjectId, authFetch]);
+
+  const filteredProjects = useMemo(() => {
+    if (!projectSearch.trim()) return projects;
+    const q = projectSearch.toLowerCase();
+    return projects.filter(
+      (p) =>
+        p.name.toLowerCase().includes(q) ||
+        (p.address && p.address.toLowerCase().includes(q))
+    );
+  }, [projects, projectSearch]);
+
+  const filteredUsers = useMemo(() => {
+    if (!userInputValue.trim()) return knownUsers;
+    const query = userInputValue.toLowerCase();
+    return knownUsers.filter(
+      (u) =>
+        u.email.toLowerCase().includes(query) ||
+        u.id.toLowerCase().includes(query) ||
+        (u.first_name && u.first_name.toLowerCase().includes(query)) ||
+        (u.last_name && u.last_name.toLowerCase().includes(query))
+    );
+  }, [knownUsers, userInputValue]);
+
+  const handleRoleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!targetEmail.trim()) return;
+
+    setIsUpdatingRole(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+    try {
+      const updatedUser = await updateUserRoleByEmail(authFetch, targetEmail.trim(), [selectedRole]);
+      setSuccessMessage(
+        `Роль пользователя ${targetEmail} успешно сохранена (${selectedRole}). ID: ${updatedUser.id}`
+      );
+
+      saveUsers((prev) => {
+        const filtered = prev.filter((u) => u.id !== updatedUser.id);
+        return [updatedUser, ...filtered];
+      });
+
+      setTargetEmail("");
+    } catch (err: any) {
+      setErrorMessage(err.message || "Ошибка обновления роли");
+    } finally {
+      setIsUpdatingRole(false);
+    }
+  };
+
+  // Поиск ID пользователя по Email, если страницу обновили
+  const handleFindByEmail = async () => {
+    const emailToFind = userInputValue.trim();
+    if (!emailToFind || !emailToFind.includes("@")) {
+      setErrorMessage("Введите корректный Email сотрудника для поиска");
       return;
     }
 
-    loadUsers(page);
+    setIsFindingByEmail(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+    try {
+      const foundUser = await updateUserRoleByEmail(authFetch, emailToFind, [assignRoleInProject]);
+      saveUsers((prev) => {
+        const filtered = prev.filter((u) => u.id !== foundUser.id);
+        return [foundUser, ...filtered];
+      });
+
+      setSelectedUserId(foundUser.id);
+      setUserInputValue(`${foundUser.email} (${foundUser.id.slice(0, 8)}...)`);
+      setSuccessMessage(`Сотрудник найден: ${foundUser.email} (ID: ${foundUser.id})`);
+    } catch (err: any) {
+      setErrorMessage(err.message || "Пользователь с таким Email не найден на сервере");
+    } finally {
+      setIsFindingByEmail(false);
+    }
   };
 
-  const handleEdit = (user: User) => {
-    console.log("Редактирование пользователя:", user);
+  const handleSelectUser = (user: User) => {
+    setSelectedUserId(user.id);
+    setUserInputValue(`${user.email} (${user.id.slice(0, 8)}...)`);
+    setIsDropdownOpen(false);
+  };
+
+  const handleAssignSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const finalUserId = selectedUserId || userInputValue.trim();
+
+    if (!finalUserId || !assignProjectId) return;
+
+    setIsAssigning(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+    try {
+      const newAssignment = await assignUserToProject(
+        authFetch,
+        assignProjectId,
+        finalUserId,
+        assignRoleInProject
+      );
+      setSuccessMessage("Сотрудник успешно привязан к объекту");
+      setCurrentAssignments((prev) => [...prev, newAssignment]);
+      setUserInputValue("");
+      setSelectedUserId("");
+    } catch (err: any) {
+      setErrorMessage(err.message || "Ошибка привязки к объекту");
+    } finally {
+      setIsAssigning(false);
+    }
+  };
+
+  const handleRemoveAssignment = async (assignmentId: string) => {
+    if (!assignProjectId) return;
+    try {
+      setErrorMessage("");
+      setSuccessMessage("");
+      await removeUserFromProject(authFetch, assignProjectId, assignmentId);
+      setSuccessMessage("Сотрудник успешно отозван с объекта");
+      setCurrentAssignments((prev) => prev.filter((a) => a.id !== assignmentId));
+    } catch (err: any) {
+      setErrorMessage(err.message || "Ошибка отзыва сотрудника");
+    }
   };
 
   return (
     <section className="admin-container">
       <div className="admin-card-header">
-        <h2>Управление ролями</h2>
-
-        <p>Управление ролями пользователей и привязанными ОКС.</p>
+        <h2>Управление ролями и объектами</h2>
+        <p>Выдача глобальных ролей и распределение команды по стройплощадкам.</p>
       </div>
 
-      {errorMessage && (
-        <div className="admin-error-message">{errorMessage}</div>
-      )}
+      {successMessage && <div className="admin-success-message">{successMessage}</div>}
+      {errorMessage && <div className="admin-error-message">{errorMessage}</div>}
 
-      <div className="roles-table-wrapper">
-        <table className="roles-table">
-          <thead>
-            <tr>
-              <th>ID пользователя</th>
-              <th>ФИО / должность</th>
-              <th>Текущая роль</th>
-              <th>Привязанные ОКС</th>
-              <th>Управление</th>
-            </tr>
-          </thead>
+      <div className="role-management-flow">
+        {/* Форма 1: смена роли по Email */}
+        <form onSubmit={handleRoleSubmit} className="admin-form">
+          <div className="subform-header">
+            <h3>1. Выдача системной роли по Email</h3>
+            <p>Укажите Email сотрудника для изменения системных прав</p>
+          </div>
 
-          <tbody>
-            {isLoading ? (
-              <tr>
-                <td colSpan={5} className="roles-table-loading">
-                  Загрузка пользователей...
-                </td>
-              </tr>
-            ) : users.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="roles-table-empty">
-                  Пользователи не найдены
-                </td>
-              </tr>
-            ) : (
-              users.map((user) => {
-                const role = user.roles[0];
+          <div className="role-change-row">
+            <div className="form-field form-field-email">
+              <label>Email пользователя *</label>
+              <input
+                type="email"
+                placeholder="foreman@stroi.mos.ru"
+                value={targetEmail}
+                onChange={(e) => setTargetEmail(e.target.value)}
+                required
+              />
+            </div>
 
-                return (
-                  <tr key={user.id}>
-                    <td>
-                      <span className="user-id">{user.id}</span>
-                    </td>
+            <div className="form-field form-field-role">
+              <label>Назначаемая роль *</label>
+              <select
+                value={selectedRole}
+                onChange={(e) => setSelectedRole(e.target.value)}
+              >
+                <option value="foreman">Прораб</option>
+                <option value="engineer">Инженер</option>
+                <option value="admin">Департамент</option>
+              </select>
+            </div>
 
-                    <td>
-                      <div className="user-info">
-                        <span className="user-name">
-                          {user.first_name} {user.last_name}
-                        </span>
+            <button
+              type="submit"
+              className="admin-primary-button btn-role-submit"
+              disabled={isUpdatingRole || !targetEmail.trim()}
+            >
+              {isUpdatingRole ? "Сохранение..." : "Назначить роль"}
+            </button>
+          </div>
+        </form>
 
-                        <span className="user-position">{user.email}</span>
+        <hr className="role-section-divider" />
+
+        {/* Форма 2: привязка к ОКС */}
+        <form onSubmit={handleAssignSubmit} className="admin-form">
+          <div className="subform-header">
+            <h3>2. Назначение сотрудника на объект</h3>
+            <p>Выберите сотрудника из списка, введите Email для поиска или вставьте UUID</p>
+          </div>
+
+          <div className="assign-grid-fields">
+            <div className="form-field" ref={dropdownRef}>
+              <label>Сотрудник (Email или UUID) *</label>
+              <div className="autocomplete-field-wrapper">
+                <input
+                  type="text"
+                  placeholder="Нажмите для выбора или введите Email..."
+                  value={userInputValue}
+                  onFocus={() => setIsDropdownOpen(true)}
+                  onChange={(e) => {
+                    setUserInputValue(e.target.value);
+                    setSelectedUserId("");
+                    setIsDropdownOpen(true);
+                  }}
+                  required
+                />
+
+                {isDropdownOpen && (
+                  <div className="autocomplete-dropdown">
+                    {filteredUsers.length === 0 ? (
+                      <div className="autocomplete-empty">
+                        {knownUsers.length === 0
+                          ? "Введите Email сотрудника и нажмите «Найти по Email»"
+                          : "Сотрудники не найдены"}
                       </div>
-                    </td>
+                    ) : (
+                      filteredUsers.map((u) => (
+                        <div
+                          key={u.id}
+                          className="autocomplete-item"
+                          onClick={() => handleSelectUser(u)}
+                        >
+                          <div className="autocomplete-item-header">
+                            <span className="autocomplete-user-email">{u.email}</span>
+                            {(u.first_name || u.last_name) && (
+                              <span className="autocomplete-user-name">
+                                {u.first_name} {u.last_name}
+                              </span>
+                            )}
+                          </div>
+                          <span className="autocomplete-user-id">ID: {u.id}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
 
-                    <td>
-                      <span
-                        className={`role-badge ${
-                          role === "engineer"
-                            ? "role-engineer"
-                            : role === "foreman"
-                              ? "role-foreman"
-                              : "role-department"
-                        }`}
-                      >
-                        {role === "engineer"
-                          ? "Инженер"
-                          : role === "foreman"
-                            ? "Прораб"
-                            : role === "admin"
-                              ? "Департамент"
-                              : "Пользователь"}
-                      </span>
-                    </td>
+              {userInputValue.includes("@") && !selectedUserId && (
+                <button
+                  type="button"
+                  className="role-edit-button"
+                  style={{ marginTop: "6px" }}
+                  onClick={handleFindByEmail}
+                  disabled={isFindingByEmail}
+                >
+                  {isFindingByEmail ? "Поиск..." : "🔍 Найти ID по введенному Email"}
+                </button>
+              )}
+            </div>
 
-                    <td>
-                      <div className="oks-list">
-                        <span className="oks-item">—</span>
-                      </div>
-                    </td>
+            <div className="form-field">
+              <label>Роль на данном объекте *</label>
+              <select
+                value={assignRoleInProject}
+                onChange={(e) => setAssignRoleInProject(e.target.value)}
+              >
+                <option value="foreman">Прораб объекта</option>
+                <option value="engineer">Инженер объекта</option>
+              </select>
+            </div>
+          </div>
 
-                    <td>
-                      <button
-                        type="button"
-                        className="role-edit-button"
-                        onClick={() => handleEdit(user)}
-                      >
-                        Редактировать
-                      </button>
-                    </td>
-                  </tr>
-                );
-              })
-            )}
-          </tbody>
-        </table>
+          <div className="form-field">
+            <label>Фильтр ОКС</label>
+            <input
+              type="text"
+              placeholder="Поиск объекта по наименованию или адресу..."
+              value={projectSearch}
+              onChange={(e) => setProjectSearch(e.target.value)}
+            />
+          </div>
 
-        <div className="roles-pagination">
-          <button
-            type="button"
-            className="pagination-button pagination-arrow"
-            onClick={() => handlePageChange(currentPage - 1)}
-            disabled={currentPage === 1 || isLoading}
-          >
-            Назад
-          </button>
+          <div className="form-field">
+            <label>Выберите объект капитального строительства *</label>
+            <select
+              value={assignProjectId}
+              onChange={(e) => setAssignProjectId(e.target.value)}
+              required
+            >
+              {filteredProjects.length === 0 ? (
+                <option value="" disabled>Объекты не найдены</option>
+              ) : (
+                filteredProjects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name} ({p.address || "Адрес не указан"})
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
 
-          <button
-            type="button"
-            className={`pagination-button ${
-              currentPage === 1 ? "pagination-active" : ""
-            }`}
-            onClick={() => handlePageChange(1)}
-            disabled={isLoading}
-          >
-            1
-          </button>
-
-          <button
-            type="button"
-            className={`pagination-button ${
-              currentPage === 2 ? "pagination-active" : ""
-            }`}
-            onClick={() => handlePageChange(2)}
-            disabled={isLoading}
-          >
-            2
-          </button>
-
-          <button
-            type="button"
-            className={`pagination-button ${
-              currentPage === 3 ? "pagination-active" : ""
-            }`}
-            onClick={() => handlePageChange(3)}
-            disabled={isLoading}
-          >
-            3
-          </button>
-
-          <span className="pagination-dots">...</span>
-
-          <button
-            type="button"
-            className={`pagination-button ${
-              currentPage === 8 ? "pagination-active" : ""
-            }`}
-            onClick={() => handlePageChange(8)}
-            disabled={isLoading}
-          >
-            8
-          </button>
-
-          <button
-            type="button"
-            className={`pagination-button ${
-              currentPage === 9 ? "pagination-active" : ""
-            }`}
-            onClick={() => handlePageChange(9)}
-            disabled={isLoading}
-          >
-            9
-          </button>
+          {assignProjectId && currentAssignments.length > 0 && (
+            <div className="assignments-preview-box">
+              <p className="assignments-preview-title">
+                Назначены на этот объект ({currentAssignments.length}):
+              </p>
+              <div className="assignments-preview-list">
+                {currentAssignments.map((a) => (
+                  <span key={a.id} className="assignment-item-tag">
+                    <strong>{a.role_in_project}:</strong>
+                    <code>{a.user_id.slice(0, 8)}...</code>
+                    <button
+                      type="button"
+                      className="btn-unassign-chip"
+                      title="Отозвать сотрудника с объекта"
+                      onClick={() => handleRemoveAssignment(a.id)}
+                    >
+                      ✕
+                    </button>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           <button
-            type="button"
-            className={`pagination-button ${
-              currentPage === 10 ? "pagination-active" : ""
-            }`}
-            onClick={() => handlePageChange(10)}
-            disabled={isLoading}
+            type="submit"
+            className="admin-primary-button"
+            disabled={isAssigning || !userInputValue.trim() || !assignProjectId}
           >
-            10
+            {isAssigning ? "Привязка..." : "Привязать сотрудника к объекту"}
           </button>
-
-          <button
-            type="button"
-            className="pagination-button pagination-arrow"
-            onClick={() => handlePageChange(currentPage + 1)}
-            disabled={isLoading}
-          >
-            Вперед
-          </button>
-        </div>
+        </form>
       </div>
     </section>
   );

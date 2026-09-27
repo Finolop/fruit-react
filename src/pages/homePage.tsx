@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
 
-import Header from '../components/auth/Header';
+import Header from '../components/Header';
 
 const HomePage = () => {
 

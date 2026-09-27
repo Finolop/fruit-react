@@ -1,0 +1,236 @@
+.frames-gallery-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-md, 8px);
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.frames-gallery-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.frames-gallery-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text, #0f172a);
+  margin: 0;
+}
+
+.frames-gallery-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.upload-frame-btn-label {
+  background: var(--color-primary, #2563eb);
+  color: #ffffff;
+  padding: 8px 14px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: background-color 0.15s ease;
+}
+
+.upload-frame-btn-label:hover {
+  background: #1d4ed8;
+}
+
+.upload-frame-input-hidden {
+  display: none;
+}
+
+/* Сетка снимков */
+.frames-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+.frame-card {
+  position: relative;
+  background: #f8fafc;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: 6px;
+  overflow: hidden;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.frame-card:hover {
+  border-color: #94a3b8;
+  transform: translateY(-2px);
+}
+
+.frame-card.evidence-marked {
+  border: 2px solid #dc2626;
+}
+
+.frame-img-box {
+  width: 100%;
+  height: 140px;
+  background: #0f172a;
+  position: relative;
+  overflow: hidden;
+}
+
+.frame-img-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.frame-card-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(15, 23, 42, 0.75);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.frame-evidence-pill {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.frame-card-info {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.frame-date-txt {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text, #0f172a);
+}
+
+.frame-detected-txt {
+  font-size: 11px;
+  color: var(--color-text-secondary, #64748b);
+}
+
+/* ==========================================================================
+   МОДАЛКА ПРОСМОТРА КАДРА С РАМКАМИ ДЕТЕКЦИИ (BBOX)
+   ========================================================================== */
+
+.frame-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2500;
+  backdrop-filter: blur(2px);
+}
+
+.frame-modal-card {
+  background: #ffffff;
+  border-radius: var(--radius-md, 8px);
+  width: 100%;
+  max-width: 860px;
+  max-height: 92vh;
+  overflow-y: auto;
+  padding: 24px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.frame-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.frame-modal-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.frame-view-stage {
+  position: relative;
+  width: 100%;
+  max-height: 520px;
+  background: #000000;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.frame-view-img {
+  max-width: 100%;
+  max-height: 520px;
+  display: block;
+}
+
+.frame-modal-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border, #e2e8f0);
+}
+
+.btn-toggle-evidence {
+  padding: 9px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+}
+
+.btn-toggle-evidence.is-evidence {
+  background: #fee2e2;
+  color: #b91c1c;
+  border-color: #fca5a5;
+}
+
+.btn-toggle-evidence.not-evidence {
+  background: #f8fafc;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+
+.btn-toggle-evidence.not-evidence:hover {
+  background: #fee2e2;
+  color: #b91c1c;
+}

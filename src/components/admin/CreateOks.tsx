@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from "react";
-
 import { useAuthFetch } from "../../hooks/useAuthFetch";
 import {
   createProject,
@@ -7,7 +6,11 @@ import {
   ProjectType,
 } from "../../api/apiAdmin";
 
-const CreateOks = () => {
+interface CreateOksProps {
+  onSuccess?: () => void;
+}
+
+const CreateOks: React.FC<CreateOksProps> = ({ onSuccess }) => {
   const authFetch = useAuthFetch();
 
   const [name, setName] = useState("");
@@ -29,8 +32,13 @@ const CreateOks = () => {
 
       try {
         const result = await getProjectTypes(authFetch);
+        const activeTypes = result.filter((type) => type.is_active);
+        setProjectTypes(activeTypes);
 
-        setProjectTypes(result.filter((type) => type.is_active));
+        // Если типы успешно пришли, выбираем первый по умолчанию
+        if (activeTypes.length > 0) {
+          setTypeId(activeTypes[0].id);
+        }
       } catch (error) {
         if (error instanceof Error) {
           setErrorMessage(error.message);
@@ -48,22 +56,35 @@ const CreateOks = () => {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
+    if (!name.trim() || !address.trim() || !typeId) {
+      setErrorMessage("Пожалуйста, заполните все обязательные поля");
+      return;
+    }
+
     setSuccessMessage("");
     setErrorMessage("");
     setIsLoading(true);
 
     try {
       await createProject(authFetch, {
-        name,
-        address,
+        name: name.trim(),
+        address: address.trim(),
         type_id: typeId,
       });
 
       setSuccessMessage("ОКС успешно создан");
 
+      // Сброс полей формы
       setName("");
       setAddress("");
-      setTypeId("");
+      if (projectTypes.length > 0) {
+        setTypeId(projectTypes[0].id);
+      }
+
+      // Вызов обратного вызова для мгновенного обновления реестра ОКС
+      if (onSuccess) {
+        onSuccess();
+      }
     } catch (error) {
       if (error instanceof Error) {
         setErrorMessage(error.message);
@@ -79,14 +100,12 @@ const CreateOks = () => {
     <section className="admin-container">
       <div className="admin-card-header">
         <h1>Создание объекта</h1>
-
-        <p>Создайте объект капитального строительства.</p>
+        <p>Создайте объект капитального строительства (ОКС).</p>
       </div>
 
       <form className="admin-form" onSubmit={handleSubmit}>
         <div className="form-field">
-          <label htmlFor="oks-name">Наименование объекта</label>
-
+          <label htmlFor="oks-name">Наименование объекта *</label>
           <input
             id="oks-name"
             type="text"
@@ -94,12 +113,12 @@ const CreateOks = () => {
             onChange={(event) => setName(event.target.value)}
             placeholder="Введите наименование объекта"
             required
+            disabled={isLoading}
           />
         </div>
 
         <div className="form-field">
-          <label htmlFor="oks-address">Адрес объекта</label>
-
+          <label htmlFor="oks-address">Адрес объекта *</label>
           <input
             id="oks-address"
             type="text"
@@ -107,17 +126,17 @@ const CreateOks = () => {
             onChange={(event) => setAddress(event.target.value)}
             placeholder="Введите адрес объекта"
             required
+            disabled={isLoading}
           />
         </div>
 
         <div className="form-field">
-          <label htmlFor="oks-type">Тип объекта</label>
-
+          <label htmlFor="oks-type">Тип объекта капитального строительства *</label>
           <select
             id="oks-type"
             value={typeId}
             onChange={(event) => setTypeId(event.target.value)}
-            disabled={isLoadingTypes}
+            disabled={isLoadingTypes || isLoading}
             required
           >
             <option value="">
@@ -126,7 +145,7 @@ const CreateOks = () => {
 
             {projectTypes.map((type) => (
               <option key={type.id} value={type.id}>
-                {type.name}
+                {type.name} ({type.code})
               </option>
             ))}
           </select>
