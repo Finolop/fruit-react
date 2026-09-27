@@ -1,24 +1,27 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import {
   ProjectData,
   EquipmentType,
   ScheduleItem,
 } from "../../pages/foreman/ForemanPage";
-import { getAuthHeaders } from "../../api/api";
+import { fetchWithAuth } from "../../api/api";
 import { monitoringApi } from "../../api/monitoringApi";
 import { CameraManagerModal } from "./CameraManagerModal";
+import { EarlyCompleteModal } from "../engineer/EarlyCompleteModal";
 import "../../styles/ForemanGantt.css";
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
-const EQUIPMENT_NAMES_MAP: Record<string, string> = {
-  EXCAVATOR: "Экскаватор",
-  MOBILE_CRANE: "Автокран",
-  DUMP_TRUCK: "Самосвал",
-  BULLDOZER: "Бульдозер",
-  CONCRETE_MIXER: "Автобетоносмеситель",
-  ROAD_ROLLER: "Каток",
-  FLATBED_TRUCK: "Бортовой грузовик",
+const FALLBACK_EQUIPMENT_NAMES: Record<string, string> = {
+  bulldozer: "Бульдозер",
+  dump_truck: "Самосвал",
+  excavator: "Экскаватор",
+  mobile_crane: "Автокран",
+  truck: "Бортовой грузовик",
+  concrete_mixer: "Автобетоносмеситель",
+  road_roller: "Каток",
+  drilling_rig: "Буровая установка",
+  pump_truck: "Автобетононасос",
 };
 
 interface ForemanObjectManagerProps {
@@ -27,10 +30,11 @@ interface ForemanObjectManagerProps {
   equipmentTypes: EquipmentType[];
   reloadSchedules: () => Promise<void>;
   hideTopBar?: boolean;
+  isEngineer?: boolean;
 }
 
 interface EquipmentRequirementItem {
-  equipment_type_id: string;
+  typeCode: string;
   name: string;
   count: number;
   isRequired: boolean;
@@ -43,9 +47,7 @@ interface GanttSubStage {
   durationDays: number;
   status: string;
   isCriticalPath: boolean;
-  riskAlert: string;
   equipment: EquipmentRequirementItem[];
-  allowedEquipmentIds: string[];
 }
 
 interface GanttMajorStage {
@@ -61,158 +63,134 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
   equipmentTypes,
   reloadSchedules,
   hideTopBar = false,
+  isEngineer = false,
 }) => {
   const [stages, setStages] = useState<GanttMajorStage[]>([]);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const [isProcessing, setIsProcessing] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+  const [isLocallyConfirmed, setIsLocallyConfirmed] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
 
+  const [earlyCompleteTarget, setEarlyCompleteTarget] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
+
+  const isLocked =
+    isLocallyConfirmed ||
+    project.status === "ACTIVE" ||
+    project.schedule_status === "ACTIVE" ||
+    hideTopBar;
+
   const cleanTitle = (val: string): string =>
-    (val || "").replace(/^\d+(\.\d+)*\.\s*/, "").trim();
+    (val || "").replace(/^\d+(\.\d+)*[-.\s]+/, "").trim();
 
-  const resolveEquipmentName = (
-    idOrCode: string,
-    types: EquipmentType[],
-  ): string => {
-    if (!idOrCode) return "Техника";
+  const resolveEquipmentInfo = useCallback(
+    (rawKey: string): { typeCode: string; name: string } => {
+      if (!rawKey) return { typeCode: "unknown", name: "Техника" };
 
-    const matched = types.find(
-      (t) =>
-        t.id === idOrCode ||
-        (t.code && t.code.toUpperCase() === idOrCode.toUpperCase()),
-    );
-    if (matched && matched.name) return matched.name;
+      const keyLower = rawKey.toLowerCase();
 
-    const upper = idOrCode.toUpperCase();
-    if (EQUIPMENT_NAMES_MAP[upper]) {
-      return EQUIPMENT_NAMES_MAP[upper];
-    }
+      const matched = equipmentTypes.find(
+        (et) =>
+          et.id === rawKey ||
+          (et.code && et.code.toLowerCase() === keyLower)
+      );
 
-    return idOrCode;
-  };
+      if (matched) {
+        const code = (matched.code || matched.id).toLowerCase();
+        const name = matched.name || FALLBACK_EQUIPMENT_NAMES[code] || code;
+        return { typeCode: code, name };
+      }
+
+      if (FALLBACK_EQUIPMENT_NAMES[keyLower]) {
+        return { typeCode: keyLower, name: FALLBACK_EQUIPMENT_NAMES[keyLower] };
+      }
+
+      return { typeCode: keyLower, name: rawKey };
+    },
+    [equipmentTypes]
+  );
 
   useEffect(() => {
-    const initData = async () => {
-      let rawStages: any[] = [];
+    const rawList = schedules || [];
+    if (rawList.length === 0) {
+      setStages([]);
+      return;
+    }
 
-      if (schedules && schedules.length > 0) {
-        rawStages = schedules;
-      } else if (project.type_id || project.id) {
-        try {
-          const query = project.type_id
-            ? `?project_type_id=${project.type_id}`
-            : "";
-          const res = await fetch(
-            `${API_URL}/api/v1/dictionaries/stage-templates${query}`,
-            { headers: getAuthHeaders() },
+    const stageMap = new Map<string, ScheduleItem[]>();
+    rawList.forEach((item) => {
+      const major = cleanTitle(item.stage_name || "Этап работ");
+      const list = stageMap.get(major) || [];
+      list.push(item);
+      stageMap.set(major, list);
+    });
+
+    let stageIdx = 1;
+    const parsed: GanttMajorStage[] = [];
+
+    stageMap.forEach((subItems, majorName) => {
+      const curStageNum = stageIdx++;
+      let subIdx = 1;
+
+      const subStages: GanttSubStage[] = subItems.map((sub: any) => {
+        let days = 7;
+        if (sub.base_start_date && sub.base_end_date) {
+          const diff = Math.round(
+            (new Date(sub.base_end_date).getTime() -
+              new Date(sub.base_start_date).getTime()) /
+              (1000 * 60 * 60 * 24)
           );
-          if (res.ok) {
-            const data = await res.json();
-            if (Array.isArray(data)) rawStages = data;
-          }
-        } catch (err) {
-          console.error("Ошибка загрузки шаблонов с бэкенда:", err);
+          days = diff > 0 ? diff : 1;
         }
-      }
 
-      if (rawStages.length === 0) {
-        setStages([]);
-        return;
-      }
+        const eqList: EquipmentRequirementItem[] = [];
+        const sourceEq = sub.equipment_requirements || [];
 
-      const stageMap = new Map<string, any[]>();
-      rawStages.forEach((item) => {
-        const majorName = cleanTitle(item.stage_name || "Этап работ");
-        const list = stageMap.get(majorName) || [];
-        list.push(item);
-        stageMap.set(majorName, list);
-      });
+        sourceEq.forEach((eq: any) => {
+          const rawKey =
+            eq.equipment_type ||
+            eq.equipment_type_id ||
+            eq.code ||
+            eq.id ||
+            "";
+          const resolved = resolveEquipmentInfo(rawKey);
 
-      let stageCounter = 1;
-      const parsedStages: GanttMajorStage[] = [];
-
-      stageMap.forEach((subItems, majorName) => {
-        const currentStageNum = stageCounter++;
-        let subCounter = 1;
-
-        const subs: GanttSubStage[] = subItems.map((sub) => {
-          const subNumStr = `${currentStageNum}.${subCounter++}`;
-          const subName = cleanTitle(
-            sub.substage_name || sub.stage_name || "Подэтап",
-          );
-
-          let days = 7;
-          if (sub.base_start_date && sub.base_end_date) {
-            const diff = Math.round(
-              (new Date(sub.base_end_date).getTime() -
-                new Date(sub.base_start_date).getTime()) /
-                (1000 * 60 * 60 * 24),
-            );
-            days = diff > 0 ? diff : 1;
-          } else if (sub.default_duration_days) {
-            days = sub.default_duration_days;
-          }
-
-          const eqList: EquipmentRequirementItem[] = [];
-          const sourceEq =
-            sub.equipment_requirements || sub.default_equipment || [];
-
-          if (Array.isArray(sourceEq)) {
-            sourceEq.forEach((eq: any) => {
-              const eqId = eq.equipment_type_id || eq.id || eq.code;
-              eqList.push({
-                equipment_type_id: eqId,
-                name: resolveEquipmentName(eqId, equipmentTypes),
-                count: eq.required_count || eq.count || 1,
-                isRequired: true,
-              });
-            });
-          }
-
-          const allowedIds: string[] = [];
-          if (Array.isArray(sub.allowed_equipment)) {
-            sub.allowed_equipment.forEach((codeOrId: string) => {
-              const found = equipmentTypes.find(
-                (e) =>
-                  e.id === codeOrId ||
-                  (e.code && e.code.toUpperCase() === codeOrId.toUpperCase()),
-              );
-              if (found) allowedIds.push(found.id);
-            });
-          }
-
-          return {
-            id: sub.id || `sub-${currentStageNum}-${subCounter}`,
-            subNumber: subNumStr,
-            name: subName,
-            durationDays: days,
-            status: sub.status || "PLANNED",
-            isCriticalPath: Boolean(sub.is_critical || sub.isCriticalPath),
-            riskAlert: sub.risk_alert || sub.riskAlert || "",
-            equipment: eqList,
-            allowedEquipmentIds: allowedIds,
-          };
+          eqList.push({
+            typeCode: resolved.typeCode,
+            name: resolved.name,
+            count: Number(eq.required_count ?? eq.count) || 1,
+            isRequired: true,
+          });
         });
 
-        parsedStages.push({
-          id: `major-${currentStageNum}`,
-          stageNumber: currentStageNum,
-          name: majorName,
-          subStages: subs,
-        });
+        return {
+          id: sub.id,
+          subNumber: `${curStageNum}.${subIdx++}`,
+          name: cleanTitle(sub.substage_name || sub.stage_name || "Подэтап"),
+          durationDays: days,
+          status: sub.status || "PLANNED",
+          isCriticalPath: Boolean(sub.is_critical || sub.is_critical_path),
+          equipment: eqList,
+        };
       });
 
-      setStages(parsedStages);
-    };
+      parsed.push({
+        id: `major-${curStageNum}`,
+        stageNumber: curStageNum,
+        name: majorName,
+        subStages,
+      });
+    });
 
-    initData();
-  }, [schedules, project.id, project.type_id, equipmentTypes]);
+    setStages(parsed);
+  }, [schedules, resolveEquipmentInfo]);
 
-  // Расчет каскада лесенки внутри каждого этапа (0% -> 100%)
   const timelineLayout = useMemo(() => {
     const subOffsets = new Map<
       string,
@@ -222,7 +200,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     stages.forEach((maj) => {
       const stageTotalDays = maj.subStages.reduce(
         (sum, s) => sum + s.durationDays,
-        0,
+        0
       );
       const validTotal = stageTotalDays > 0 ? stageTotalDays : 1;
 
@@ -230,13 +208,10 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
       maj.subStages.forEach((sub) => {
         const startPercent = (dayOffset / validTotal) * 100;
         const rawWidth = (sub.durationDays / validTotal) * 100;
-        const widthPercent = Math.max(rawWidth, 4);
-
         subOffsets.set(sub.id, {
           startPercent: Math.min(Math.max(0, startPercent), 96),
-          widthPercent,
+          widthPercent: Math.max(rawWidth, 4),
         });
-
         dayOffset += sub.durationDays;
       });
     });
@@ -248,31 +223,30 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     setCollapsed((prev) => ({ ...prev, [stageId]: !prev[stageId] }));
   };
 
-  const handleDurationChange = (
-    stageId: string,
-    subId: string,
-    days: number,
-  ) => {
-    const validDays = Math.max(1, days || 1);
+  const handleDurationChange = (stageId: string, subId: string, days: number) => {
+    if (isLocked) return;
+    const val = Math.max(1, days || 1);
     setStages((prev) =>
-      prev.map((maj) => {
-        if (maj.id !== stageId) return maj;
-        return {
-          ...maj,
-          subStages: maj.subStages.map((sub) =>
-            sub.id === subId ? { ...sub, durationDays: validDays } : sub,
-          ),
-        };
-      }),
+      prev.map((maj) =>
+        maj.id === stageId
+          ? {
+              ...maj,
+              subStages: maj.subStages.map((s) =>
+                s.id === subId ? { ...s, durationDays: val } : s
+              ),
+            }
+          : maj
+      )
     );
   };
 
   const handleEquipmentCountChange = (
     stageId: string,
     subId: string,
-    eqTypeId: string,
-    delta: number,
+    typeCode: string,
+    delta: number
   ) => {
+    if (isLocked) return;
     setStages((prev) =>
       prev.map((maj) => {
         if (maj.id !== stageId) return maj;
@@ -280,38 +254,32 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
           ...maj,
           subStages: maj.subStages.map((sub) => {
             if (sub.id !== subId) return sub;
-
-            const existingIdx = sub.equipment.findIndex(
-              (e) => e.equipment_type_id === eqTypeId,
+            const idx = sub.equipment.findIndex(
+              (e) => e.typeCode === typeCode.toLowerCase()
             );
-            if (existingIdx === -1) return sub;
+            if (idx === -1) return sub;
 
-            const current = sub.equipment[existingIdx];
-            const nextCount = current.count + delta;
-            const updatedList = [...sub.equipment];
+            const cur = sub.equipment[idx];
+            const nextCount = cur.count + delta;
+            const updated = [...sub.equipment];
 
-            if (current.isRequired && nextCount < 1) return sub;
+            if (cur.isRequired && nextCount < 1) return sub;
 
             if (nextCount <= 0) {
-              updatedList.splice(existingIdx, 1);
+              updated.splice(idx, 1);
             } else {
-              updatedList[existingIdx] = { ...current, count: nextCount };
+              updated[idx] = { ...cur, count: nextCount };
             }
-
-            return { ...sub, equipment: updatedList };
+            return { ...sub, equipment: updated };
           }),
         };
-      }),
+      })
     );
   };
 
-  const handleAddEquipment = (
-    stageId: string,
-    subId: string,
-    eqTypeId: string,
-  ) => {
-    if (!eqTypeId) return;
-    const name = resolveEquipmentName(eqTypeId, equipmentTypes);
+  const handleAddEquipment = (stageId: string, subId: string, rawKey: string) => {
+    if (isLocked || !rawKey) return;
+    const resolved = resolveEquipmentInfo(rawKey);
 
     setStages((prev) =>
       prev.map((maj) => {
@@ -320,25 +288,29 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
           ...maj,
           subStages: maj.subStages.map((sub) => {
             if (sub.id !== subId) return sub;
-            if (sub.equipment.some((e) => e.equipment_type_id === eqTypeId))
+            if (sub.equipment.some((e) => e.typeCode === resolved.typeCode)) {
               return sub;
-
-            const newItem: EquipmentRequirementItem = {
-              equipment_type_id: eqTypeId,
-              name,
-              count: 1,
-              isRequired: false,
+            }
+            return {
+              ...sub,
+              equipment: [
+                ...sub.equipment,
+                {
+                  typeCode: resolved.typeCode,
+                  name: resolved.name,
+                  count: 1,
+                  isRequired: false,
+                },
+              ],
             };
-
-            return { ...sub, equipment: [...sub.equipment, newItem] };
           }),
         };
-      }),
+      })
     );
   };
 
-  // Автогенерация графика из шаблона ТЗ
   const handleApplyTemplate = async () => {
+    if (isLocked) return;
     setIsProcessing(true);
     setStatusMessage(null);
     try {
@@ -346,22 +318,22 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
       await reloadSchedules();
       setStatusMessage({
         type: "success",
-        text: `График успешно сгенерирован по нормам ТЗ (создано этапов: ${res.created_stages_count})`,
+        text: `График сгенерирован по нормам ТЗ (создано этапов: ${res.created_stages_count})`,
       });
     } catch (err: any) {
       setStatusMessage({
         type: "error",
-        text: err.message || "Ошибка применения шаблона ТЗ",
+        text: err.message || "Ошибка генерации шаблона",
       });
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Пакетное сохранение правок Ганта (bulk-sync)
   const handleSaveBulkSync = async () => {
     setIsProcessing(true);
     setStatusMessage(null);
+
     try {
       let cursorDate = new Date();
       const flatList: any[] = [];
@@ -369,80 +341,106 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
 
       stages.forEach((maj) => {
         maj.subStages.forEach((sub) => {
-          const start = new Date(cursorDate);
-          const end = new Date(
-            start.getTime() + sub.durationDays * 24 * 60 * 60 * 1000,
+          const startDate = new Date(cursorDate);
+          const endDate = new Date(
+            startDate.getTime() + sub.durationDays * 24 * 60 * 60 * 1000
           );
-          cursorDate = end;
+          cursorDate = endDate;
 
-          flatList.push({
-            stage_name: `${maj.stageNumber}. ${maj.name}`,
-            substage_name: `${sub.subNumber}. ${sub.name}`,
+          const eqReqs = sub.equipment.map((e) => ({
+            equipment_type: e.typeCode.toLowerCase(),
+            required_count: Number(e.count) || 1,
+          }));
+
+          const itemPayload: any = {
+            stage_name: maj.name,
+            substage_name: sub.name,
             sequence_order: seq++,
-            base_start_date: start.toISOString(),
-            base_end_date: end.toISOString(),
-            equipment_requirements: sub.equipment.map((e) => ({
-              equipment_type_id: e.equipment_type_id,
-              required_count: e.count,
-            })),
-          });
+            base_start_date: startDate.toISOString(),
+            base_end_date: endDate.toISOString(),
+            status: sub.status || "PLANNED",
+            equipment_requirements: eqReqs,
+          };
+
+          if (sub.id && !sub.id.startsWith("sub-")) {
+            itemPayload.id = sub.id;
+          }
+
+          flatList.push(itemPayload);
         });
       });
 
-      const res = await fetch(
+      const res = await fetchWithAuth(
         `${API_URL}/api/v1/projects/${project.id}/schedules/bulk-sync`,
         {
           method: "PUT",
-          headers: getAuthHeaders(),
           body: JSON.stringify({ stages: flatList }),
-        },
+        }
       );
 
       if (!res.ok) {
-        const errJson = await res.json().catch(() => null);
-        throw new Error(
-          errJson?.detail ||
-            errJson?.error?.message ||
-            "Ошибка сохранения графика",
-        );
+        const errData = await res.json().catch(() => null);
+        const errMsg =
+          errData?.message ||
+          errData?.detail?.[0]?.message ||
+          errData?.detail ||
+          `Код ответа сервера: ${res.status}`;
+        throw new Error(errMsg);
       }
 
       await reloadSchedules();
+
       setStatusMessage({
         type: "success",
-        text: "График и распределение техники успешно сохранены на сервере",
+        text: "График и техника успешно сохранены на сервере",
       });
     } catch (e: any) {
+      console.error("Ошибка bulk-sync:", e);
       setStatusMessage({
         type: "error",
-        text: e.message || "Ошибка сохранения",
+        text: `Не удалось сохранить график: ${e.message}`,
       });
+      throw e;
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Утверждение графика (DRAFT -> ACTIVE)
   const handleConfirmSchedule = async () => {
     setIsProcessing(true);
     setStatusMessage(null);
     try {
-      const res = await fetch(
+      await handleSaveBulkSync();
+
+      const res = await fetchWithAuth(
         `${API_URL}/api/v1/projects/${project.id}/schedules/confirm`,
         {
           method: "POST",
-          headers: getAuthHeaders(),
-        },
+        }
       );
 
-      if (!res.ok) throw new Error("Не удалось утвердить график");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        const errMsg =
+          errData?.message ||
+          errData?.detail?.[0]?.msg ||
+          errData?.detail ||
+          `Код ошибки: ${res.status}`;
+        throw new Error(errMsg);
+      }
+
+      setIsLocallyConfirmed(true);
       await reloadSchedules();
+
       setStatusMessage({
         type: "success",
-        text: "График официально утвержден (ACTIVE)",
+        text: "График официально утвержден (ACTIVE). Режим редактирования закрыт.",
       });
     } catch (e: any) {
-      setStatusMessage({ type: "error", text: e.message });
+      setStatusMessage({
+        type: "error",
+        text: `Ошибка утверждения: ${e.message}`,
+      });
     } finally {
       setIsProcessing(false);
     }
@@ -463,35 +461,43 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
               className="btn-gantt-secondary"
               onClick={() => setIsCameraModalOpen(true)}
             >
-              📹 Камеры объекта
+              Камеры объекта
             </button>
 
-            <button
-              type="button"
-              className="btn-gantt-secondary"
-              onClick={handleApplyTemplate}
-              disabled={isProcessing}
-            >
-              ⚡ Шаблон из ТЗ
-            </button>
+            {isLocked ? (
+              <span className="project-selector-badge">
+                График утвержден (Только просмотр)
+              </span>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="btn-gantt-secondary"
+                  onClick={handleApplyTemplate}
+                  disabled={isProcessing}
+                >
+                  Шаблон из ТЗ
+                </button>
 
-            <button
-              type="button"
-              className="btn-gantt-secondary"
-              onClick={handleSaveBulkSync}
-              disabled={isProcessing}
-            >
-              {isProcessing ? "Сохранение..." : "Сохранить правки Ганта"}
-            </button>
+                <button
+                  type="button"
+                  className="btn-gantt-secondary"
+                  onClick={handleSaveBulkSync}
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? "Сохранение..." : "Сохранить правки Ганта"}
+                </button>
 
-            <button
-              type="button"
-              className="btn-gantt-success"
-              onClick={handleConfirmSchedule}
-              disabled={isProcessing}
-            >
-              Утвердить график
-            </button>
+                <button
+                  type="button"
+                  className="btn-gantt-success"
+                  onClick={handleConfirmSchedule}
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? "Утверждение..." : "Утвердить график"}
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -511,19 +517,18 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
           <h3>График строительства пока не сформирован</h3>
           <p>
             Для этого объекта еще не создана диаграмма Ганта. Нажмите кнопку
-            ниже, чтобы автоматически развернуть утвержденные этапы, сроки и
-            технику из нормативной базы ТЗ.
+            ниже, чтобы автоматически развернуть этапы и технику из шаблона ТЗ.
           </p>
-          <button
-            type="button"
-            className="btn-gantt-primary"
-            onClick={handleApplyTemplate}
-            disabled={isProcessing}
-          >
-            {isProcessing
-              ? "Генерация..."
-              : "⚡ Сгенерировать график из шаблона ТЗ"}
-          </button>
+          {!isLocked && (
+            <button
+              type="button"
+              className="btn-gantt-primary"
+              onClick={handleApplyTemplate}
+              disabled={isProcessing}
+            >
+              {isProcessing ? "Генерация..." : "Сгенерировать график из шаблона ТЗ"}
+            </button>
+          )}
         </div>
       ) : (
         <div className="gantt-grid">
@@ -532,7 +537,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
             <div>Статус</div>
             <div>Срок (дней)</div>
             <div>Потребность в технике</div>
-            <div>Диаграмма Ганта</div>
+            <div>Диаграмма Ганта / Арбитраж</div>
           </div>
 
           <div className="gantt-body">
@@ -541,14 +546,13 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
 
               return (
                 <React.Fragment key={maj.id}>
-                  {/* Родительский этап: строго прямоугольный сводный бар */}
                   <div
                     className="gantt-parent-row"
                     onClick={() => toggleCollapse(maj.id)}
                   >
                     <div className="gantt-parent-name">
                       <span className="gantt-toggle">
-                        {isCollapsed ? "▶" : "▼"}
+                        {isCollapsed ? "►" : "▼"}
                       </span>
                       <span>
                         {maj.stageNumber}. {maj.name}
@@ -577,23 +581,8 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                     </div>
                   </div>
 
-                  {/* Подэтапы: прямоугольные бары без скруглений */}
                   {!isCollapsed &&
                     maj.subStages.map((sub) => {
-                      const allowedPool =
-                        sub.allowedEquipmentIds.length > 0
-                          ? equipmentTypes.filter((et) =>
-                              sub.allowedEquipmentIds.includes(et.id),
-                            )
-                          : equipmentTypes;
-
-                      const availableToAdd = allowedPool.filter(
-                        (et) =>
-                          !sub.equipment.some(
-                            (e) => e.equipment_type_id === et.id,
-                          ),
-                      );
-
                       const layout = timelineLayout.subOffsets.get(sub.id);
                       const rectClass = sub.isCriticalPath
                         ? "gantt-rect-critical"
@@ -610,19 +599,19 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                             <span className="substage-name-text">
                               {sub.subNumber}. {sub.name}
                             </span>
-                            {sub.riskAlert && (
-                              <span
-                                className="substage-risk-alert"
-                                title={sub.riskAlert}
-                              >
-                                ⚠️ {sub.riskAlert}
-                              </span>
-                            )}
                           </div>
 
                           <div>
-                            <span className="gantt-status-badge">
-                              {sub.status}
+                            <span
+                              className={`gantt-status-badge ${
+                                sub.status === "COMPLETED" ? "status-completed" : ""
+                              }`}
+                            >
+                              {sub.status === "COMPLETED"
+                                ? "Выполнен"
+                                : sub.status === "IN_PROGRESS"
+                                ? "В работе"
+                                : "Запланирован"}
                             </span>
                           </div>
 
@@ -634,11 +623,12 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                                 max="365"
                                 className="duration-num-input"
                                 value={sub.durationDays}
+                                disabled={isLocked}
                                 onChange={(e) =>
                                   handleDurationChange(
                                     maj.id,
                                     sub.id,
-                                    parseInt(e.target.value, 10),
+                                    parseInt(e.target.value, 10)
                                   )
                                 }
                               />
@@ -650,54 +640,52 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                             <div className="eq-chip-box">
                               {sub.equipment.map((eq) => (
                                 <div
-                                  key={eq.equipment_type_id}
+                                  key={eq.typeCode}
                                   className={`eq-chip ${
                                     eq.isRequired
                                       ? "eq-chip-required"
                                       : "eq-chip-allowed"
                                   }`}
-                                  title={
-                                    eq.isRequired
-                                      ? "Обязательная техника по ТЗ"
-                                      : "Допустимая техника"
-                                  }
+                                  title="Техника на этапе"
                                 >
-                                  <span className="eq-chip-label">
-                                    {eq.name}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    className="eq-btn"
-                                    onClick={() =>
-                                      handleEquipmentCountChange(
-                                        maj.id,
-                                        sub.id,
-                                        eq.equipment_type_id,
-                                        -1,
-                                      )
-                                    }
-                                  >
-                                    -
-                                  </button>
+                                  <span className="eq-chip-label">{eq.name}</span>
+                                  {!isLocked && (
+                                    <button
+                                      type="button"
+                                      className="eq-btn"
+                                      onClick={() =>
+                                        handleEquipmentCountChange(
+                                          maj.id,
+                                          sub.id,
+                                          eq.typeCode,
+                                          -1
+                                        )
+                                      }
+                                    >
+                                      -
+                                    </button>
+                                  )}
                                   <span className="eq-count">{eq.count}</span>
-                                  <button
-                                    type="button"
-                                    className="eq-btn"
-                                    onClick={() =>
-                                      handleEquipmentCountChange(
-                                        maj.id,
-                                        sub.id,
-                                        eq.equipment_type_id,
-                                        1,
-                                      )
-                                    }
-                                  >
-                                    +
-                                  </button>
+                                  {!isLocked && (
+                                    <button
+                                      type="button"
+                                      className="eq-btn"
+                                      onClick={() =>
+                                        handleEquipmentCountChange(
+                                          maj.id,
+                                          sub.id,
+                                          eq.typeCode,
+                                          1
+                                        )
+                                      }
+                                    >
+                                      +
+                                    </button>
+                                  )}
                                 </div>
                               ))}
 
-                              {availableToAdd.length > 0 && (
+                              {!isLocked && (
                                 <select
                                   className="eq-add-sel"
                                   value=""
@@ -706,38 +694,68 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                                       handleAddEquipment(
                                         maj.id,
                                         sub.id,
-                                        e.target.value,
+                                        e.target.value
                                       );
                                     }
                                   }}
                                 >
                                   <option value="">+ Допустимая техника</option>
-                                  {availableToAdd.map((et) => (
-                                    <option key={et.id} value={et.id}>
-                                      {et.name}
-                                    </option>
-                                  ))}
+                                  {equipmentTypes.map((et) => {
+                                    const resolved = resolveEquipmentInfo(
+                                      et.code || et.id
+                                    );
+                                    return (
+                                      <option key={et.id} value={resolved.typeCode}>
+                                        {resolved.name}
+                                      </option>
+                                    );
+                                  })}
                                 </select>
                               )}
                             </div>
                           </div>
 
                           <div>
-                            <div className="timeline-cell">
-                              <div className="gantt-timeline-track" />
-                              <svg
-                                className="gantt-svg-track"
-                                viewBox="0 0 100 24"
-                                preserveAspectRatio="none"
-                              >
-                                <rect
-                                  className={rectClass}
-                                  x={layout?.startPercent || 0}
-                                  y="5"
-                                  width={layout?.widthPercent || 6}
-                                  height="14"
-                                />
-                              </svg>
+                            <div className="engineer-gantt-action-cell">
+                              <div className="timeline-cell timeline-cell-flex">
+                                <div className="gantt-timeline-track" />
+                                <svg
+                                  className="gantt-svg-track"
+                                  viewBox="0 0 100 24"
+                                  preserveAspectRatio="none"
+                                >
+                                  <rect
+                                    className={rectClass}
+                                    x={layout?.startPercent || 0}
+                                    y="5"
+                                    width={layout?.widthPercent || 6}
+                                    height="14"
+                                  />
+                                </svg>
+                              </div>
+
+                              {isEngineer && (
+                                <div className="engineer-action-wrapper">
+                                  {sub.status !== "COMPLETED" ? (
+                                    <button
+                                      type="button"
+                                      className="btn-gantt-success btn-action-small"
+                                      onClick={() =>
+                                        setEarlyCompleteTarget({
+                                          id: sub.id,
+                                          name: `${sub.subNumber}. ${sub.name}`,
+                                        })
+                                      }
+                                    >
+                                      Завершить досрочно
+                                    </button>
+                                  ) : (
+                                    <span className="text-secondary-label">
+                                      Подтверждено
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -750,11 +768,20 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
         </div>
       )}
 
-      {/* Модальное окно управления видеокамерами */}
       {isCameraModalOpen && (
         <CameraManagerModal
           projectId={project.id}
           onClose={() => setIsCameraModalOpen(false)}
+        />
+      )}
+
+      {earlyCompleteTarget && (
+        <EarlyCompleteModal
+          projectId={project.id}
+          stageId={earlyCompleteTarget.id}
+          stageName={earlyCompleteTarget.name}
+          onClose={() => setEarlyCompleteTarget(null)}
+          onSuccess={reloadSchedules}
         />
       )}
     </div>

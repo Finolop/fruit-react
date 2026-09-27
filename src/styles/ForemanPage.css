@@ -14,9 +14,35 @@
 }
 
 .foreman-toolbar-switch {
-  padding: 12px 24px 0;
+  padding: 16px 24px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.foreman-project-selector-group {
   display: flex;
   align-items: center;
+  gap: 10px;
+}
+
+.foreman-project-dropdown {
+  padding: 8px 12px;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #cbd5e1);
+  border-radius: var(--radius-md, 8px);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text, #0f172a);
+  outline: none;
+  cursor: pointer;
+  min-width: 280px;
+}
+
+.foreman-project-dropdown:focus {
+  border-color: var(--color-primary, #2563eb);
 }
 
 .btn-switch-project {
@@ -38,6 +64,145 @@
   background: #f1f5f9;
   color: var(--color-text, #0f172a);
   border-color: #94a3b8;
+}
+
+/* ==========================================================================
+   ВЕРХНИЙ KPI БЛОК СВОДКИ ПРОРАБА
+   ========================================================================== */
+
+.foreman-kpi-container {
+  padding: 16px 24px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.foreman-kpi-grid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1.2fr 1.2fr;
+  gap: 12px;
+  width: 100%;
+}
+
+.foreman-kpi-card {
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-md, 8px);
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.kpi-caption {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-text-secondary, #64748b);
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.kpi-title-strong {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text, #0f172a);
+  margin: 0;
+}
+
+.kpi-sub-text {
+  font-size: 12px;
+  color: var(--color-text-secondary, #64748b);
+  margin-top: 4px;
+}
+
+.kpi-accent-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #16a34a;
+}
+
+.foreman-traffic-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: var(--radius-md, 4px);
+  letter-spacing: 0.04em;
+  width: fit-content;
+}
+
+.foreman-traffic-badge.green {
+  background: #f0fdf4;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.foreman-traffic-badge.yellow {
+  background: #fefce8;
+  color: #ca8a04;
+  border: 1px solid #fef08a;
+}
+
+.foreman-traffic-badge.red {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+/* ==========================================================================
+   ЖЕЛТОЕ ПРЕДУПРЕЖДЕНИЕ О ПРОСТОЕ
+   ========================================================================== */
+
+.foreman-alert-banner {
+  background: #fefce8;
+  border: 1px solid #fef08a;
+  border-left: 4px solid #ca8a04;
+  border-radius: var(--radius-md, 8px);
+  padding: 14px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.foreman-alert-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.foreman-alert-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #854d0e;
+}
+
+.foreman-alert-desc {
+  font-size: 12px;
+  color: #713f12;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.btn-foreman-resolve-idle {
+  background: #ca8a04;
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-md, 6px);
+  padding: 8px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.15s ease;
+}
+
+.btn-foreman-resolve-idle:hover {
+  background: #a16207;
 }
 
 /* ==========================================================================
@@ -190,4 +355,21 @@
 .project-selector-item:hover .project-selector-arrow {
   color: var(--color-primary, #2563eb);
   transform: translateX(4px);
+}
+
+@media (max-width: 1100px) {
+  .foreman-kpi-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 650px) {
+  .foreman-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .foreman-alert-banner {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 }

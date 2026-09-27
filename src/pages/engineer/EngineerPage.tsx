@@ -17,6 +17,7 @@ import {
 import { getAuthHeaders } from "../../api/api";
 import { CascadeShiftModal } from "../../components/engineer/CascadeShiftModal";
 import "../../styles/EngineerConsole.css";
+import "../../styles/ForemanPage.css";
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -39,31 +40,30 @@ const EngineerPage: React.FC = () => {
 
   const [availableProjects, setAvailableProjects] = useState<ProjectData[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
-    urlProjectId || null,
+    urlProjectId || null
   );
   const [project, setProject] = useState<ProjectData | null>(null);
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [equipmentTypes, setEquipmentTypes] = useState<EquipmentType[]>([]);
 
-  // Состояния мониторинга
-  const [liveSummary, setLiveSummary] = useState<LiveSummaryResponse | null>(
-    null,
-  );
+  // Состояния оперативного надзора
+  const [liveSummary, setLiveSummary] = useState<LiveSummaryResponse | null>(null);
   const [activeAlert, setActiveAlert] = useState<AlertResponse | null>(null);
   const [currentSpecialStatus, setCurrentSpecialStatus] =
     useState<SpecialStatusResponse | null>(null);
 
-  // Форма штрафного отчета для оранжевого статуса
+  // Форма штрафного отчета
   const [isPlanCaughtUp, setIsPlanCaughtUp] = useState(false);
   const [timeLostHours, setTimeLostHours] = useState(8);
   const [responsibleParty, setResponsibleParty] = useState(
-    "Бригада монолитчиков (Подрядчик)",
+    "Бригада монолитчиков (Подрядчик)"
   );
 
   // Модальные окна и индикаторы
   const [isCascadeModalOpen, setIsCascadeModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
   const [statusMessage, setStatusMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -75,26 +75,33 @@ const EngineerPage: React.FC = () => {
     }
   }, [urlProjectId]);
 
-  // Загрузка списка закрепленных объектов
+  // Загрузка списка закрепленных за инженером объектов
   useEffect(() => {
     let isMounted = true;
     const fetchProjects = async () => {
+      setIsLoading(true);
+      setErrorMessage("");
       try {
         const res = await fetch(`${API_URL}/api/v1/projects`, {
           headers: getAuthHeaders(),
         });
-        const list = await parseJsonResponse(res, []);
-        if (isMounted && Array.isArray(list)) {
-          setAvailableProjects(list);
-          if (!selectedProjectId && list.length > 0) {
-            setSelectedProjectId(list[0].id);
-            navigate(`/engineer/${list[0].id}`);
-          }
+        const list = await parseJsonResponse(res, null);
+
+        if (!list || !Array.isArray(list)) {
+          throw new Error("Не удалось получить список объектов со строительного сервера");
         }
-      } catch (e) {
-        console.error("Ошибка загрузки объектов инженера:", e);
+
+        if (isMounted) {
+          setAvailableProjects(list);
+        }
+      } catch (err: any) {
+        if (isMounted) {
+          setErrorMessage(err.message || "Ошибка подключения к реестру");
+        }
       } finally {
-        if (isMounted) setIsLoading(false);
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
 
@@ -102,11 +109,16 @@ const EngineerPage: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [navigate, selectedProjectId]);
+  }, []);
 
   // Загрузка детальных данных выбранного объекта
   const loadProjectData = useCallback(async () => {
-    if (!selectedProjectId) return;
+    if (!selectedProjectId) {
+      setProject(null);
+      setSchedules([]);
+      setLiveSummary(null);
+      return;
+    }
 
     try {
       const headers = getAuthHeaders();
@@ -119,24 +131,27 @@ const EngineerPage: React.FC = () => {
           fetch(`${API_URL}/api/v1/dictionaries/equipment-types`, { headers }),
           engineerApi.getLiveSummary(selectedProjectId).catch(() => null),
           engineerApi.getActiveAlert(selectedProjectId).catch(() => null),
-          engineerApi
-            .getCurrentSpecialStatus(selectedProjectId)
-            .catch(() => null),
+          engineerApi.getCurrentSpecialStatus(selectedProjectId).catch(() => null),
         ]);
 
       const projData = await parseJsonResponse(projRes, null);
       const schedData = await parseJsonResponse(schedRes, []);
       const eqData = await parseJsonResponse(eqRes, []);
 
-      if (projData) {
-        setProject({
-          id: projData.id,
-          name: projData.name || "Объект капитального строительства",
-          address: projData.address || "Адрес не указан",
-          type_id: projData.type_id,
-          status: projData.schedule_status || "ACTIVE",
-        });
+      const fallbackProject = availableProjects.find((p) => p.id === selectedProjectId);
+      const finalData = projData || fallbackProject;
+
+      if (!finalData) {
+        throw new Error("ОКС не найден или у вас нет прав надзора по этому объекту");
       }
+
+      setProject({
+        id: finalData.id,
+        name: finalData.name || "Объект капитального строительства",
+        address: finalData.address || "Адрес не указан",
+        type_id: finalData.type_id,
+        status: finalData.schedule_status || "ACTIVE",
+      });
 
       setSchedules(Array.isArray(schedData) ? schedData : []);
       setEquipmentTypes(Array.isArray(eqData) ? eqData : []);
@@ -150,16 +165,29 @@ const EngineerPage: React.FC = () => {
         text: "Не удалось обновить статус мониторинга",
       });
     }
-  }, [selectedProjectId]);
+  }, [selectedProjectId, availableProjects]);
 
   useEffect(() => {
     loadProjectData();
   }, [loadProjectData]);
 
+  const handleSelectProject = (projId: string) => {
+    setSelectedProjectId(projId);
+    navigate(`/engineer/${projId}`);
+  };
+
+  const handleBackToSelection = () => {
+    setSelectedProjectId(null);
+    setProject(null);
+    setSchedules([]);
+    setLiveSummary(null);
+    navigate("/engineer");
+  };
+
   // 3 сценария реакции на красный алерт
   const handleResolveAlertScenario = async (
     scenario: "FORCE_MAJEURE_CASCADE" | "SPECIAL_STATUS_OPEN" | "FALSE_ALARM",
-    explanation: string,
+    explanation: string
   ) => {
     if (!activeAlert) return;
 
@@ -213,7 +241,7 @@ const EngineerPage: React.FC = () => {
 
       await engineerApi.closeSpecialStatusWindow(
         currentSpecialStatus.id,
-        "Штрафной коридор завершен. Отчет передан в Департамент для начисления неустойки.",
+        "Штрафной коридор завершен. Отчет передан в Департамент для начисления неустойки."
       );
 
       setStatusMessage({
@@ -236,9 +264,100 @@ const EngineerPage: React.FC = () => {
     return (
       <div className="engineer-page">
         <Header />
-        <div className="engineer-console-root">
-          <div className="console-card">
-            <h3>Загрузка консоли инженера...</h3>
+        <div className="foreman-content">
+          <div className="empty-state-container">
+            <h2 className="empty-state-title">Загрузка данных...</h2>
+            <p className="empty-state-description">
+              Синхронизация закрепленных объектов инженера технадзора
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!selectedProjectId) {
+    if (availableProjects.length === 0) {
+      return (
+        <div className="engineer-page">
+          <Header />
+          <div className="foreman-content">
+            <div className="empty-state-container">
+              <h2 className="empty-state-title">ОКС не назначен</h2>
+              <p className="empty-state-description">
+                {errorMessage ||
+                  "За вашей учетной записью пока не закреплено ни одного объекта контроля. Обратитесь к администратору департамента для выдачи прав технадзора."}
+              </p>
+              <button
+                type="button"
+                className="foreman-primary-button"
+                onClick={() => window.location.reload()}
+              >
+                Обновить данные
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="engineer-page">
+        <Header />
+        <div className="project-selector-wrapper">
+          <div className="project-selector-card">
+            <div className="project-selector-header">
+              <h2>Объекты строительного контроля</h2>
+              <p>
+                За вами закреплено объектов: {availableProjects.length}. Выберите ОКС для перехода в пульт арбитража и контроля сроков:
+              </p>
+            </div>
+
+            <div className="project-selector-list">
+              {availableProjects.map((p) => (
+                <div
+                  key={p.id}
+                  className="project-selector-item"
+                  onClick={() => handleSelectProject(p.id)}
+                >
+                  <div className="project-selector-info">
+                    <span className="project-selector-name">{p.name}</span>
+                    <span className="project-selector-address">
+                      {p.address || "Адрес площадки не указан"}
+                    </span>
+                  </div>
+                  <div className="project-selector-actions">
+                    <span className="project-selector-badge">
+                      {p.status || "ACTIVE"}
+                    </span>
+                    <span className="project-selector-arrow">→</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!project) {
+    return (
+      <div className="engineer-page">
+        <Header />
+        <div className="foreman-content">
+          <div className="empty-state-container">
+            <h2 className="empty-state-title">Ошибка загрузки ОКС</h2>
+            <p className="empty-state-description">
+              {errorMessage || "Не удалось загрузить данные выбранного объекта"}
+            </p>
+            <button
+              type="button"
+              className="foreman-primary-button"
+              onClick={handleBackToSelection}
+            >
+              Вернуться к списку объектов
+            </button>
           </div>
         </div>
       </div>
@@ -257,14 +376,31 @@ const EngineerPage: React.FC = () => {
       <Header />
 
       <div className="engineer-console-root">
-        {/* Верхняя навигация */}
+        {/* Верхняя навигационная панель инженера */}
         <div className="engineer-top-nav">
+          <div className="engineer-project-selector-group">
+            <span className="kpi-caption" style={{ margin: 0 }}>
+              Объект контроля:
+            </span>
+            <select
+              className="engineer-project-dropdown"
+              value={selectedProjectId}
+              onChange={(e) => handleSelectProject(e.target.value)}
+            >
+              {availableProjects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name} {p.address ? `(${p.address})` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
+
           <button
             type="button"
             className="btn-switch-project"
-            onClick={() => navigate("/foreman")}
+            onClick={handleBackToSelection}
           >
-            К реестру строек ({availableProjects.length})
+            ← Список объектов ({availableProjects.length})
           </button>
         </div>
 
@@ -278,58 +414,82 @@ const EngineerPage: React.FC = () => {
           </div>
         )}
 
-        {/* 1. Карточка мониторинга и светофора */}
-        <div className="console-summary-card">
-          <div className="console-obj-title">
-            <h2>{project?.name || "Объект капитального строительства"}</h2>
+        {/* 1. СЕТКА ИЗ 5 НЕЗАВИСИМЫХ КАРТОЧЕК KPI */}
+        <div className="engineer-kpi-grid">
+          {/* Карточка 1: Объект */}
+          <div className="engineer-kpi-card">
+            <span className="kpi-caption">Паспорт ОКС</span>
+            <h2 className="kpi-title-strong" title={project.name}>
+              {project.name}
+            </h2>
+            <span className="kpi-sub-text">
+              {project.address || "Адрес площадки не указан"}
+            </span>
+          </div>
+
+          {/* Карточка 2: Оперативный статус и Спецрежим */}
+          <div className="engineer-kpi-card">
+            <span className="kpi-caption">Статус контроля ОКС</span>
             <div className="status-badge-row">
               <span
                 className={`traffic-light-badge ${
                   alertLevel === "RED"
                     ? "red"
                     : alertLevel === "YELLOW"
-                      ? "yellow"
-                      : "green"
+                    ? "yellow"
+                    : "green"
                 }`}
               >
-                Светофор: {alertLevel}
+                {alertLevel}
               </span>
 
               {specStatus === "PURPLE" && (
                 <span className="special-mode-badge purple">
-                  Фиолетовый статус (Форс-мажор)
+                  Фиолетовый
                 </span>
               )}
               {specStatus === "ORANGE" && (
                 <span className="special-mode-badge orange">
-                  Оранжевый статус (Штрафной коридор)
+                  Оранжевый
                 </span>
               )}
             </div>
+            <span className="kpi-sub-text">
+              {specStatus === "PURPLE"
+                ? "Форс-мажор: оформление ДС"
+                : specStatus === "ORANGE"
+                ? "Штрафной коридор"
+                : alertLevel === "RED"
+                ? "Требуется решение инженера"
+                : "Штатный режим надзора"}
+            </span>
           </div>
 
-          <div className="console-stat-box">
-            <span className="console-stat-label">Готовность ОКС</span>
-            <span className="console-stat-val">
+          {/* Карточка 3: Готовность */}
+          <div className="engineer-kpi-card">
+            <span className="kpi-caption">Готовность ОКС</span>
+            <div className="kpi-accent-value">
               {liveSummary?.physical_progress_percent ?? 0}%
-            </span>
-            <span className="console-stat-sub">
+            </div>
+            <span className="kpi-sub-text">
               По графику: {liveSummary?.time_elapsed_percent ?? 0}% времени
             </span>
           </div>
 
-          <div className="console-stat-box">
-            <span className="console-stat-label">Текущий этап СМР</span>
-            <span className="console-stat-val">
+          {/* Карточка 4: Текущий этап */}
+          <div className="engineer-kpi-card">
+            <span className="kpi-caption">Текущий этап СМР</span>
+            <div className="kpi-accent-value">
               {liveSummary?.current_stage?.days_remaining ?? 0} дн. ост.
-            </span>
-            <span className="console-stat-sub">
-              {liveSummary?.current_stage?.name || "Подготовка площадки"}
+            </div>
+            <span className="kpi-sub-text">
+              {liveSummary?.current_stage?.name || "Подготовительный этап"}
             </span>
           </div>
 
-          <div className="console-stat-box">
-            <span className="console-stat-label">Техника на объекте</span>
+          {/* Карточка 5: Техника и очередь инцидентов */}
+          <div className="engineer-kpi-card">
+            <span className="kpi-caption">Техника и Инциденты</span>
             <div className="console-eq-row">
               <div className="eq-unit">
                 <span className="eq-unit-val">
@@ -344,30 +504,20 @@ const EngineerPage: React.FC = () => {
                 <span className="eq-unit-lbl">Простой</span>
               </div>
             </div>
-          </div>
-
-          <div className="console-stat-box">
-            <span className="console-stat-label">Очередь инцидентов</span>
-            <span className="console-stat-val">
+            <span className="kpi-sub-text">
               {activeAlert && activeAlert.status !== "RESOLVED"
-                ? "1 Активный"
-                : "0"}
-            </span>
-            <span className="console-stat-sub">
-              {currentSpecialStatus ? "Спецрежим включен" : "Штатный контроль"}
+                ? "Алертов в очереди: 1"
+                : "Активных алертов: 0"}
             </span>
           </div>
         </div>
 
         {/* 2. Блок рабочих сценариев инженера */}
         <div className="console-workflow-grid">
-          {/* Сценарий А: Разбор активного красного алерта */}
           {activeAlert && activeAlert.status !== "RESOLVED" ? (
             <div className="console-card alert-active">
               <div className="console-card-header">
-                <h3>
-                  Зафиксирован критический алерт: {activeAlert.trigger_type}
-                </h3>
+                <h3>Зафиксирован критический алерт: {activeAlert.trigger_type}</h3>
               </div>
               <p className="console-card-desc">
                 Нейросеть зафиксировала нарушение на объекте. По регламенту ТЗ
@@ -382,7 +532,7 @@ const EngineerPage: React.FC = () => {
                   onClick={() =>
                     handleResolveAlertScenario(
                       "FORCE_MAJEURE_CASCADE",
-                      "Внешний фактор / Форс-мажор. Сроки будут сдвинуты каскадно.",
+                      "Внешний фактор / Форс-мажор. Сроки будут сдвинуты каскадно."
                     )
                   }
                 >
@@ -391,8 +541,7 @@ const EngineerPage: React.FC = () => {
                   </span>
                   <span className="opt-desc">
                     Причина не зависит от строителей (затор на МКАД, погода).
-                    Отмена тревоги, перевод в фиолетовый статус для оформления
-                    бумаг.
+                    Отмена тревоги, перевод в фиолетовый статус для оформления бумаг.
                   </span>
                 </button>
 
@@ -403,7 +552,7 @@ const EngineerPage: React.FC = () => {
                   onClick={() =>
                     handleResolveAlertScenario(
                       "SPECIAL_STATUS_OPEN",
-                      "Вина строительной бригады. Установлен коридор устранения.",
+                      "Вина строительной бригады. Установлен коридор устранения."
                     )
                   }
                 >
@@ -411,9 +560,8 @@ const EngineerPage: React.FC = () => {
                     2. Проступок бригады [Оранжевый статус]
                   </span>
                   <span className="opt-desc">
-                    Тревога подтверждена. СРОКИ НЕ СДВИГАЮТСЯ. Запускается окно
-                    48ч, чтобы подрядчик догнал план, иначе начисляется
-                    неустойка.
+                    Тревога подтверждена. Сроки не сдвигаются. Запускается окно 48ч,
+                    чтобы подрядчик догнал план, иначе начисляется неустойка.
                   </span>
                 </button>
 
@@ -424,7 +572,7 @@ const EngineerPage: React.FC = () => {
                   onClick={() =>
                     handleResolveAlertScenario(
                       "FALSE_ALARM",
-                      "Сброс ложного срабатывания под ответственность инженера.",
+                      "Сброс ложного срабатывания под ответственность инженера."
                     )
                   }
                 >
@@ -443,13 +591,11 @@ const EngineerPage: React.FC = () => {
               </div>
               <p className="console-card-desc">
                 Критических нарушений не зафиксировано. В случае отклонений от
-                графика или простоя техники система уведомит инженера для
-                принятия мер.
+                графика или простоя техники система уведомит инженера для принятия мер.
               </p>
             </div>
           )}
 
-          {/* Сценарий Б: Управление спецстатусами (Фиолетовый / Оранжевый) */}
           {specStatus === "PURPLE" ? (
             <div className="console-card purple-active">
               <div className="console-card-header">
@@ -457,8 +603,8 @@ const EngineerPage: React.FC = () => {
               </div>
               <p className="console-card-desc">
                 Оформляются документы на компенсацию сроков. После подписания
-                дополнительного соглашения инженер может актуализировать даты
-                всех зависимых этапов.
+                дополнительного соглашения инженер может актуализировать даты всех
+                зависимых этапов.
               </p>
               <button
                 type="button"
@@ -477,7 +623,7 @@ const EngineerPage: React.FC = () => {
                 Подрядчику выделено время на ликвидацию отставания. Контрольный
                 срок:{" "}
                 {new Date(currentSpecialStatus.target_deadline).toLocaleString(
-                  "ru-RU",
+                  "ru-RU"
                 )}
                 .
               </p>
@@ -549,24 +695,23 @@ const EngineerPage: React.FC = () => {
           )}
         </div>
 
-        {/* 3. Галерея снимков видеомониторинга и юридические улики */}
-        {selectedProjectId && <FramesGallery projectId={selectedProjectId} />}
-
-        {/* 4. Диаграмма Ганта объекта (без кнопок прораба) */}
-        {project && (
-          <div className="console-gantt-container">
-            <h3 className="console-gantt-title">
-              Директивный график выполнения работ
-            </h3>
-            <ForemanObjectManager
-              project={project}
-              schedules={schedules}
-              equipmentTypes={equipmentTypes}
-              reloadSchedules={loadProjectData}
-              hideTopBar={true}
-            />
-          </div>
+        {/* 3. Галерея снимков видеомониторинга */}
+        {selectedProjectId && (
+          <FramesGallery projectId={selectedProjectId} />
         )}
+
+        {/* 4. Диаграмма Ганта объекта */}
+        <div className="console-gantt-container">
+          <h3 className="console-gantt-title">Директивный график выполнения работ</h3>
+          <ForemanObjectManager
+            project={project}
+            schedules={schedules}
+            equipmentTypes={equipmentTypes}
+            reloadSchedules={loadProjectData}
+            hideTopBar={true}
+            isEngineer={true}
+          />
+        </div>
       </div>
 
       {/* Модальное окно каскадного сдвига */}

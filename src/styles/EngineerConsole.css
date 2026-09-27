@@ -6,41 +6,99 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
 }
 
 .engineer-top-nav {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.engineer-project-selector-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.engineer-project-dropdown {
+  padding: 8px 12px;
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #cbd5e1);
+  border-radius: var(--radius-md, 8px);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text, #0f172a);
+  outline: none;
+  cursor: pointer;
+  min-width: 280px;
+}
+
+.engineer-project-dropdown:focus {
+  border-color: var(--color-primary, #2563eb);
 }
 
 /* ==========================================================================
-   СВЕТОФОР И СПЕЦСТАТУСЫ ОБЪЕКТА
+   ВЕРХНИЙ РЯД: 5 ОТДЕЛЬНЫХ КАРТОЧЕК KPI ИНЖЕНЕРА
    ========================================================================== */
 
-.console-summary-card {
+.engineer-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 14px;
+  width: 100%;
+}
+
+.engineer-kpi-card {
   background: var(--color-surface, #ffffff);
   border: 1px solid var(--color-border, #e2e8f0);
   border-radius: var(--radius-md, 8px);
-  padding: 18px 24px;
-  display: grid;
-  grid-template-columns: 1.5fr 1fr 1fr 1fr 1.2fr;
-  gap: 16px;
-  align-items: center;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  min-height: 108px;
+  box-sizing: border-box;
 }
 
-.console-obj-title h2 {
+.kpi-caption {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--color-text-secondary, #64748b);
+  letter-spacing: 0.04em;
+  margin: 0 0 6px 0;
+}
+
+.kpi-title-strong {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-text, #0f172a);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kpi-sub-text {
+  font-size: 12px;
+  color: var(--color-text-secondary, #64748b);
+  margin-top: 6px;
+  line-height: 1.3;
+}
+
+.kpi-accent-value {
   font-size: 20px;
   font-weight: 700;
   color: var(--color-text, #0f172a);
-  margin: 0 0 6px 0;
 }
 
 .status-badge-row {
   display: flex;
-  gap: 8px;
+  gap: 6px;
   align-items: center;
   flex-wrap: wrap;
 }
@@ -50,8 +108,9 @@
   font-weight: 700;
   text-transform: uppercase;
   padding: 4px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-md, 4px);
   letter-spacing: 0.04em;
+  width: fit-content;
 }
 
 .traffic-light-badge.green {
@@ -72,12 +131,12 @@
   border: 1px solid #fecaca;
 }
 
-/* Специальные статусы */
 .special-mode-badge {
   font-size: 11px;
   font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 4px;
+  padding: 4px 8px;
+  border-radius: var(--radius-md, 4px);
+  width: fit-content;
 }
 
 .special-mode-badge.purple {
@@ -92,34 +151,9 @@
   border: 1px solid #fed7aa;
 }
 
-.console-stat-box {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.console-stat-label {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--color-text-secondary, #64748b);
-  letter-spacing: 0.03em;
-}
-
-.console-stat-val {
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--color-text, #0f172a);
-}
-
-.console-stat-sub {
-  font-size: 12px;
-  color: var(--color-text-secondary, #64748b);
-}
-
 .console-eq-row {
   display: flex;
-  gap: 12px;
+  gap: 16px;
 }
 
 .eq-unit {
@@ -200,7 +234,6 @@
   margin: 0;
 }
 
-/* 3 сценария решения при красном алерте */
 .incident-options-list {
   display: flex;
   flex-direction: column;
@@ -293,10 +326,6 @@
   background: #c2410c;
 }
 
-/* ==========================================================================
-   ШТРАФНОЙ ОТЧЕТ (ORANGE REPORT FORM)
-   ========================================================================== */
-
 .orange-report-form {
   display: flex;
   flex-direction: column;
@@ -339,10 +368,6 @@
   cursor: pointer;
 }
 
-/* ==========================================================================
-   ТАБЛИЦА ГАНТА (ТОЛЬКО ПРОСМОТР ДЛЯ ИНЖЕНЕРА)
-   ========================================================================== */
-
 .console-gantt-container {
   display: flex;
   flex-direction: column;
@@ -356,8 +381,14 @@
   margin: 0;
 }
 
-@media (max-width: 1200px) {
-  .console-summary-card {
+@media (max-width: 1400px) {
+  .engineer-kpi-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .engineer-kpi-grid {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -367,7 +398,7 @@
 }
 
 @media (max-width: 600px) {
-  .console-summary-card {
+  .engineer-kpi-grid {
     grid-template-columns: 1fr;
   }
 }

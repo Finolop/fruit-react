@@ -69,19 +69,6 @@ export const LoginForm = () => {
             required
           />
         </div>
-
-        <div className="login-field-checkbox">
-          <input
-            className="login-checkbox"
-            id="rememberMe"
-            name="rememberMe"
-            type="checkbox"
-          />
-
-          <label className="login-label-checkbox" htmlFor="rememberMe">
-            Запомнить меня
-          </label>
-        </div>
       </div>
 
       {error && (

@@ -1,6 +1,26 @@
 const API_URL = process.env.REACT_APP_API_URL || "";
 
 // ==========================================
+// Типы данных мониторинга (Live Summary)
+// ==========================================
+
+export interface LiveSummaryResponse {
+  project_id: string;
+  alert_level: "GREEN" | "YELLOW" | "RED";
+  special_status?: "ORANGE" | "PURPLE" | null;
+  physical_progress_percent: number;
+  time_elapsed_percent: number;
+  current_stage?: {
+    name: string;
+    days_remaining: number;
+  };
+  equipment_realtime?: {
+    active_count: number;
+    idle_count: number;
+  };
+}
+
+// ==========================================
 // Утилиты работы с токенами и заголовками
 // ==========================================
 
@@ -15,10 +35,9 @@ export const setAccessToken = (token: string): void => {
 
 export const clearTokensAndRedirect = async (): Promise<void> => {
   try {
-    // Инвалидация серверной сессии по OpenAPI
     await fetch(`${API_URL}/api/v1/auth/logout`, {
       method: "POST",
-      credentials: "include", // Отправка cookie refresh_token
+      credentials: "include",
     });
   } catch (err) {
     console.error("Ошибка при вызове logout на сервере:", err);
@@ -30,10 +49,6 @@ export const clearTokensAndRedirect = async (): Promise<void> => {
   }
 };
 
-/**
- * Формирует базовые заголовки с токеном авторизации для запросов к бэкенду.
- * Поддерживает проверку ключей 'access_token' и 'token'.
- */
 export const getAuthHeaders = (): Record<string, string> => {
   const token = getAccessToken();
 
@@ -64,15 +79,11 @@ const addRefreshSubscriber = (callback: (newToken: string) => void) => {
   refreshSubscribers.push(callback);
 };
 
-// ==========================================
-// Запрос ротации POST /api/v1/auth/refresh
-// ==========================================
-
 export const refreshAuthToken = async (): Promise<string | null> => {
   try {
     const res = await fetch(`${API_URL}/api/v1/auth/refresh`, {
       method: "POST",
-      credentials: "include", // Сервер читает cookie refresh_token
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
       },
@@ -89,26 +100,22 @@ export const refreshAuthToken = async (): Promise<string | null> => {
     }
     return null;
   } catch (err) {
-    console.warn(
-      "Срок действия сессии истек, требуется повторная авторизация:",
-      err,
-    );
+    console.warn("Срок действия сессии истек, требуется повторная авторизация:", err);
     return null;
   }
 };
 
 // ==========================================
-// Централизованный сетевой интерцептор
+// Сетевой интерцептор
 // ==========================================
 
 export const fetchWithAuth = async (
   input: RequestInfo | URL,
-  init: RequestInit = {},
+  init: RequestInit = {}
 ): Promise<Response> => {
   const token = getAccessToken();
   const headers = new Headers(init.headers || {});
 
-  // Content-Type выставляется только если тело не FormData
   if (!headers.has("Content-Type") && !(init.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
@@ -123,7 +130,6 @@ export const fetchWithAuth = async (
     credentials: "include",
   });
 
-  // Автоматический перехват 401 Unauthorized
   if (response.status === 401) {
     if (!isRefreshing) {
       isRefreshing = true;
@@ -146,7 +152,6 @@ export const fetchWithAuth = async (
       }
     }
 
-    // Параллельные запросы ждут завершения ротации
     return new Promise<Response>((resolve) => {
       addRefreshSubscriber(async (newToken: string) => {
         headers.set("Authorization", `Bearer ${newToken}`);
@@ -164,13 +169,9 @@ export const fetchWithAuth = async (
 };
 
 // ==========================================
-// Методы API мониторинга и кадров
+// Запросы мониторинга и файлов
 // ==========================================
 
-/**
- * Физическая загрузка файла снимка с камеры
- * POST /api/v1/cameras/{camera_id}/frames/upload
- */
 export const uploadCameraFrame = async (cameraId: string, file: File) => {
   const formData = new FormData();
   formData.append("file", file);
@@ -180,7 +181,7 @@ export const uploadCameraFrame = async (cameraId: string, file: File) => {
     {
       method: "POST",
       body: formData,
-    },
+    }
   );
 
   if (!response.ok) {
@@ -190,20 +191,16 @@ export const uploadCameraFrame = async (cameraId: string, file: File) => {
   return response.json();
 };
 
-/**
- * Получение интервальной аналитики активности объекта
- * GET /api/v1/projects/{project_id}/interval-analytics
- */
 export const getIntervalAnalytics = async (
   projectId: string,
   limit = 50,
-  offset = 0,
+  offset = 0
 ) => {
   const response = await fetchWithAuth(
     `${API_URL}/api/v1/projects/${projectId}/interval-analytics?limit=${limit}&offset=${offset}`,
     {
       method: "GET",
-    },
+    }
   );
 
   if (!response.ok) {
@@ -213,16 +210,12 @@ export const getIntervalAnalytics = async (
   return response.json();
 };
 
-/**
- * Получение галереи обработанных кадров с детекцией техники
- * GET /api/v1/projects/{project_id}/frames
- */
 export const getProjectFrames = async (projectId: string, limit = 50) => {
   const response = await fetchWithAuth(
     `${API_URL}/api/v1/projects/${projectId}/frames?limit=${limit}`,
     {
       method: "GET",
-    },
+    }
   );
 
   if (!response.ok) {
@@ -232,16 +225,12 @@ export const getProjectFrames = async (projectId: string, limit = 50) => {
   return response.json();
 };
 
-/**
- * Получение оперативной сводки объекта (Live Summary)
- * GET /api/v1/projects/{project_id}/live-summary
- */
-export const getLiveSummary = async (projectId: string) => {
+export const getLiveSummary = async (projectId: string): Promise<LiveSummaryResponse> => {
   const response = await fetchWithAuth(
     `${API_URL}/api/v1/projects/${projectId}/live-summary`,
     {
       method: "GET",
-    },
+    }
   );
 
   if (!response.ok) {

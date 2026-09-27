@@ -1,193 +1,124 @@
 .gantt-root {
-  width: 100%;
-  margin: 0;
-  padding: 16px 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
   box-sizing: border-box;
+  width: 100%;
+  padding: 25px;
 }
 
 .gantt-top-bar {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: var(--color-surface, #ffffff);
-  padding: 18px 24px;
-  border-radius: var(--radius-md, 8px);
-  border: 1px solid var(--color-border, #e2e8f0);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
-  margin-bottom: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 24px 28px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md, 0 1px 3px rgba(0, 0, 0, 0.05));
 }
 
 .gantt-title-wrap h1 {
+  margin: 0 0 6px;
+  color: var(--color-text);
   font-size: 22px;
-  font-weight: 700;
-  color: var(--color-text, #0f172a);
-  margin: 0 0 4px 0;
+  font-weight: 600;
 }
 
 .gantt-title-wrap p {
-  font-size: 13px;
-  color: var(--color-text-secondary, #64748b);
   margin: 0;
+  color: var(--color-text-secondary);
+  font-size: 14px;
 }
 
 .gantt-top-actions {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
 }
 
-.btn-gantt-secondary {
-  background: #ffffff;
-  border: 1px solid var(--color-border, #cbd5e1);
-  color: var(--color-text, #1e293b);
-  border-radius: var(--radius-md, 8px);
-  padding: 9px 18px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.btn-gantt-secondary:hover:not(:disabled) {
-  background: #f8fafc;
-  border-color: #94a3b8;
-}
-
-.btn-gantt-success {
-  background-color: #16a34a;
-  color: #ffffff;
-  border: none;
-  border-radius: var(--radius-md, 8px);
-  padding: 9px 18px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-}
-
-.btn-gantt-success:hover:not(:disabled) {
-  background-color: #15803d;
-}
-
-.btn-gantt-secondary:disabled,
-.btn-gantt-success:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
 .gantt-msg-banner {
-  padding: 12px 18px;
-  border-radius: var(--radius-md, 8px);
+  box-sizing: border-box;
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  font-weight: 500;
   font-size: 14px;
-  margin-bottom: 16px;
 }
 
 .msg-success {
-  background: #ecfdf5;
-  color: #065f46;
-  border: 1px solid #a7f3d0;
+  border: 1px solid #10b981;
+  color: #047857;
+  background-color: #ecfdf5;
 }
 
 .msg-error {
-  background: #fef2f2;
-  color: #991b1b;
-  border: 1px solid #fecaca;
+  border: 1px solid var(--color-primary);
+  color: var(--color-primary-dark);
+  background-color: var(--color-primary-soft);
 }
 
 .gantt-empty-card {
-  background: var(--color-surface, #ffffff);
-  border: 1px dashed var(--color-border, #cbd5e1);
-  border-radius: var(--radius-md, 8px);
-  padding: 48px 24px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 40px;
   text-align: center;
-  max-width: 640px;
-  margin: 32px auto;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
 }
 
 .gantt-empty-card h3 {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--color-text, #0f172a);
-  margin: 0 0 8px 0;
+  margin-top: 0;
+  color: var(--color-text);
+  font-size: 20px;
 }
 
 .gantt-empty-card p {
+  margin-bottom: 24px;
+  color: var(--color-text-secondary);
   font-size: 14px;
-  color: var(--color-text-secondary, #64748b);
-  line-height: 1.5;
-  margin: 0 0 20px 0;
 }
-
-.btn-gantt-primary {
-  background: var(--color-primary, #2563eb);
-  color: #ffffff;
-  border: none;
-  border-radius: var(--radius-md, 8px);
-  padding: 10px 20px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.15s ease;
-}
-
-.btn-gantt-primary:hover:not(:disabled) {
-  background: #1d4ed8;
-}
-
-.btn-gantt-primary:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-/* ==========================================================================
-   GRID TABLE - WIDE LAYOUT
-   ========================================================================== */
 
 .gantt-grid {
+  display: flex;
+  flex-direction: column;
   width: 100%;
-  background: var(--color-surface, #ffffff);
-  border: 1px solid var(--color-border, #e2e8f0);
-  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
   overflow: hidden;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-md);
 }
 
-.gantt-head {
+.gantt-head,
+.gantt-child-row,
+.gantt-parent-row {
   display: grid;
-  grid-template-columns: 360px 100px 110px 1fr 300px;
-  background: #f8fafc;
-  border-bottom: 1px solid var(--color-border, #e2e8f0);
-  padding: 12px 20px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--color-text-secondary, #64748b);
-  letter-spacing: 0.04em;
+  grid-template-columns: 2fr 1fr 1fr 1.5fr 1.5fr;
   align-items: center;
+  gap: 16px;
+  border-bottom: 1px solid var(--color-border);
+  padding: 14px 18px;
+  box-sizing: border-box;
 }
 
 .gantt-body {
-  display: flex;
-  flex-direction: column;
+  display: contents;
+}
+
+.gantt-head {
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  font-size: 13px;
+  background-color: var(--color-background);
+  white-space: nowrap;
 }
 
 .gantt-parent-row {
-  display: grid;
-  grid-template-columns: 360px 100px 110px 1fr 300px;
-  background: #f1f5f9;
-  padding: 12px 20px;
-  align-items: center;
-  border-bottom: 1px solid #e2e8f0;
-  cursor: pointer;
-  user-select: none;
+  color: var(--color-text);
   font-weight: 600;
-  font-size: 14px;
-  color: var(--color-text, #0f172a);
-  transition: background-color 0.15s ease;
-}
-
-.gantt-parent-row:hover {
-  background: #e2e8f0;
+  background-color: var(--color-background);
+  cursor: pointer;
 }
 
 .gantt-parent-name {
@@ -197,244 +128,378 @@
 }
 
 .gantt-toggle {
-  font-size: 11px;
-  color: #64748b;
-  display: inline-block;
-  width: 14px;
+  width: 16px;
+  color: var(--color-text-secondary);
+  font-size: 12px;
 }
 
 .gantt-child-row {
-  display: grid;
-  grid-template-columns: 360px 100px 110px 1fr 300px;
-  padding: 12px 20px;
-  align-items: center;
-  border-bottom: 1px solid #f1f5f9;
-  background: #ffffff;
-  transition: background-color 0.15s ease;
+  font-size: 14px;
+  background-color: var(--color-surface);
+  color: var(--color-text);
 }
 
 .gantt-child-row:hover {
-  background: #f8fafc;
+  background-color: var(--color-primary-soft);
 }
 
 .gantt-child-row-critical {
-  border-left: 3px solid #dc2626;
+  background-color: rgba(229, 57, 53, 0.04);
 }
 
 .gantt-child-title {
-  padding-left: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.substage-name-text {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text, #1e293b);
-  line-height: 1.4;
-}
-
-.substage-risk-alert {
-  font-size: 11px;
-  color: #b45309;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
+  padding-left: 24px;
+  color: var(--color-text-secondary);
 }
 
 .gantt-status-badge {
-  display: inline-block;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 3px 8px;
-  border-radius: var(--radius-md, 6px);
-  background: #f1f5f9;
-  color: #64748b;
-  border: 1px solid #cbd5e1;
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 5px 9px;
+  color: var(--color-text-secondary);
+  font-weight: 500;
+  font-size: 12px;
+  background-color: var(--color-background);
 }
 
-.gantt-status-active {
-  background: #eff6ff;
-  color: #1d4ed8;
-  border-color: #bfdbfe;
+.status-completed {
+  border-color: #10b981;
+  color: #047857;
+  background-color: #ecfdf5;
 }
 
 .duration-ctrl {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
 }
 
 .duration-num-input {
-  width: 52px;
-  padding: 5px 6px;
-  border: 1px solid var(--color-border, #cbd5e1);
-  border-radius: var(--radius-md, 6px);
+  width: 64px;
+  height: 38px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0 8px;
   font-size: 13px;
   text-align: center;
-  color: var(--color-text, #0f172a);
+  background: var(--color-surface);
+  color: var(--color-text);
+  outline: none;
 }
 
 .duration-num-input:focus {
-  outline: none;
-  border-color: var(--color-primary, #2563eb);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(229, 57, 53, 0.1);
 }
 
 .unit-txt {
-  font-size: 12px;
-  color: var(--color-text-secondary, #64748b);
+  color: var(--color-text-secondary);
+  font-size: 13px;
 }
-
-/* ==========================================================================
-   EQUIPMENT SECTION
-   ========================================================================== */
 
 .eq-chip-box {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
   align-items: center;
+  gap: 6px;
 }
 
 .eq-chip {
   display: flex;
   align-items: center;
-  gap: 6px;
-  background: #f8fafc;
-  border: 1px solid #cbd5e1;
-  border-radius: var(--radius-md, 6px);
-  padding: 3px 8px;
+  gap: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 4px 8px;
   font-size: 12px;
-  color: #334155;
+  background-color: var(--color-background);
+  color: var(--color-text);
 }
 
 .eq-chip-required {
-  background: #eff6ff;
-  border-color: #bfdbfe;
+  border-color: #93c5fd;
   color: #1d4ed8;
-}
-
-.eq-chip-allowed {
-  background: #f0fdf4;
-  border-color: #bbf7d0;
-  color: #15803d;
-}
-
-.eq-chip-label {
-  font-weight: 500;
+  background-color: #eff6ff;
 }
 
 .eq-btn {
-  background: #e2e8f0;
   border: none;
-  border-radius: 3px;
-  width: 18px;
-  height: 18px;
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1;
+  padding: 0 4px;
+  color: var(--color-text-secondary);
+  font-weight: 600;
+  background: none;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #1e293b;
-  transition: background-color 0.15s ease;
 }
 
 .eq-btn:hover {
-  background: #cbd5e1;
+  color: var(--color-text);
 }
 
 .eq-count {
   font-weight: 600;
-  font-size: 12px;
 }
 
 .eq-add-sel {
-  border: 1px dashed #94a3b8;
-  border-radius: var(--radius-md, 6px);
-  padding: 3px 8px;
+  height: 32px;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0 8px;
+  color: var(--color-text-secondary);
   font-size: 12px;
-  background: #ffffff;
-  color: #475569;
+  background: var(--color-surface);
   cursor: pointer;
   outline: none;
 }
 
-.eq-add-sel:hover {
-  border-color: var(--color-primary, #2563eb);
-  color: var(--color-primary, #2563eb);
+.eq-add-sel:focus {
+  border-color: var(--color-primary);
 }
-
-/* ==========================================================================
-   GANTT TIMELINE ENGINE (СТРОГИЕ ПРЯМОУГОЛЬНИКИ БЕЗ СКРУГЛЕНИЙ)
-   ========================================================================== */
 
 .timeline-cell {
   position: relative;
-  width: 100%;
-  height: 26px;
   display: flex;
   align-items: center;
-  box-sizing: border-box;
+  width: 100%;
+  height: 24px;
+}
+
+.timeline-cell-flex {
+  flex: 1;
+  min-width: 80px;
 }
 
 .gantt-timeline-track {
   position: absolute;
-  top: 0;
+  top: 11px;
   left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: #f8fafc;
-  border: 1px solid var(--color-border, #e2e8f0);
-  border-radius: 0;
-  background-image: repeating-linear-gradient(
-    to right,
-    transparent,
-    transparent calc(25% - 1px),
-    rgba(226, 232, 240, 0.8) calc(25% - 1px),
-    rgba(226, 232, 240, 0.8) 25%
-  );
-  pointer-events: none;
+  width: 100%;
+  height: 2px;
+  background-color: var(--color-border);
 }
 
 .gantt-svg-track {
-  position: relative;
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
-  height: 100%;
-  background: transparent;
-  overflow: visible;
-  z-index: 1;
+  height: 24px;
 }
 
-/* Прямоугольный сводный бар этапа */
 .gantt-rect-parent {
-  fill: #334155;
-  stroke: #1e293b;
-  stroke-width: 0.5px;
+  fill: var(--color-text-muted, #9ca3af);
+  rx: 4;
 }
 
-/* Прямоугольный бар подэтапа */
 .gantt-rect-child {
-  fill: #2563eb;
-  stroke: #1d4ed8;
-  stroke-width: 0.5px;
-  transition: x 0.2s ease, width 0.2s ease;
+  fill: var(--color-primary);
+  rx: 4;
 }
 
-.gantt-rect-child:hover {
-  fill: #1d4ed8;
-}
-
-/* Прямоугольный бар критического пути */
 .gantt-rect-critical {
-  fill: #dc2626;
-  stroke: #b91c1c;
-  stroke-width: 0.5px;
-  transition: x 0.2s ease, width 0.2s ease;
+  fill: var(--color-primary-dark);
+  rx: 4;
 }
 
-.gantt-rect-critical:hover {
-  fill: #b91c1c;
+.engineer-gantt-action-cell {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+}
+
+.engineer-action-wrapper {
+  flex-shrink: 0;
+}
+
+.btn-action-small {
+  height: 38px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: #10b981;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-action-small:hover {
+  background: #059669;
+}
+
+.text-secondary-label {
+  color: var(--color-text-secondary);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* Модальное окно в стиле админки */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(3px);
+}
+
+.modal-window {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 520px;
+  max-height: 85vh;
+  border-radius: var(--radius-md);
+  padding: 32px;
+  box-shadow: var(--shadow-md);
+  background-color: var(--color-surface);
+}
+
+.modal-header {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--color-border);
+  padding-bottom: 16px;
+}
+
+.modal-header h3 {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.btn-close {
+  border: none;
+  color: var(--color-text-secondary);
+  font-size: 20px;
+  background: none;
+  cursor: pointer;
+}
+
+.btn-close:hover {
+  color: var(--color-text);
+}
+
+.modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-height: calc(85vh - 140px);
+  padding-right: 4px;
+  overflow-y: auto;
+}
+
+.modal-footer {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: flex-end;
+  gap: 12px;
+  border-top: 1px solid var(--color-border);
+  padding-top: 16px;
+}
+
+/* Стандартные поля ввода под админку (высота 48px, фокус) */
+.foreman-custom-input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 100%;
+  max-width: 100%;
+  height: 48px;
+  min-height: 48px;
+  max-height: 48px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 0 14px;
+  outline: none;
+  color: var(--color-text);
+  font-family: inherit;
+  font-size: 14px;
+  background-color: var(--color-surface);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+textarea.foreman-custom-input {
+  height: 96px;
+  min-height: 80px;
+  max-height: 140px;
+  padding: 12px 14px;
+  resize: vertical;
+}
+
+.foreman-custom-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(229, 57, 53, 0.1);
+}
+
+.btn-gantt-secondary {
+  height: 42px;
+  padding: 0 20px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  background-color: var(--color-surface);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.btn-gantt-secondary:hover {
+  background-color: var(--color-background);
+  border-color: var(--color-text-secondary);
+}
+
+.btn-gantt-success {
+  height: 42px;
+  padding: 0 24px;
+  border: 0;
+  border-radius: var(--radius-md);
+  color: var(--color-surface);
+  background-color: var(--color-primary);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.btn-gantt-success:hover {
+  background-color: var(--color-primary-dark);
+}
+
+@media (max-width: 768px) {
+  .gantt-top-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .gantt-head {
+    display: none;
+  }
+
+  .gantt-parent-row,
+  .gantt-child-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .gantt-child-title {
+    padding-left: 0;
+  }
 }

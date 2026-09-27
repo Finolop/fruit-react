@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ForemanObjectManager } from "../../components/foreman/ForemanObjectManager";
-import { getAuthHeaders } from "../../api/api";
+import { getAuthHeaders, getLiveSummary, LiveSummaryResponse } from "../../api/api";
 import Header from "../../components/Header";
 import "../../styles/ForemanPage.css";
 
@@ -13,6 +13,7 @@ export interface ProjectData {
   address: string;
   type_id?: string;
   status: string;
+  schedule_status?: string;
   camera_url?: string;
 }
 
@@ -32,8 +33,10 @@ export interface ScheduleItem {
   base_end_date: string;
   status: string;
   equipment_requirements: {
-    equipment_type_id: string;
-    required_count: number;
+    equipment_type?: string;
+    equipment_type_id?: string;
+    required_count?: number;
+    count?: number;
   }[];
 }
 
@@ -50,7 +53,7 @@ const parseJsonResponse = async (res: Response, fallback: any = null) => {
   return fallback;
 };
 
-const ForemanPage: React.FC = () => {
+export const ForemanPage: React.FC = () => {
   const { projectId: urlProjectId } = useParams<{ projectId?: string }>();
   const navigate = useNavigate();
 
@@ -61,8 +64,11 @@ const ForemanPage: React.FC = () => {
   const [project, setProject] = useState<ProjectData | null>(null);
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [equipmentTypes, setEquipmentTypes] = useState<EquipmentType[]>([]);
+  const [liveSummary, setLiveSummary] = useState<LiveSummaryResponse | null>(null);
+
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string>("");
+  const [idleResolvedText, setIdleResolvedText] = useState<string>("");
 
   useEffect(() => {
     if (urlProjectId) {
@@ -70,21 +76,54 @@ const ForemanPage: React.FC = () => {
     }
   }, [urlProjectId]);
 
-  const fetchSchedulesOnly = useCallback(async () => {
-    if (!selectedProjectId) return;
+  // Загрузка паспорта ОКС, графиков и статуса (вызывается также при reloadSchedules)
+  const loadProjectDetails = useCallback(async () => {
+    if (!selectedProjectId) {
+      setProject(null);
+      setSchedules([]);
+      setLiveSummary(null);
+      return;
+    }
+
+    const headers = getAuthHeaders();
     try {
-      const res = await fetch(
-        `${API_URL}/api/v1/projects/${selectedProjectId}/schedules`,
-        { headers: getAuthHeaders() }
-      );
-      const data = await parseJsonResponse(res, []);
-      setSchedules(Array.isArray(data) ? data : []);
-    } catch (e) {
-      console.error("Ошибка обновления графика:", e);
+      const [projRes, schedRes, camerasRes, eqRes, summaryData] = await Promise.all([
+        fetch(`${API_URL}/api/v1/projects/${selectedProjectId}`, { headers }),
+        fetch(`${API_URL}/api/v1/projects/${selectedProjectId}/schedules`, { headers }),
+        fetch(`${API_URL}/api/v1/projects/${selectedProjectId}/cameras`, { headers }),
+        fetch(`${API_URL}/api/v1/dictionaries/equipment-types`, { headers }),
+        getLiveSummary(selectedProjectId).catch(() => null),
+      ]);
+
+      const projData = await parseJsonResponse(projRes, null);
+      const schedData = await parseJsonResponse(schedRes, []);
+      const camerasData = await parseJsonResponse(camerasRes, []);
+      const eqData = await parseJsonResponse(eqRes, []);
+
+      if (projData) {
+        setProject({
+          id: projData.id,
+          name: projData.name || "Объект капитального строительства",
+          address: projData.address || "Адрес не указан",
+          type_id: projData.type_id || undefined,
+          status: projData.schedule_status || projData.status || "DRAFT",
+          schedule_status: projData.schedule_status || projData.status || "DRAFT",
+          camera_url:
+            Array.isArray(camerasData) && camerasData.length > 0
+              ? camerasData[0].stream_url
+              : "",
+        });
+      }
+
+      setSchedules(Array.isArray(schedData) ? schedData : []);
+      setEquipmentTypes(Array.isArray(eqData) ? eqData : []);
+      setLiveSummary(summaryData);
+    } catch (err: any) {
+      console.error("Ошибка обновления данных ОКС:", err);
     }
   }, [selectedProjectId]);
 
-  // Загрузка доступных прорабу объектов
+  // Первичная загрузка списка доступных объектов
   useEffect(() => {
     let isMounted = true;
 
@@ -122,73 +161,9 @@ const ForemanPage: React.FC = () => {
     };
   }, []);
 
-  // Загрузка паспорта ОКС, графика и справочника техники
   useEffect(() => {
-    if (!selectedProjectId) {
-      setProject(null);
-      setSchedules([]);
-      return;
-    }
-
-    let isMounted = true;
-
-    const loadProjectDetails = async () => {
-      setIsLoading(true);
-      const headers = getAuthHeaders();
-
-      try {
-        const [projRes, schedRes, camerasRes, eqRes] = await Promise.all([
-          fetch(`${API_URL}/api/v1/projects/${selectedProjectId}`, { headers }),
-          fetch(`${API_URL}/api/v1/projects/${selectedProjectId}/schedules`, { headers }),
-          fetch(`${API_URL}/api/v1/projects/${selectedProjectId}/cameras`, { headers }),
-          fetch(`${API_URL}/api/v1/dictionaries/equipment-types`, { headers }),
-        ]);
-
-        const projData = await parseJsonResponse(projRes, null);
-        const schedData = await parseJsonResponse(schedRes, []);
-        const camerasData = await parseJsonResponse(camerasRes, []);
-        const eqData = await parseJsonResponse(eqRes, []);
-
-        const fallbackProject = availableProjects.find((p) => p.id === selectedProjectId);
-        const finalData = projData || fallbackProject;
-
-        if (!finalData) {
-          throw new Error("ОКС не найден или у вас нет доступа к объекту");
-        }
-
-        if (isMounted) {
-          setProject({
-            id: finalData.id,
-            name: finalData.name || "Объект капитального строительства",
-            address: finalData.address || "Адрес не указан",
-            type_id: finalData.type_id || undefined,
-            status: finalData.schedule_status || "DRAFT",
-            camera_url:
-              Array.isArray(camerasData) && camerasData.length > 0
-                ? camerasData[0].stream_url
-                : "",
-          });
-
-          setSchedules(Array.isArray(schedData) ? schedData : []);
-          setEquipmentTypes(Array.isArray(eqData) ? eqData : []);
-        }
-      } catch (err: any) {
-        if (isMounted) {
-          setErrorMessage(err.message || "Ошибка загрузки данных объекта");
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
     loadProjectDetails();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedProjectId, availableProjects]);
+  }, [loadProjectDetails]);
 
   const handleSelectProject = (projId: string) => {
     setSelectedProjectId(projId);
@@ -199,6 +174,7 @@ const ForemanPage: React.FC = () => {
     setSelectedProjectId(null);
     setProject(null);
     setSchedules([]);
+    setLiveSummary(null);
     navigate("/foreman");
   };
 
@@ -218,7 +194,6 @@ const ForemanPage: React.FC = () => {
     );
   }
 
-  // Экран выбора ОКС из закрепленных
   if (!selectedProjectId) {
     if (availableProjects.length === 0) {
       return (
@@ -229,7 +204,7 @@ const ForemanPage: React.FC = () => {
               <h2 className="empty-state-title">ОКС не назначен</h2>
               <p className="empty-state-description">
                 {errorMessage ||
-                  "За вашей учетной записью пока не закреплено ни одного объекта капитального строительства. Обратитесь к администратору департамента."}
+                  "За вашей учетной записью пока не закреплено ни одного объекта капитального строительства."}
               </p>
               <button
                 type="button"
@@ -305,24 +280,141 @@ const ForemanPage: React.FC = () => {
     );
   }
 
+  const alertLevel = (liveSummary?.alert_level || "GREEN").toUpperCase();
+
   return (
     <div className="foreman-page">
       <Header />
+
       <div className="foreman-toolbar-switch">
+        <div className="foreman-project-selector-group">
+          <span className="kpi-caption" style={{ marginBottom: 0 }}>
+            Стройплощадка:
+          </span>
+          <select
+            className="foreman-project-dropdown"
+            value={selectedProjectId}
+            onChange={(e) => handleSelectProject(e.target.value)}
+          >
+            {availableProjects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} {p.address ? `(${p.address})` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+
         <button
           type="button"
           className="btn-switch-project"
           onClick={handleBackToSelection}
         >
-          ← К списку объектов ({availableProjects.length})
+          ← Реестр строек ({availableProjects.length})
         </button>
+      </div>
+
+      <div className="foreman-kpi-container">
+        <div className="foreman-kpi-grid">
+          <div className="foreman-kpi-card">
+            <span className="kpi-caption">Объект и текущий этап</span>
+            <h2 className="kpi-title-strong">{project.name}</h2>
+            <span className="kpi-sub-text">
+              {liveSummary?.current_stage?.name || "Подготовительный этап"}
+            </span>
+          </div>
+
+          <div className="foreman-kpi-card">
+            <span className="kpi-caption">Готовность ОКС</span>
+            <div className="kpi-accent-value">
+              {liveSummary?.physical_progress_percent ?? 0}%
+            </div>
+            <span className="kpi-sub-text">
+              Пройдено {liveSummary?.time_elapsed_percent ?? 0}% директивного времени
+            </span>
+          </div>
+
+          <div className="foreman-kpi-card">
+            <span className="kpi-caption">Оперативный статус</span>
+            <div>
+              <span
+                className={`foreman-traffic-badge ${
+                  alertLevel === "RED"
+                    ? "red"
+                    : alertLevel === "YELLOW"
+                    ? "yellow"
+                    : "green"
+                }`}
+              >
+                {alertLevel === "YELLOW"
+                  ? "Желтый (Внимание)"
+                  : alertLevel === "RED"
+                  ? "Красный (Эскалация)"
+                  : "Зеленый (В норме)"}
+              </span>
+            </div>
+            <span className="kpi-sub-text">
+              {alertLevel === "YELLOW"
+                ? "Требуются оперативные меры на площадке"
+                : alertLevel === "RED"
+                ? "Передано на арбитраж инженеру технадзора"
+                : "Отклонений по графику и технике нет"}
+            </span>
+          </div>
+
+          <div className="foreman-kpi-card">
+            <span className="kpi-caption">Полномочия прораба</span>
+            <div className="kpi-title-strong">
+              {project.status === "ACTIVE" || project.schedule_status === "ACTIVE"
+                ? "График зафиксирован"
+                : "Формирование графика"}
+            </div>
+            <span className="kpi-sub-text">
+              {project.status === "ACTIVE" || project.schedule_status === "ACTIVE"
+                ? "Редактирование закрыто, ведется видеомониторинг"
+                : "Настройте сроки и технику до утверждения"}
+            </span>
+          </div>
+        </div>
+
+        {alertLevel === "YELLOW" && (
+          <div className="foreman-alert-banner">
+            <div className="foreman-alert-content">
+              <span className="foreman-alert-title">
+                Предупреждение: обнаружен простой или дефицит техники
+              </span>
+              <p className="foreman-alert-desc">
+                Единицы техники простаивают в секторе производства работ.
+                Если простой превысит регламентный норматив, статус объекта
+                автоматически эскалируется в Красный инженеру технадзора.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              className="btn-foreman-resolve-idle"
+              onClick={() => {
+                setIdleResolvedText(
+                  "Отметка о ликвидации простоя принята. Проверьте возобновление работы техники."
+                );
+              }}
+            >
+              Отметить ликвидацию простоя
+            </button>
+          </div>
+        )}
+
+        {idleResolvedText && (
+          <div className="gantt-msg-banner msg-success" style={{ margin: 0 }}>
+            {idleResolvedText}
+          </div>
+        )}
       </div>
 
       <ForemanObjectManager
         project={project}
         schedules={schedules}
         equipmentTypes={equipmentTypes}
-        reloadSchedules={fetchSchedulesOnly}
+        reloadSchedules={loadProjectDetails}
       />
     </div>
   );
