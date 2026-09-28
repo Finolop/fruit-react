@@ -100,3 +100,75 @@ html {
   background: rgba(156, 163, 175, 0.7);
   background-clip: padding-box;
 }
+
+/* ==========================================================================
+   ЕДИНЫЕ РАЗМЕРЫ ВЕКТОРНЫХ SVG-ИКОНОК
+   ========================================================================== */
+
+.btn-icon-svg {
+  width: 15px;
+  height: 15px;
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.badge-icon-svg {
+  width: 18px;
+  height: 18px;
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.modal-icon-svg {
+  width: 22px;
+  height: 22px;
+  display: inline-block;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.icon-chevron {
+  width: 12px;
+  height: 12px;
+  display: inline-block;
+  vertical-align: middle;
+  transition: transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.ui-icon-xs {
+  width: 12px;
+  height: 12px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.ui-icon-sm {
+  width: 14px;
+  height: 14px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.ui-icon-trash {
+  width: 16px;
+  height: 16px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.camera-empty-icon-svg {
+  width: 38px;
+  height: 38px;
+  display: block;
+  margin: 0 auto 8px;
+  opacity: 0.7;
+}
+
+.shift-dir-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}

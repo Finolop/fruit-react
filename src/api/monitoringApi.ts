@@ -1,4 +1,4 @@
-import { getAuthHeaders } from "./api";
+import { fetchWithAuth } from "./api";
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -20,11 +20,6 @@ export interface ApplyTemplateResponse {
   message: string;
 }
 
-export interface EarlyCompletePayload {
-  actual_end_date?: string;
-  comment?: string;
-}
-
 const handleRes = async <T>(
   res: Response,
   defaultErrorMsg: string,
@@ -33,9 +28,15 @@ const handleRes = async <T>(
     let detail = "";
     try {
       const json = await res.json();
-      detail = json?.detail?.[0]?.msg || json?.detail || json?.message;
+      if (typeof json.detail === "string") {
+        detail = json.detail;
+      } else if (Array.isArray(json.detail)) {
+        detail = json.detail.map((e: any) => e.msg || e.message).join(", ");
+      } else if (json.message) {
+        detail = json.message;
+      }
     } catch {
-      // Игнорируем ошибку парсинга JSON
+      // Игнорируем ошибку парсинга
     }
     throw new Error(detail || `${defaultErrorMsg} (Код: ${res.status})`);
   }
@@ -45,22 +46,24 @@ const handleRes = async <T>(
 export const monitoringApi = {
   // 1. Получение списка камер объекта
   getCameras: async (projectId: string): Promise<CameraItem[]> => {
-    const res = await fetch(`${API_URL}/api/v1/projects/${projectId}/cameras`, {
-      headers: getAuthHeaders(),
-    });
+    const res = await fetchWithAuth(
+      `${API_URL}/api/v1/projects/${projectId}/cameras`,
+    );
     return handleRes<CameraItem[]>(res, "Не удалось загрузить камеры объекта");
   },
 
-  // 2. Добавление RTSP-потока камеры (Прораб / Инженер / Админ)
+  // 2. Добавление RTSP-потока камеры
   addCamera: async (
     projectId: string,
     streamUrl: string,
   ): Promise<CameraItem> => {
-    const res = await fetch(`${API_URL}/api/v1/projects/${projectId}/cameras`, {
-      method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ stream_url: streamUrl } as CameraCreateRequest),
-    });
+    const res = await fetchWithAuth(
+      `${API_URL}/api/v1/projects/${projectId}/cameras`,
+      {
+        method: "POST",
+        body: JSON.stringify({ stream_url: streamUrl } as CameraCreateRequest),
+      },
+    );
     return handleRes<CameraItem>(res, "Ошибка добавления камеры");
   },
 
@@ -69,9 +72,8 @@ export const monitoringApi = {
     cameraId: string,
     isActive: boolean,
   ): Promise<CameraItem> => {
-    const res = await fetch(`${API_URL}/api/v1/cameras/${cameraId}`, {
+    const res = await fetchWithAuth(`${API_URL}/api/v1/cameras/${cameraId}`, {
       method: "PATCH",
-      headers: getAuthHeaders(),
       body: JSON.stringify({ is_active: isActive }),
     });
     return handleRes<CameraItem>(res, "Ошибка обновления статуса камеры");
@@ -79,9 +81,8 @@ export const monitoringApi = {
 
   // 4. Удаление камеры
   deleteCamera: async (cameraId: string): Promise<{ message: string }> => {
-    const res = await fetch(`${API_URL}/api/v1/cameras/${cameraId}`, {
+    const res = await fetchWithAuth(`${API_URL}/api/v1/cameras/${cameraId}`, {
       method: "DELETE",
-      headers: getAuthHeaders(),
     });
     return handleRes<{ message: string }>(res, "Не удалось удалить камеру");
   },
@@ -94,11 +95,10 @@ export const monitoringApi = {
     const payload = {
       start_date: startDate || new Date().toISOString(),
     };
-    const res = await fetch(
+    const res = await fetchWithAuth(
       `${API_URL}/api/v1/projects/${projectId}/schedules/apply-template`,
       {
         method: "POST",
-        headers: getAuthHeaders(),
         body: JSON.stringify(payload),
       },
     );
@@ -108,24 +108,22 @@ export const monitoringApi = {
     );
   },
 
-  // 6. Досрочное закрытие этапа инженером технадзора
+  // 6. Досрочное закрытие этапа по акту АОСР
   completeStageEarly: async (
     projectId: string,
     scheduleId: string,
     payload?: { actual_end_date?: string; comment?: string },
   ): Promise<any> => {
-    const headers = getAuthHeaders();
     const body = JSON.stringify({
       actual_end_date: payload?.actual_end_date || new Date().toISOString(),
       foreman_comment:
         payload?.comment || "Завершено досрочно по акту АОСР технадзора",
     });
 
-    const res = await fetch(
+    const res = await fetchWithAuth(
       `${API_URL}/api/v1/projects/${projectId}/schedules/${scheduleId}/complete-early`,
       {
         method: "POST",
-        headers,
         body,
       },
     );
@@ -134,5 +132,17 @@ export const monitoringApi = {
       res,
       "Не удалось зафиксировать досрочное завершение этапа",
     );
+  },
+
+  // 7. Ручной/автоматический старт этапа (PLANNED -> IN_PROGRESS)
+  startStage: async (projectId: string, scheduleId: string): Promise<any> => {
+    const res = await fetchWithAuth(
+      `${API_URL}/api/v1/projects/${projectId}/schedules/${scheduleId}/start`,
+      {
+        method: "POST",
+      },
+    );
+
+    return handleRes<any>(res, "Не удалось запустить выполнение этапа");
   },
 };

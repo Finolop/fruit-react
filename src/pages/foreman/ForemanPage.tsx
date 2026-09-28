@@ -1,9 +1,15 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ForemanObjectManager } from "../../components/foreman/ForemanObjectManager";
-import { getAuthHeaders, getLiveSummary, LiveSummaryResponse } from "../../api/api";
+import {
+  getAuthHeaders,
+  getLiveSummary,
+  LiveSummaryResponse,
+} from "../../api/api";
 import Header from "../../components/Header";
 import "../../styles/ForemanPage.css";
+import arrowLeftIcon from "../../assets/images/Arrow_Left_MD.svg";
+import arrowRightIcon from "../../assets/images/Arrow_Right_MD.svg";
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -31,12 +37,17 @@ export interface ScheduleItem {
   sequence_order: number;
   base_start_date: string;
   base_end_date: string;
+  phantom_start_date?: string;
+  phantom_end_date?: string;
+  actual_start_date?: string;
+  actual_end_date?: string;
   status: string;
   equipment_requirements: {
     equipment_type?: string;
     equipment_type_id?: string;
     required_count?: number;
     count?: number;
+    is_required?: boolean;
   }[];
 }
 
@@ -58,13 +69,15 @@ export const ForemanPage: React.FC = () => {
   const navigate = useNavigate();
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
-    urlProjectId || null
+    urlProjectId || null,
   );
   const [availableProjects, setAvailableProjects] = useState<ProjectData[]>([]);
   const [project, setProject] = useState<ProjectData | null>(null);
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [equipmentTypes, setEquipmentTypes] = useState<EquipmentType[]>([]);
-  const [liveSummary, setLiveSummary] = useState<LiveSummaryResponse | null>(null);
+  const [liveSummary, setLiveSummary] = useState<LiveSummaryResponse | null>(
+    null,
+  );
 
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string>("");
@@ -87,13 +100,18 @@ export const ForemanPage: React.FC = () => {
 
     const headers = getAuthHeaders();
     try {
-      const [projRes, schedRes, camerasRes, eqRes, summaryData] = await Promise.all([
-        fetch(`${API_URL}/api/v1/projects/${selectedProjectId}`, { headers }),
-        fetch(`${API_URL}/api/v1/projects/${selectedProjectId}/schedules`, { headers }),
-        fetch(`${API_URL}/api/v1/projects/${selectedProjectId}/cameras`, { headers }),
-        fetch(`${API_URL}/api/v1/dictionaries/equipment-types`, { headers }),
-        getLiveSummary(selectedProjectId).catch(() => null),
-      ]);
+      const [projRes, schedRes, camerasRes, eqRes, summaryData] =
+        await Promise.all([
+          fetch(`${API_URL}/api/v1/projects/${selectedProjectId}`, { headers }),
+          fetch(`${API_URL}/api/v1/projects/${selectedProjectId}/schedules`, {
+            headers,
+          }),
+          fetch(`${API_URL}/api/v1/projects/${selectedProjectId}/cameras`, {
+            headers,
+          }),
+          fetch(`${API_URL}/api/v1/dictionaries/equipment-types`, { headers }),
+          getLiveSummary(selectedProjectId).catch(() => null),
+        ]);
 
       const projData = await parseJsonResponse(projRes, null);
       const schedData = await parseJsonResponse(schedRes, []);
@@ -107,7 +125,8 @@ export const ForemanPage: React.FC = () => {
           address: projData.address || "Адрес не указан",
           type_id: projData.type_id || undefined,
           status: projData.schedule_status || projData.status || "DRAFT",
-          schedule_status: projData.schedule_status || projData.status || "DRAFT",
+          schedule_status:
+            projData.schedule_status || projData.status || "DRAFT",
           camera_url:
             Array.isArray(camerasData) && camerasData.length > 0
               ? camerasData[0].stream_url
@@ -137,7 +156,9 @@ export const ForemanPage: React.FC = () => {
         const list = await parseJsonResponse(res, null);
 
         if (!list || !Array.isArray(list)) {
-          throw new Error("Не удалось получить список объектов со строительного сервера");
+          throw new Error(
+            "Не удалось получить список объектов со строительного сервера",
+          );
         }
 
         if (isMounted) {
@@ -227,7 +248,9 @@ export const ForemanPage: React.FC = () => {
             <div className="project-selector-header">
               <h2>Выберите объект строительства</h2>
               <p>
-                За вашей учетной записью закреплено объектов: {availableProjects.length}. Нажмите на нужную стройплощадку для перехода к графику Ганта:
+                За вашей учетной записью закреплено объектов:{" "}
+                {availableProjects.length}. Нажмите на нужную стройплощадку для
+                перехода к графику Ганта:
               </p>
             </div>
 
@@ -248,7 +271,7 @@ export const ForemanPage: React.FC = () => {
                     <span className="project-selector-badge">
                       {p.status || "DRAFT"}
                     </span>
-                    <span className="project-selector-arrow">→</span>
+                    <img src={arrowRightIcon} alt="" className="btn-icon-svg" />
                   </div>
                 </div>
               ))}
@@ -309,7 +332,8 @@ export const ForemanPage: React.FC = () => {
           className="btn-switch-project"
           onClick={handleBackToSelection}
         >
-          ← Реестр строек ({availableProjects.length})
+          <img src={arrowLeftIcon} alt="" className="btn-icon-svg" />
+          <span>Реестр строек ({availableProjects.length})</span>
         </button>
       </div>
 
@@ -329,7 +353,8 @@ export const ForemanPage: React.FC = () => {
               {liveSummary?.physical_progress_percent ?? 0}%
             </div>
             <span className="kpi-sub-text">
-              Пройдено {liveSummary?.time_elapsed_percent ?? 0}% директивного времени
+              Пройдено {liveSummary?.time_elapsed_percent ?? 0}% директивного
+              времени
             </span>
           </div>
 
@@ -341,35 +366,37 @@ export const ForemanPage: React.FC = () => {
                   alertLevel === "RED"
                     ? "red"
                     : alertLevel === "YELLOW"
-                    ? "yellow"
-                    : "green"
+                      ? "yellow"
+                      : "green"
                 }`}
               >
                 {alertLevel === "YELLOW"
                   ? "Желтый (Внимание)"
                   : alertLevel === "RED"
-                  ? "Красный (Эскалация)"
-                  : "Зеленый (В норме)"}
+                    ? "Красный (Эскалация)"
+                    : "Зеленый (В норме)"}
               </span>
             </div>
             <span className="kpi-sub-text">
               {alertLevel === "YELLOW"
                 ? "Требуются оперативные меры на площадке"
                 : alertLevel === "RED"
-                ? "Передано на арбитраж инженеру технадзора"
-                : "Отклонений по графику и технике нет"}
+                  ? "Передано на арбитраж инженеру технадзора"
+                  : "Отклонений по графику и технике нет"}
             </span>
           </div>
 
           <div className="foreman-kpi-card">
             <span className="kpi-caption">Полномочия прораба</span>
             <div className="kpi-title-strong">
-              {project.status === "ACTIVE" || project.schedule_status === "ACTIVE"
+              {project.status === "ACTIVE" ||
+              project.schedule_status === "ACTIVE"
                 ? "График зафиксирован"
                 : "Формирование графика"}
             </div>
             <span className="kpi-sub-text">
-              {project.status === "ACTIVE" || project.schedule_status === "ACTIVE"
+              {project.status === "ACTIVE" ||
+              project.schedule_status === "ACTIVE"
                 ? "Редактирование закрыто, ведется видеомониторинг"
                 : "Настройте сроки и технику до утверждения"}
             </span>
@@ -383,8 +410,8 @@ export const ForemanPage: React.FC = () => {
                 Предупреждение: обнаружен простой или дефицит техники
               </span>
               <p className="foreman-alert-desc">
-                Единицы техники простаивают в секторе производства работ.
-                Если простой превысит регламентный норматив, статус объекта
+                Единицы техники простаивают в секторе производства работ. Если
+                простой превысит регламентный норматив, статус объекта
                 автоматически эскалируется в Красный инженеру технадзора.
               </p>
             </div>
@@ -394,7 +421,7 @@ export const ForemanPage: React.FC = () => {
               className="btn-foreman-resolve-idle"
               onClick={() => {
                 setIdleResolvedText(
-                  "Отметка о ликвидации простоя принята. Проверьте возобновление работы техники."
+                  "Отметка о ликвидации простоя принята. Проверьте возобновление работы техники.",
                 );
               }}
             >

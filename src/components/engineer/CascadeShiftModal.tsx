@@ -5,6 +5,11 @@ import {
   CascadeShiftResponse,
 } from "../../api/apiEngineer";
 import { ScheduleItem } from "../../pages/foreman/ForemanPage";
+
+import trendingUpIcon from "../../assets/images/Arrow_Up_Right_LG.svg";
+import trendingDownIcon from "../../assets/images/Arrow_Down_Right_LG.svg";
+import closeIcon from "../../assets/images/Close_MD.svg";
+
 import "../../styles/EngineerPage.css";
 
 interface Props {
@@ -23,19 +28,21 @@ export const CascadeShiftModal: React.FC<Props> = ({
   const [fromScheduleId, setFromScheduleId] = useState<string>(
     schedules[0]?.id || ""
   );
-  const [shiftDays, setShiftDays] = useState<number>(3);
-  const [targetTimeline, setTargetTimeline] = useState<"PHANTOM" | "BASE">(
-    "PHANTOM"
-  );
+  const [shiftDirection, setShiftDirection] = useState<"DELAY" | "CATCHUP">("DELAY");
+  const [daysCount, setDaysCount] = useState<number>(3);
+  const [targetTimeline, setTargetTimeline] = useState<"PHANTOM" | "BASE">("PHANTOM");
   const [reasonComment, setReasonComment] = useState("");
   const [documentRef, setDocumentRef] = useState("");
   const [closeSpecialStatus, setCloseSpecialStatus] = useState(true);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorText, setErrorText] = useState("");
-  const [resultData, setResultData] = useState<CascadeShiftResponse | null>(
-    null
-  );
+  const [resultData, setResultData] = useState<CascadeShiftResponse | null>(null);
+
+  const finalShiftDays =
+    shiftDirection === "DELAY"
+      ? Math.abs(daysCount || 1)
+      : -Math.abs(daysCount || 1);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,11 +51,11 @@ export const CascadeShiftModal: React.FC<Props> = ({
       return;
     }
     if (!reasonComment.trim()) {
-      setErrorText("Укажите официальное обоснование сдвига сроков");
+      setErrorText("Укажите официальное обоснование корректировки сроков");
       return;
     }
     if (!documentRef.trim()) {
-      setErrorText("Укажите реквизиты документа/распоряжения");
+      setErrorText("Укажите реквизиты документа / распоряжения");
       return;
     }
 
@@ -58,7 +65,7 @@ export const CascadeShiftModal: React.FC<Props> = ({
     try {
       const payload: CascadeShiftRequest = {
         from_schedule_id: fromScheduleId,
-        shift_days: Number(shiftDays),
+        shift_days: finalShiftDays,
         target_timeline: targetTimeline,
         reason_comment: reasonComment.trim(),
         document_reference: documentRef.trim(),
@@ -76,30 +83,40 @@ export const CascadeShiftModal: React.FC<Props> = ({
   };
 
   return (
-    <div className="engineer-modal-overlay">
-      <div className="engineer-modal-card">
-        <div className="engineer-modal-header">
-          <h2>Каскадный сдвиг сроков цепочки этапов</h2>
-          <p>
-            Официальный перенос сроков с внесением записи в Audit Trail объекта
-          </p>
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-window" style={{ maxWidth: "620px" }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
+          <div>
+            <h3>Корректировка сроков этапов</h3>
+            <p style={{ margin: "4px 0 0", fontSize: "13px", color: "var(--color-text-secondary)" }}>
+              Каскадный сдвиг цепочки работ с фиксацией в журнале Audit Trail
+            </p>
+          </div>
+          <button type="button" className="btn-close" onClick={onClose}>
+            <img src={closeIcon} alt="Закрыть" className="ui-icon-sm" />
+          </button>
         </div>
 
         {errorText && (
-          <div className="gantt-msg-banner msg-error">{errorText}</div>
+          <div className="admin-error-message" style={{ margin: "0 0 16px" }}>
+            {errorText}
+          </div>
         )}
 
         {resultData ? (
           <div>
-            <div className="gantt-msg-banner msg-success">
-              Каскадный сдвиг успешно применен к цепочке этапов. Сдвинуто этапов:{" "}
-              {resultData.shifted_stages_count}. Запись аудита: #
-              {resultData.audit_trail_id.slice(0, 8)}.
+            <div className="admin-success-message" style={{ margin: "0 0 16px" }}>
+              Каскадный расчет успешно выполнен. Обновлено зависимых этапов:{" "}
+              <strong>{resultData.shifted_stages_count}</strong>. Новая плановая дата сдачи:{" "}
+              <strong>
+                {new Date(resultData.new_estimated_completion).toLocaleDateString("ru-RU")}
+              </strong>
+              . Запись аудита: #{resultData.audit_trail_id.slice(0, 8)}.
             </div>
-            <div className="engineer-modal-actions">
+            <div className="modal-footer">
               <button
                 type="button"
-                className="btn-submit-action"
+                className="btn-gantt-secondary"
                 onClick={onClose}
               >
                 Закрыть
@@ -107,87 +124,128 @@ export const CascadeShiftModal: React.FC<Props> = ({
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit}>
-            <div className="engineer-form-field">
-              <label>Начиная с какого этапа сдвигать цепочку</label>
-              <select
-                value={fromScheduleId}
-                onChange={(e) => setFromScheduleId(e.target.value)}
-              >
-                {schedules.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.sequence_order}. {s.stage_name} —{" "}
-                    {s.substage_name || "Подэтап"}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <form onSubmit={handleSubmit} className="admin-form">
+            <div className="modal-body" style={{ maxHeight: "calc(80vh - 120px)" }}>
+              {/* Выбор направления: Задержка (+) или Догон (-) */}
+              <div className="form-field">
+                <label>Характер корректировки сроков *</label>
+                <div className="shift-direction-toggle">
+                  <button
+                    type="button"
+                    className={`shift-dir-btn ${shiftDirection === "DELAY" ? "active-delay" : ""}`}
+                    onClick={() => setShiftDirection("DELAY")}
+                  >
+                    <div className="shift-dir-header">
+                      <img src={trendingUpIcon} alt="" className="btn-icon-svg" />
+                      <span>Перенос вправо (Задержка / Простой)</span>
+                    </div>
+                    <span className="shift-sign-badge">+ {daysCount} дн.</span>
+                  </button>
 
-            <div className="engineer-form-field">
-              <label>Величина сдвига в днях (shift_days)</label>
-              <input
-                type="number"
-                min="1"
-                max="180"
-                value={shiftDays}
-                onChange={(e) => setShiftDays(parseInt(e.target.value, 10) || 1)}
-                required
-              />
-            </div>
+                  <button
+                    type="button"
+                    className={`shift-dir-btn ${shiftDirection === "CATCHUP" ? "active-catchup" : ""}`}
+                    onClick={() => setShiftDirection("CATCHUP")}
+                  >
+                    <div className="shift-dir-header">
+                      <img src={trendingDownIcon} alt="" className="btn-icon-svg" />
+                      <span>Сдвиг влево (Опережение / Компенсация)</span>
+                    </div>
+                    <span className="shift-sign-badge">- {daysCount} дн.</span>
+                  </button>
+                </div>
+              </div>
 
-            <div className="engineer-form-field">
-              <label>Целевая шкала времени (target_timeline)</label>
-              <select
-                value={targetTimeline}
-                onChange={(e) =>
-                  setTargetTimeline(e.target.value as "PHANTOM" | "BASE")
-                }
-              >
-                <option value="PHANTOM">
-                  PHANTOM — Прогнозный/компенсационный график (по умолчанию)
-                </option>
-                <option value="BASE">
-                  BASE — Базовый утвержденный директивный график
-                </option>
-              </select>
-            </div>
+              <div className="form-field">
+                <label>Начиная с какого этапа корректировать цепочку *</label>
+                <select
+                  value={fromScheduleId}
+                  onChange={(e) => setFromScheduleId(e.target.value)}
+                  required
+                >
+                  {schedules.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.sequence_order}. {s.stage_name} — {s.substage_name || "Подэтап"}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-            <div className="engineer-form-field">
-              <label>Реквизиты документа / Акта (document_reference)</label>
-              <input
-                type="text"
-                placeholder="Приказ Департамента № 14-П от 26.09.2026 / Акт технадзора"
-                value={documentRef}
-                onChange={(e) => setDocumentRef(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="engineer-form-field">
-              <label>Официальное обоснование (reason_comment)</label>
-              <textarea
-                placeholder="Опишите причину сдвига (неблагоприятные погодные условия, срыв поставки материалов, изменение ПСД)..."
-                value={reasonComment}
-                onChange={(e) => setReasonComment(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="engineer-form-field">
-              <label className="checkbox-label">
+              <div className="form-field">
+                <label>
+                  {shiftDirection === "DELAY"
+                    ? "Количество дней задержки (+дней):"
+                    : "Количество дней сокращения / нагона (-дней):"}
+                </label>
                 <input
-                  type="checkbox"
-                  checked={closeSpecialStatus}
-                  onChange={(e) => setCloseSpecialStatus(e.target.checked)}
+                  type="number"
+                  min="1"
+                  max="180"
+                  value={daysCount}
+                  onChange={(e) => setDaysCount(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                  required
                 />
-                Автоматически закрыть текущий спецстатус объекта после сдвига
-              </label>
+              </div>
+
+              <div className="form-field">
+                <label>Целевая шкала графика (target_timeline) *</label>
+                <select
+                  value={targetTimeline}
+                  onChange={(e) => setTargetTimeline(e.target.value as "PHANTOM" | "BASE")}
+                >
+                  <option value="PHANTOM">
+                    PHANTOM — Компенсационный / прогнозный график (по умолчанию)
+                  </option>
+                  <option value="BASE">
+                    BASE — Директивный базовый график Департамента
+                  </option>
+                </select>
+              </div>
+
+              <div className="form-field">
+                <label>Реквизиты распоряжения / Акта (document_reference) *</label>
+                <input
+                  type="text"
+                  placeholder="Распоряжение № 12-Р от 27.09.2026 / Акт технадзора"
+                  value={documentRef}
+                  onChange={(e) => setDocumentRef(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="form-field">
+                <label>Официальное обоснование (reason_comment) *</label>
+                <textarea
+                  className="foreman-custom-input"
+                  style={{ height: "70px", minHeight: "70px" }}
+                  placeholder="Укажите причину (дополнительные смены, компенсация погодных условий, изменение ПСД)..."
+                  value={reasonComment}
+                  onChange={(e) => setReasonComment(e.target.value)}
+                  required
+                />
+              </div>
+
+              {/* Чекбокс со смещением вправо */}
+              <div className="form-field">
+                <label className="checkbox-row-aligned">
+                  <span className="checkbox-text-content">
+                    <strong>Снять активный спецстатус</strong>
+                    <small>Автоматически закрыть окно форс-мажора / штрафа после пересчета</small>
+                  </span>
+                  <input
+                    type="checkbox"
+                    className="styled-right-checkbox"
+                    checked={closeSpecialStatus}
+                    onChange={(e) => setCloseSpecialStatus(e.target.checked)}
+                  />
+                </label>
+              </div>
             </div>
 
-            <div className="engineer-modal-actions">
+            <div className="modal-footer">
               <button
                 type="button"
-                className="btn-cancel"
+                className="btn-gantt-secondary"
                 onClick={onClose}
                 disabled={isSubmitting}
               >
@@ -195,10 +253,14 @@ export const CascadeShiftModal: React.FC<Props> = ({
               </button>
               <button
                 type="submit"
-                className="btn-submit-action"
+                className="btn-gantt-success btn-theme-accent"
                 disabled={isSubmitting}
               >
-                {isSubmitting ? "Расчет и сдвиг..." : "Применить сдвиг сроков"}
+                {isSubmitting
+                  ? "Расчёт цепочки..."
+                  : shiftDirection === "DELAY"
+                  ? `Применить задержку (+${daysCount} дн.)`
+                  : `Применить догон (-${daysCount} дн.)`}
               </button>
             </div>
           </form>

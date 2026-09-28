@@ -1,10 +1,14 @@
 import React, { useState } from "react";
 import { monitoringApi } from "../../api/monitoringApi";
+import closeIcon from "../../assets/images/Close_MD.svg";
+import checkIcon from "../../assets/images/Circle_Check.svg";
 
 interface EarlyCompleteModalProps {
   projectId: string;
   stageId: string;
   stageName: string;
+  nextStageId?: string;
+  nextStageName?: string;
   onClose: () => void;
   onSuccess: () => Promise<void>;
 }
@@ -13,12 +17,14 @@ export const EarlyCompleteModal: React.FC<EarlyCompleteModalProps> = ({
   projectId,
   stageId,
   stageName,
+  nextStageId,
+  nextStageName,
   onClose,
   onSuccess,
 }) => {
   const [comment, setComment] = useState("");
   const [endDate, setEndDate] = useState(
-    new Date().toISOString().substring(0, 10)
+    new Date().toISOString().substring(0, 10),
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -29,10 +35,24 @@ export const EarlyCompleteModal: React.FC<EarlyCompleteModalProps> = ({
     setError("");
 
     try {
+      // 1. Досрочно закрываем текущий этап
       await monitoringApi.completeStageEarly(projectId, stageId, {
         actual_end_date: new Date(endDate).toISOString(),
         comment: comment.trim() || "Работы завершены досрочно по акту АОСР",
       });
+
+      // 2. Если есть следующий запланированный этап, автоматически переводим его в работу
+      if (nextStageId) {
+        try {
+          await monitoringApi.startStage(projectId, nextStageId);
+        } catch (startErr: any) {
+          console.warn(
+            "Следующий этап не удалось автоматически запустить:",
+            startErr,
+          );
+        }
+      }
+
       await onSuccess();
       onClose();
     } catch (err: any) {
@@ -43,40 +63,57 @@ export const EarlyCompleteModal: React.FC<EarlyCompleteModalProps> = ({
   };
 
   return (
-    <div className="gantt-modal-backdrop">
-      <div className="gantt-modal-window">
-        <div className="gantt-modal-header">
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal-window" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-header">
           <h3>Досрочное закрытие этапа (АОСР)</h3>
-          <button type="button" className="gantt-modal-close" onClick={onClose}>
-            ✕
+          <button type="button" className="btn-close" onClick={onClose}>
+            <img src={closeIcon} alt="Закрыть" className="ui-icon-sm" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="gantt-modal-body">
-            <div className="gantt-modal-alert">
-              Внимание: подтверждение приемки автоматически пересчитает график проекта влево и освободит закрепленную технику.
+        <form onSubmit={handleSubmit} className="admin-form">
+          <div className="modal-body">
+            <div
+              className="admin-success-message"
+              style={{ margin: 0, fontSize: "13px", lineHeight: "1.4" }}
+            >
+              Подтверждение приемки зафиксирует досрочное выполнение этапа и
+              освободит технику.
+              {nextStageName && (
+                <div style={{ marginTop: "6px", fontWeight: 600 }}>
+                  Следующий этап «{nextStageName}» будет автоматически переведён
+                  в работу (IN_PROGRESS).
+                </div>
+              )}
             </div>
 
-            <p className="gantt-modal-desc">
-              Приемка работ по подэтапу: <br />
-              <strong>{stageName}</strong>
-            </p>
+            <div className="form-field">
+              <label>Завершаемый подэтап СМР</label>
+              <div
+                style={{
+                  fontWeight: 600,
+                  color: "var(--color-text)",
+                  fontSize: "14px",
+                }}
+              >
+                {stageName}
+              </div>
+            </div>
 
             {error && (
-              <div className="gantt-msg-banner msg-error">
+              <div className="admin-error-message" style={{ margin: 0 }}>
                 {error}
               </div>
             )}
 
-            <div className="form-group">
-              <label htmlFor="modal-date" className="gantt-modal-label">
-                Фактическая дата приемки (по АОСР):
+            <div className="form-field">
+              <label htmlFor="modal-date">
+                Фактическая дата приемки (по АОСР) *
               </label>
               <input
                 id="modal-date"
                 type="date"
-                className="gantt-form-input"
                 value={endDate}
                 max={new Date().toISOString().substring(0, 10)}
                 onChange={(e) => setEndDate(e.target.value)}
@@ -84,22 +121,22 @@ export const EarlyCompleteModal: React.FC<EarlyCompleteModalProps> = ({
               />
             </div>
 
-            <div className="form-group">
-              <label htmlFor="modal-comment" className="gantt-modal-label">
-                Номер АОСР и комментарий технадзора:
+            <div className="form-field">
+              <label htmlFor="modal-comment">
+                Номер АОСР и комментарий технадзора
               </label>
               <textarea
                 id="modal-comment"
-                className="gantt-form-input"
-                rows={3}
-                placeholder="Укажите реквизиты акта освидетельствования скрытых работ..."
+                className="foreman-custom-input"
+                style={{ height: "80px", minHeight: "80px" }}
+                placeholder="Например: Акт освидетельствования скрытых работ № 14-Б/2026 от 27.09.2026..."
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
               />
             </div>
           </div>
 
-          <div className="gantt-modal-footer">
+          <div className="modal-footer">
             <button
               type="button"
               className="btn-gantt-secondary"
@@ -113,7 +150,10 @@ export const EarlyCompleteModal: React.FC<EarlyCompleteModalProps> = ({
               className="btn-gantt-success"
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Сохранение..." : "Подтвердить приемку"}
+              <img src={checkIcon} alt="" className="btn-icon-svg" />
+              <span>
+                {isSubmitting ? "Сохранение..." : "Подтвердить приемку"}
+              </span>
             </button>
           </div>
         </form>

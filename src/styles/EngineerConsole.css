@@ -402,3 +402,206 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Дополнительные стили панели инженера */
+
+.engineer-top-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-camera-manage {
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+  border-color: #93c5fd !important;
+  font-weight: 600 !important;
+}
+
+.btn-camera-manage:hover {
+  background: #dbeafe !important;
+  border-color: #60a5fa !important;
+}
+
+/* Карточки выбора сценариев в оперативном надзоре */
+.opt-radio-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.opt-radio-row input[type="radio"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--color-primary, #2563eb);
+}
+
+.incident-btn-option {
+  user-select: none;
+  cursor: pointer;
+  border-width: 2px !important;
+}
+
+.incident-btn-option.selected.opt-purple {
+  background: #ede9fe;
+  border-color: #7c3aed !important;
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+}
+
+.incident-btn-option.selected.opt-orange {
+  background: #ffedd5;
+  border-color: #ea580c !important;
+  box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.2);
+}
+
+.incident-btn-option.selected.opt-green {
+  background: #dcfce7;
+  border-color: #16a34a !important;
+  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.2);
+}
+
+.scenario-confirm-bar {
+  margin-top: 14px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.btn-confirm-scenario-trigger {
+  background: var(--color-primary, #2563eb);
+  color: #ffffff;
+  border: none;
+  border-radius: var(--radius-md, 8px);
+  padding: 11px 22px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.btn-confirm-scenario-trigger:hover:not(:disabled) {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.btn-confirm-scenario-trigger:disabled {
+  background: #e2e8f0;
+  color: #94a3b8;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* Модальное окно предупреждения */
+.warning-modal-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.warning-icon-large {
+  font-size: 24px;
+}
+
+.warning-modal-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.warning-title-text {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.warning-alert-box {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-left: 4px solid #dc2626;
+  border-radius: 6px;
+  padding: 12px 14px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #991b1b;
+}
+
+.warning-note-text {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.warning-confirm-btn {
+  background: #dc2626 !important;
+}
+
+.warning-confirm-btn:hover {
+  background: #b91c1c !important;
+}
+
+/* ==========================================================================
+   ПОДРОБНЫЙ РАЗБОР ПРИЧИНЫ АЛЕРТА
+   ========================================================================== */
+
+.alert-reason-detailed-box {
+  background: #fff5f5;
+  border: 1px solid #fed7d7;
+  border-left: 4px solid #e53935;
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.alert-reason-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.alert-tag-category {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: #dc2626;
+  color: #ffffff;
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+.alert-tag-time {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.alert-tag-stage {
+  font-size: 12px;
+  font-weight: 600;
+  color: #1e293b;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.alert-reason-text-desc {
+  margin: 0;
+  font-size: 13px;
+  color: #1e293b;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.alert-decision-prompt {
+  font-size: 12px;
+  font-weight: 600;
+  color: #718096;
+}
