@@ -3,7 +3,8 @@
 export type ScheduleStatus = "PLANNED" | "IN_PROGRESS" | "COMPLETED";
 
 export interface StageEquipmentRequirement {
-  equipment_type_id: string;
+  equipment_type: string; 
+  equipment_type_id?: string;    // UUID
   required_count: number;
   is_required?: boolean;
 }

@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   ProjectData,
   EquipmentType,
@@ -37,10 +37,11 @@ interface ForemanObjectManagerProps {
   reloadSchedules: () => Promise<void>;
   hideTopBar?: boolean;
   isEngineer?: boolean;
-  isReadOnly?: boolean; // Пропс блокировки для Администратора
+  isReadOnly?: boolean;
 }
 
 interface EquipmentRequirementItem {
+  typeId: string;
   typeCode: string;
   name: string;
   count: number;
@@ -86,6 +87,32 @@ const formatDateRu = (date: Date): string => {
   });
 };
 
+// ==========================================
+// Утилиты сохранения статусов «Обяз./Допуст.»
+// ==========================================
+
+const getStorageKey = (projectId: string) => `argus_eq_req_${projectId}`;
+
+const loadLocalRequirementMap = (
+  projectId: string,
+): Record<string, boolean> => {
+  try {
+    const raw = localStorage.getItem(getStorageKey(projectId));
+    return raw ? JSON.parse(raw) : {};
+  } catch {
+    return {};
+  }
+};
+
+const saveLocalRequirementMap = (
+  projectId: string,
+  map: Record<string, boolean>,
+) => {
+  try {
+    localStorage.setItem(getStorageKey(projectId), JSON.stringify(map));
+  } catch {}
+};
+
 export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
   project,
   schedules,
@@ -112,7 +139,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     nextStageName?: string;
   } | null>(null);
 
-  // Если это режим только чтения (Администратор), блокируем любые изменения
   const isLocked =
     isReadOnly ||
     isLocallyConfirmed ||
@@ -123,30 +149,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
   const cleanTitle = (val: string): string =>
     (val || "").replace(/^\d+(\.\d+)*[-.\s]+/, "").trim();
 
-  const resolveEquipmentInfo = useCallback(
-    (rawKey: string): { typeCode: string; name: string } => {
-      if (!rawKey) return { typeCode: "unknown", name: "Техника" };
-      const keyLower = rawKey.toLowerCase();
-      const matched = equipmentTypes.find(
-        (et) =>
-          et.id === rawKey || (et.code && et.code.toLowerCase() === keyLower),
-      );
-
-      if (matched) {
-        const code = (matched.code || matched.id).toLowerCase();
-        const name = matched.name || FALLBACK_EQUIPMENT_NAMES[code] || code;
-        return { typeCode: code, name };
-      }
-
-      if (FALLBACK_EQUIPMENT_NAMES[keyLower]) {
-        return { typeCode: keyLower, name: FALLBACK_EQUIPMENT_NAMES[keyLower] };
-      }
-
-      return { typeCode: keyLower, name: rawKey };
-    },
-    [equipmentTypes],
-  );
-
+  // Преобразование серверных данных в древовидную модель Ганта с сохранением «Обяз./Допуст.»
   useEffect(() => {
     const rawList = schedules || [];
     if (rawList.length === 0) {
@@ -154,6 +157,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
       return;
     }
 
+    const reqMap = loadLocalRequirementMap(project.id);
     const stageMap = new Map<string, ScheduleItem[]>();
     rawList.forEach((item) => {
       const major = cleanTitle(item.stage_name || "Этап работ");
@@ -170,6 +174,9 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
       let subIdx = 1;
 
       const subStages: GanttSubStage[] = subItems.map((sub: any) => {
+        const subStageName = cleanTitle(
+          sub.substage_name || sub.stage_name || "Подэтап",
+        );
         const effectiveStartStr =
           sub.actual_start_date ||
           sub.phantom_start_date ||
@@ -202,22 +209,62 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
         const sourceEq = sub.equipment_requirements || [];
 
         sourceEq.forEach((eq: any) => {
-          const rawKey =
-            eq.equipment_type || eq.equipment_type_id || eq.code || eq.id || "";
-          const resolved = resolveEquipmentInfo(rawKey);
+          const rawId = (eq.equipment_type_id || eq.id || "").toLowerCase();
+          const rawCode = (eq.equipment_type || eq.code || "").toLowerCase();
+
+          const matched = equipmentTypes.find(
+            (et) =>
+              (rawId && et.id.toLowerCase() === rawId) ||
+              (rawCode && et.code && et.code.toLowerCase() === rawCode),
+          );
+
+          const finalId = matched?.id || eq.equipment_type_id || rawId;
+          const finalCode = (
+            matched?.code ||
+            rawCode ||
+            "unknown"
+          ).toLowerCase();
+          const finalName =
+            matched?.name ||
+            FALLBACK_EQUIPMENT_NAMES[finalCode] ||
+            "Строительная техника";
+
+          // 1. Проверяем, вернул ли бэкенд флаг явно
+          let backendRequired: boolean | null = null;
+          if (eq.is_required !== undefined && eq.is_required !== null) {
+            backendRequired =
+              eq.is_required === true ||
+              eq.is_required === 1 ||
+              eq.is_required === "true";
+          } else if (eq.required !== undefined && eq.required !== null) {
+            backendRequired =
+              eq.required === true ||
+              eq.required === 1 ||
+              eq.required === "true";
+          }
+
+          // 2. Если бэкенд не вернул флаг, берём сохраненный выбор пользователя
+          const cacheKey = `${subStageName}_${finalCode}`;
+          const finalIsRequired =
+            backendRequired !== null
+              ? backendRequired
+              : reqMap[cacheKey] !== undefined
+                ? reqMap[cacheKey]
+                : true;
 
           eqList.push({
-            typeCode: resolved.typeCode,
-            name: resolved.name,
+            typeId: finalId,
+            typeCode: finalCode,
+            name: finalName,
             count: Number(eq.required_count ?? eq.count) || 1,
-            isRequired: eq.is_required !== false,
+            isRequired: finalIsRequired,
           });
         });
 
         return {
           id: sub.id,
           subNumber: `${curStageNum}.${subIdx++}`,
-          name: cleanTitle(sub.substage_name || sub.stage_name || "Подэтап"),
+          name: subStageName,
           durationDays: days,
           startDate: sDate,
           endDate: eDate,
@@ -253,7 +300,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     });
 
     setStages(parsed);
-  }, [schedules, resolveEquipmentInfo]);
+  }, [schedules, equipmentTypes, project.id]);
 
   const flatSubStages = useMemo(() => {
     return stages.flatMap((maj) => maj.subStages);
@@ -335,7 +382,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
   const handleEquipmentCountChange = (
     stageId: string,
     subId: string,
-    typeCode: string,
+    typeId: string,
     delta: number,
   ) => {
     if (isLocked) return;
@@ -346,9 +393,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
           ...maj,
           subStages: maj.subStages.map((sub) => {
             if (sub.id !== subId) return sub;
-            const idx = sub.equipment.findIndex(
-              (e) => e.typeCode === typeCode.toLowerCase(),
-            );
+            const idx = sub.equipment.findIndex((e) => e.typeId === typeId);
             if (idx === -1) return sub;
 
             const cur = sub.equipment[idx];
@@ -367,10 +412,11 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     );
   };
 
+  // Переключение Обязательная ⇄ Допустимая с сохранением в локальный кэш
   const handleToggleRequirementType = (
     stageId: string,
     subId: string,
-    typeCode: string,
+    typeId: string,
   ) => {
     if (isLocked) return;
     setStages((prev) =>
@@ -380,14 +426,18 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
           ...maj,
           subStages: maj.subStages.map((sub) => {
             if (sub.id !== subId) return sub;
-            return {
-              ...sub,
-              equipment: sub.equipment.map((eq) =>
-                eq.typeCode === typeCode.toLowerCase()
-                  ? { ...eq, isRequired: !eq.isRequired }
-                  : eq,
-              ),
-            };
+            const updated = sub.equipment.map((eq) => {
+              if (eq.typeId === typeId) {
+                const nextIsRequired = !eq.isRequired;
+                // Запоминаем выбор пользователя
+                const reqMap = loadLocalRequirementMap(project.id);
+                reqMap[`${sub.name}_${eq.typeCode}`] = nextIsRequired;
+                saveLocalRequirementMap(project.id, reqMap);
+                return { ...eq, isRequired: nextIsRequired };
+              }
+              return eq;
+            });
+            return { ...sub, equipment: updated };
           }),
         };
       }),
@@ -397,7 +447,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
   const handleRemoveEquipment = (
     stageId: string,
     subId: string,
-    typeCode: string,
+    typeId: string,
   ) => {
     if (isLocked) return;
     setStages((prev) =>
@@ -409,9 +459,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
             if (sub.id !== subId) return sub;
             return {
               ...sub,
-              equipment: sub.equipment.filter(
-                (eq) => eq.typeCode !== typeCode.toLowerCase(),
-              ),
+              equipment: sub.equipment.filter((eq) => eq.typeId !== typeId),
             };
           }),
         };
@@ -419,14 +467,24 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     );
   };
 
+  // Добавление техники с мгновенной фиксацией статуса
   const handleAddEquipment = (
     stageId: string,
     subId: string,
-    rawKey: string,
+    eqTypeId: string,
     isRequired: boolean,
   ) => {
-    if (isLocked || !rawKey) return;
-    const resolved = resolveEquipmentInfo(rawKey);
+    if (isLocked || !eqTypeId) return;
+
+    const matched = equipmentTypes.find(
+      (et) => et.id.toLowerCase() === eqTypeId.toLowerCase(),
+    );
+
+    const typeCode = (matched?.code || "unknown").toLowerCase();
+    const name =
+      matched?.name ||
+      FALLBACK_EQUIPMENT_NAMES[typeCode] ||
+      "Строительная техника";
 
     setStages((prev) =>
       prev.map((maj) => {
@@ -435,16 +493,23 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
           ...maj,
           subStages: maj.subStages.map((sub) => {
             if (sub.id !== subId) return sub;
-            if (sub.equipment.some((e) => e.typeCode === resolved.typeCode)) {
+            if (sub.equipment.some((e) => e.typeId === eqTypeId)) {
               return sub;
             }
+
+            // Фиксируем статус в кэше
+            const reqMap = loadLocalRequirementMap(project.id);
+            reqMap[`${sub.name}_${typeCode}`] = isRequired;
+            saveLocalRequirementMap(project.id, reqMap);
+
             return {
               ...sub,
               equipment: [
                 ...sub.equipment,
                 {
-                  typeCode: resolved.typeCode,
-                  name: resolved.name,
+                  typeId: eqTypeId,
+                  typeCode,
+                  name,
                   count: 1,
                   isRequired,
                 },
@@ -477,6 +542,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     }
   };
 
+  // Сохранение правок: отправка на бэкенд и сохранение карты приоритетов
   const handleSaveBulkSync = async () => {
     if (isLocked) return;
     setIsProcessing(true);
@@ -484,21 +550,31 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
 
     try {
       const flatList: any[] = [];
+      const reqMap = loadLocalRequirementMap(project.id);
       let seq = 1;
 
       stages.forEach((maj) => {
         maj.subStages.forEach((sub) => {
           const eqReqs = sub.equipment.map((e) => {
-            const matchedType = equipmentTypes.find(
+            const matched = equipmentTypes.find(
               (et) =>
-                et.id === e.typeCode ||
+                et.id.toLowerCase() === e.typeId.toLowerCase() ||
                 (et.code && et.code.toLowerCase() === e.typeCode.toLowerCase()),
             );
+            const code = (
+              matched?.code ||
+              e.typeCode ||
+              "excavator"
+            ).toLowerCase();
+
+            // Сохраняем в кэш
+            reqMap[`${sub.name}_${code}`] = e.isRequired;
 
             return {
-              equipment_type_id: matchedType?.id || e.typeCode,
+              equipment_type: code,
+              equipment_type_id: e.typeId,
               required_count: Number(e.count) || 1,
-              is_required: e.isRequired !== false,
+              is_required: e.isRequired,
             };
           });
 
@@ -523,12 +599,15 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
         });
       });
 
+      // Сохраняем локально, чтобы перерисовка не сбрасывала в «Обяз.»
+      saveLocalRequirementMap(project.id, reqMap);
+
       await foremanApi.bulkSync(project.id, flatList);
       await reloadSchedules();
 
       setStatusMessage({
         type: "success",
-        text: "График и параметры техники сохранены в системе",
+        text: "График и параметры техники успешно сохранены в системе",
       });
     } catch (e: any) {
       setStatusMessage({
@@ -559,27 +638,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
       setStatusMessage({
         type: "error",
         text: `Ошибка утверждения: ${e.message}`,
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleManualStartStage = async (stageId: string) => {
-    if (isLocked) return;
-    setIsProcessing(true);
-    setStatusMessage(null);
-    try {
-      await foremanApi.startStage(project.id, stageId);
-      await reloadSchedules();
-      setStatusMessage({
-        type: "success",
-        text: "Этап успешно запущен в работу (IN_PROGRESS)",
-      });
-    } catch (err: any) {
-      setStatusMessage({
-        type: "error",
-        text: err.message || "Не удалось запустить этап",
       });
     } finally {
       setIsProcessing(false);
@@ -829,23 +887,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                                   : "Запланирован"}
                             </span>
 
-                            {/* Кнопка запуска доступна только прорабу */}
-                            {sub.status === "PLANNED" && !isLocked && (
-                              <button
-                                type="button"
-                                className="btn-start-stage-chip"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleManualStartStage(sub.id);
-                                }}
-                                disabled={isProcessing}
-                                title="Перевести этап в статус «В работе»"
-                              >
-                                <span>▶</span>
-                                <span>Начать этап</span>
-                              </button>
-                            )}
-
                             {canCompleteEarly && sub.status !== "COMPLETED" && (
                               <button
                                 type="button"
@@ -921,7 +962,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                             <div className="eq-chip-box">
                               {sub.equipment.map((eq) => (
                                 <div
-                                  key={eq.typeCode}
+                                  key={eq.typeId}
                                   className={`eq-chip ${
                                     eq.isRequired
                                       ? "eq-chip-required"
@@ -938,7 +979,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                                         handleToggleRequirementType(
                                           maj.id,
                                           sub.id,
-                                          eq.typeCode,
+                                          eq.typeId,
                                         )
                                       }
                                       title="Кликните для переключения: Обязательная ⇄ Допустимая"
@@ -967,7 +1008,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                                         handleEquipmentCountChange(
                                           maj.id,
                                           sub.id,
-                                          eq.typeCode,
+                                          eq.typeId,
                                           -1,
                                         )
                                       }
@@ -987,7 +1028,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                                         handleEquipmentCountChange(
                                           maj.id,
                                           sub.id,
-                                          eq.typeCode,
+                                          eq.typeId,
                                           1,
                                         )
                                       }
@@ -1005,7 +1046,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                                         handleRemoveEquipment(
                                           maj.id,
                                           sub.id,
-                                          eq.typeCode,
+                                          eq.typeId,
                                         )
                                       }
                                       title="Удалить технику"
@@ -1023,69 +1064,56 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                                     value=""
                                     onChange={(e) => {
                                       if (e.target.value) {
-                                        const [type, rawKey] =
+                                        const [type, eqId] =
                                           e.target.value.split("::");
                                         handleAddEquipment(
                                           maj.id,
                                           sub.id,
-                                          rawKey,
+                                          eqId,
                                           type === "REQ",
                                         );
                                       }
                                     }}
                                   >
                                     <option value="">+ Добавить технику</option>
-                                    <optgroup label="Обязательная техника">
+                                    <optgroup label="Обязательная техника (должна работать на объекте)">
                                       {equipmentTypes
                                         .filter(
                                           (et) =>
                                             !sub.equipment.some(
                                               (e) =>
-                                                e.typeCode ===
-                                                (
-                                                  et.code || et.id
-                                                ).toLowerCase(),
+                                                e.typeId.toLowerCase() ===
+                                                et.id.toLowerCase(),
                                             ),
                                         )
-                                        .map((et) => {
-                                          const resolved = resolveEquipmentInfo(
-                                            et.code || et.id,
-                                          );
-                                          return (
-                                            <option
-                                              key={`req-${et.id}`}
-                                              value={`REQ::${resolved.typeCode}`}
-                                            >
-                                              ★ {resolved.name} (Обязательная)
-                                            </option>
-                                          );
-                                        })}
+                                        .map((et) => (
+                                          <option
+                                            key={`req-${et.id}`}
+                                            value={`REQ::${et.id}`}
+                                          >
+                                            ★ {et.name || et.code}{" "}
+                                            (Обязательная)
+                                          </option>
+                                        ))}
                                     </optgroup>
-                                    <optgroup label="Допустимая техника">
+                                    <optgroup label="Допустимая техника (вспомогательная)">
                                       {equipmentTypes
                                         .filter(
                                           (et) =>
                                             !sub.equipment.some(
                                               (e) =>
-                                                e.typeCode ===
-                                                (
-                                                  et.code || et.id
-                                                ).toLowerCase(),
+                                                e.typeId.toLowerCase() ===
+                                                et.id.toLowerCase(),
                                             ),
                                         )
-                                        .map((et) => {
-                                          const resolved = resolveEquipmentInfo(
-                                            et.code || et.id,
-                                          );
-                                          return (
-                                            <option
-                                              key={`allow-${et.id}`}
-                                              value={`ALLOW::${resolved.typeCode}`}
-                                            >
-                                              ○ {resolved.name} (Допустимая)
-                                            </option>
-                                          );
-                                        })}
+                                        .map((et) => (
+                                          <option
+                                            key={`allow-${et.id}`}
+                                            value={`ALLOW::${et.id}`}
+                                          >
+                                            ○ {et.name || et.code} (Допустимая)
+                                          </option>
+                                        ))}
                                     </optgroup>
                                   </select>
                                 </div>

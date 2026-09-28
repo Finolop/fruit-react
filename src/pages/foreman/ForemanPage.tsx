@@ -72,7 +72,6 @@ export const ForemanPage: React.FC = () => {
   const { projectId: urlProjectId } = useParams<{ projectId?: string }>();
   const navigate = useNavigate();
 
-  // Проверка роли: если зашел Администратор без роли прораба — включаем только чтение
   const currentUser = useSelector((state: RootState) => state.auth.user);
   const isAdmin = Boolean(currentUser?.roles?.includes("admin"));
   const isForeman = Boolean(currentUser?.roles?.includes("foreman"));
@@ -99,6 +98,7 @@ export const ForemanPage: React.FC = () => {
     }
   }, [urlProjectId]);
 
+  // Загрузка паспорта ОКС, графиков и справочников при смене объекта или после сохранения
   const loadProjectDetails = useCallback(async () => {
     if (!selectedProjectId) {
       setProject(null);
@@ -186,17 +186,25 @@ export const ForemanPage: React.FC = () => {
     loadProjectDetails();
   }, [loadProjectDetails]);
 
-  // Фоновое автообновление данных раз в 5 секунд
+  // ФОНОВЫЙ ТАЙМЕР: обновляет ТОЛЬКО live-summary (светофор, готовность, технику онлайн)
+  // Ни в коем случае НЕ трогает schedules, чтобы редактируемая техника не исчезала!
   useEffect(() => {
     if (!selectedProjectId) return;
 
-    const intervalId = setInterval(() => {
+    const intervalId = setInterval(async () => {
       if (document.hidden) return;
-      loadProjectDetails();
+      try {
+        const summary = await getLiveSummary(selectedProjectId);
+        if (summary) {
+          setLiveSummary(summary);
+        }
+      } catch {
+        // Фоновые ошибки сети игнорируются
+      }
     }, 5000);
 
     return () => clearInterval(intervalId);
-  }, [selectedProjectId, loadProjectDetails]);
+  }, [selectedProjectId]);
 
   const handleSelectProject = (projId: string) => {
     setSelectedProjectId(projId);
@@ -300,7 +308,6 @@ export const ForemanPage: React.FC = () => {
     <div className="foreman-page">
       <Header />
 
-      {/* Баннер режима только чтения для Администратора */}
       {isReadOnly && (
         <div className="foreman-readonly-banner-wrap">
           <div className="foreman-readonly-banner">
@@ -434,7 +441,6 @@ export const ForemanPage: React.FC = () => {
               </p>
             </div>
 
-            {/* Кнопка доступна ТОЛЬКО прорабу, админ нажимать не может */}
             {!isReadOnly && (
               <button
                 type="button"
