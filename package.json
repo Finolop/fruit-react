@@ -1,6 +1,7 @@
 {
-  "name": "fruit-react",
+  "name": "argus-smr-frontend",
   "version": "0.1.0",
+  "description": "Система интеллектуального видеомониторинга и контроля графиков строительства «Аргус — СМР»",
   "private": true,
   "dependencies": {
     "@reduxjs/toolkit": "^2.12.0",

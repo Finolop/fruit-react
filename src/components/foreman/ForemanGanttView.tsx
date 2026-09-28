@@ -1,8 +1,6 @@
 import React, { useState, useMemo } from "react";
-import { getAuthHeaders } from "../../api/api";
+import { fetchWithAuth } from "../../api/api";
 import "../../styles/ForemanGantt.css";
-
-const API_URL = process.env.REACT_APP_API_URL || "";
 
 export interface ScheduleItem {
   id: string;
@@ -50,7 +48,6 @@ export const ForemanGanttView: React.FC<Props> = ({
     text: string;
   } | null>(null);
 
-  // Группировка плоского массива по stage_name (Крупный этап -> подэтапы)
   const groupedStages = useMemo(() => {
     const map = new Map<string, ScheduleItem[]>();
     items.forEach((item) => {
@@ -65,7 +62,6 @@ export const ForemanGanttView: React.FC<Props> = ({
     setCollapsed((prev) => ({ ...prev, [stageName]: !prev[stageName] }));
   };
 
-  // Расчет длительности в днях между датами
   const getDays = (startStr: string, endStr: string) => {
     const s = new Date(startStr).getTime();
     const e = new Date(endStr).getTime();
@@ -73,7 +69,6 @@ export const ForemanGanttView: React.FC<Props> = ({
     return diff > 0 ? diff : 1;
   };
 
-  // Расчет каскада лесенки внутри каждого этапа (0% -> 100%)
   const timelineLayout = useMemo(() => {
     const subOffsets = new Map<
       string,
@@ -106,7 +101,6 @@ export const ForemanGanttView: React.FC<Props> = ({
     return { subOffsets };
   }, [groupedStages]);
 
-  // Изменение длительности подэтапа (сдвигает base_end_date)
   const handleDurationChange = (id: string, newDays: number) => {
     const days = Math.max(1, newDays || 1);
     setItems((prev) =>
@@ -124,7 +118,6 @@ export const ForemanGanttView: React.FC<Props> = ({
     );
   };
 
-  // Изменение количества техники
   const handleEquipmentChange = (
     itemId: string,
     eqTypeId: string,
@@ -154,16 +147,14 @@ export const ForemanGanttView: React.FC<Props> = ({
     );
   };
 
-  // 1. Автогенерация графика из шаблона ТЗ
   const handleApplyTemplate = async () => {
     setIsSaving(true);
     setFeedback(null);
     try {
-      const res = await fetch(
-        `${API_URL}/api/v1/projects/${projectId}/schedules/apply-template`,
+      const res = await fetchWithAuth(
+        `/api/v1/projects/${projectId}/schedules/apply-template`,
         {
           method: "POST",
-          headers: getAuthHeaders(),
           body: JSON.stringify({ start_date: new Date().toISOString() }),
         },
       );
@@ -181,7 +172,6 @@ export const ForemanGanttView: React.FC<Props> = ({
     }
   };
 
-  // 2. Пакетное сохранение правок (bulk-sync)
   const handleSaveBulkSync = async () => {
     setIsSaving(true);
     setFeedback(null);
@@ -198,11 +188,10 @@ export const ForemanGanttView: React.FC<Props> = ({
         })),
       };
 
-      const res = await fetch(
-        `${API_URL}/api/v1/projects/${projectId}/schedules/bulk-sync`,
+      const res = await fetchWithAuth(
+        `/api/v1/projects/${projectId}/schedules/bulk-sync`,
         {
           method: "PUT",
-          headers: getAuthHeaders(),
           body: JSON.stringify(payload),
         },
       );
@@ -219,16 +208,14 @@ export const ForemanGanttView: React.FC<Props> = ({
     }
   };
 
-  // 3. Утверждение графика (DRAFT -> ACTIVE)
   const handleConfirmSchedule = async () => {
     setIsSaving(true);
     setFeedback(null);
     try {
-      const res = await fetch(
-        `${API_URL}/api/v1/projects/${projectId}/schedules/confirm`,
+      const res = await fetchWithAuth(
+        `/api/v1/projects/${projectId}/schedules/confirm`,
         {
           method: "POST",
-          headers: getAuthHeaders(),
         },
       );
       if (!res.ok) throw new Error("Не удалось утвердить график");
@@ -315,11 +302,10 @@ export const ForemanGanttView: React.FC<Props> = ({
 
           <div className="gantt-body">
             {groupedStages.map(([stageName, subStages]) => {
-              const isCollapsed = !!collapsed[stageName];
+              const isCollapsed = Boolean(collapsed[stageName]);
 
               return (
                 <React.Fragment key={stageName}>
-                  {/* Родительская строка этапа */}
                   <div
                     className="gantt-parent-row"
                     onClick={() => toggleGroup(stageName)}
@@ -353,7 +339,6 @@ export const ForemanGanttView: React.FC<Props> = ({
                     </div>
                   </div>
 
-                  {/* Дочерние подэтапы */}
                   {!isCollapsed &&
                     subStages.map((sub) => {
                       const days = getDays(

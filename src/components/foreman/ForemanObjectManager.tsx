@@ -4,8 +4,7 @@ import {
   EquipmentType,
   ScheduleItem,
 } from "../../pages/foreman/ForemanPage";
-import { fetchWithAuth } from "../../api/api";
-import { monitoringApi } from "../../api/monitoringApi";
+import { foremanApi } from "../../api/apiForeman";
 import { CameraManagerModal } from "./CameraManagerModal";
 import { EarlyCompleteModal } from "../engineer/EarlyCompleteModal";
 
@@ -18,8 +17,6 @@ import chevronDownIcon from "../../assets/images/Caret_Down_MD.svg";
 import chevronRightIcon from "../../assets/images/Caret_Up_MD.svg";
 
 import "../../styles/ForemanGantt.css";
-
-const API_URL = process.env.REACT_APP_API_URL || "";
 
 const FALLBACK_EQUIPMENT_NAMES: Record<string, string> = {
   bulldozer: "Бульдозер",
@@ -40,13 +37,14 @@ interface ForemanObjectManagerProps {
   reloadSchedules: () => Promise<void>;
   hideTopBar?: boolean;
   isEngineer?: boolean;
+  isReadOnly?: boolean; // Пропс блокировки для Администратора
 }
 
 interface EquipmentRequirementItem {
   typeCode: string;
   name: string;
   count: number;
-  isRequired: boolean; // true = Обязательная, false = Допустимая
+  isRequired: boolean;
 }
 
 interface GanttSubStage {
@@ -95,6 +93,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
   reloadSchedules,
   hideTopBar = false,
   isEngineer = false,
+  isReadOnly = false,
 }) => {
   const [stages, setStages] = useState<GanttMajorStage[]>([]);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
@@ -113,7 +112,9 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     nextStageName?: string;
   } | null>(null);
 
+  // Если это режим только чтения (Администратор), блокируем любые изменения
   const isLocked =
+    isReadOnly ||
     isLocallyConfirmed ||
     project.status === "ACTIVE" ||
     project.schedule_status === "ACTIVE" ||
@@ -209,7 +210,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
             typeCode: resolved.typeCode,
             name: resolved.name,
             count: Number(eq.required_count ?? eq.count) || 1,
-            // Если явно false — допустимая, иначе по умолчанию обязательная
             isRequired: eq.is_required !== false,
           });
         });
@@ -367,7 +367,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     );
   };
 
-  // Переключение между Обязательной и Допустимой техникой
   const handleToggleRequirementType = (
     stageId: string,
     subId: string,
@@ -395,7 +394,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     );
   };
 
-  // Удаление техники
   const handleRemoveEquipment = (
     stageId: string,
     subId: string,
@@ -421,7 +419,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     );
   };
 
-  // Добавление техники как обязательной или допустимой
   const handleAddEquipment = (
     stageId: string,
     subId: string,
@@ -464,7 +461,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     setIsProcessing(true);
     setStatusMessage(null);
     try {
-      const res = await monitoringApi.applyTemplate(project.id);
+      const res = await foremanApi.applyTemplate(project.id);
       await reloadSchedules();
       setStatusMessage({
         type: "success",
@@ -481,6 +478,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
   };
 
   const handleSaveBulkSync = async () => {
+    if (isLocked) return;
     setIsProcessing(true);
     setStatusMessage(null);
 
@@ -490,11 +488,19 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
 
       stages.forEach((maj) => {
         maj.subStages.forEach((sub) => {
-          const eqReqs = sub.equipment.map((e) => ({
-            equipment_type: e.typeCode.toLowerCase(),
-            required_count: Number(e.count) || 1,
-            is_required: e.isRequired,
-          }));
+          const eqReqs = sub.equipment.map((e) => {
+            const matchedType = equipmentTypes.find(
+              (et) =>
+                et.id === e.typeCode ||
+                (et.code && et.code.toLowerCase() === e.typeCode.toLowerCase()),
+            );
+
+            return {
+              equipment_type_id: matchedType?.id || e.typeCode,
+              required_count: Number(e.count) || 1,
+              is_required: e.isRequired !== false,
+            };
+          });
 
           const itemPayload: any = {
             stage_name: maj.name,
@@ -502,11 +508,14 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
             sequence_order: seq++,
             base_start_date: sub.startDate.toISOString(),
             base_end_date: sub.endDate.toISOString(),
-            status: sub.status || "PLANNED",
             equipment_requirements: eqReqs,
           };
 
-          if (sub.id && !sub.id.startsWith("sub-")) {
+          if (
+            sub.id &&
+            !sub.id.startsWith("sub-") &&
+            !sub.id.startsWith("major-")
+          ) {
             itemPayload.id = sub.id;
           }
 
@@ -514,24 +523,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
         });
       });
 
-      const res = await fetchWithAuth(
-        `${API_URL}/api/v1/projects/${project.id}/schedules/bulk-sync`,
-        {
-          method: "PUT",
-          body: JSON.stringify({ stages: flatList }),
-        },
-      );
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => null);
-        const errMsg =
-          errData?.message ||
-          errData?.detail?.[0]?.message ||
-          errData?.detail ||
-          `Код ответа сервера: ${res.status}`;
-        throw new Error(errMsg);
-      }
-
+      await foremanApi.bulkSync(project.id, flatList);
       await reloadSchedules();
 
       setStatusMessage({
@@ -539,39 +531,22 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
         text: "График и параметры техники сохранены в системе",
       });
     } catch (e: any) {
-      console.error("Ошибка bulk-sync:", e);
       setStatusMessage({
         type: "error",
         text: `Не удалось сохранить график: ${e.message}`,
       });
-      throw e;
     } finally {
       setIsProcessing(false);
     }
   };
 
   const handleConfirmSchedule = async () => {
+    if (isLocked) return;
     setIsProcessing(true);
     setStatusMessage(null);
     try {
       await handleSaveBulkSync();
-
-      const res = await fetchWithAuth(
-        `${API_URL}/api/v1/projects/${project.id}/schedules/confirm`,
-        {
-          method: "POST",
-        },
-      );
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => null);
-        const errMsg =
-          errData?.message ||
-          errData?.detail?.[0]?.msg ||
-          errData?.detail ||
-          `Код ошибки: ${res.status}`;
-        throw new Error(errMsg);
-      }
+      await foremanApi.confirmSchedule(project.id);
 
       setIsLocallyConfirmed(true);
       await reloadSchedules();
@@ -591,10 +566,11 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
   };
 
   const handleManualStartStage = async (stageId: string) => {
+    if (isLocked) return;
     setIsProcessing(true);
     setStatusMessage(null);
     try {
-      await monitoringApi.startStage(project.id, stageId);
+      await foremanApi.startStage(project.id, stageId);
       await reloadSchedules();
       setStatusMessage({
         type: "success",
@@ -610,7 +586,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     }
   };
 
-  const canCompleteEarly = Boolean(isEngineer);
+  const canCompleteEarly = Boolean(isEngineer) && !isReadOnly;
 
   return (
     <div className="gantt-root">
@@ -629,7 +605,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
               title="Управление видеопотоками площадки"
             >
               <img src={cameraIcon} alt="" className="btn-icon-svg" />
-              <span>Видеонаблюдение ({project.camera_url ? "1+" : "0"})</span>
+              <span>Видеокамеры ({project.camera_url ? "1+" : "0"})</span>
             </button>
 
             {isLocked ? (
@@ -637,10 +613,14 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                 <img src={lockIcon} alt="" className="badge-icon-svg" />
                 <div className="locked-text-wrap">
                   <span className="locked-badge-title">
-                    Директивный график утверждён
+                    {isReadOnly
+                      ? "Режим чтения (Департамент)"
+                      : "Директивный график утверждён"}
                   </span>
                   <span className="locked-badge-sub">
-                    Режим непрерывного мониторинга СМР
+                    {isReadOnly
+                      ? "Правка графиков доступна только прорабу"
+                      : "Режим непрерывного мониторинга СМР"}
                   </span>
                 </div>
               </div>
@@ -706,8 +686,9 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
         <div className="gantt-empty-card">
           <h3>График строительства пока не сформирован</h3>
           <p>
-            Для этого объекта еще не создана диаграмма Ганта. Нажмите кнопку
-            ниже, чтобы автоматически развернуть этапы и технику из шаблона ТЗ.
+            {isReadOnly
+              ? "Для этого объекта график СМР ещё не был сформирован прорабом."
+              : "Для этого объекта еще не создана диаграмма Ганта. Нажмите кнопку ниже, чтобы автоматически развернуть этапы и технику из шаблона ТЗ."}
           </p>
           {!isLocked && (
             <button
@@ -745,7 +726,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
 
               return (
                 <React.Fragment key={maj.id}>
-                  {/* Строка крупного этапа */}
                   <div
                     className="gantt-parent-row"
                     onClick={() => toggleCollapse(maj.id)}
@@ -795,7 +775,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                     </div>
                   </div>
 
-                  {/* Дочерние подэтапы */}
                   {!isCollapsed &&
                     maj.subStages.map((sub) => {
                       const layout = timelineLayout.subOffsets.get(sub.id);
@@ -833,7 +812,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                             )}
                           </div>
 
-                          {/* Статус и действия */}
                           <div className="status-col-cell">
                             <span
                               className={`gantt-status-badge ${
@@ -851,7 +829,8 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                                   : "Запланирован"}
                             </span>
 
-                            {sub.status === "PLANNED" && (
+                            {/* Кнопка запуска доступна только прорабу */}
+                            {sub.status === "PLANNED" && !isLocked && (
                               <button
                                 type="button"
                                 className="btn-start-stage-chip"
@@ -894,7 +873,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                             )}
                           </div>
 
-                          {/* Даты подэтапа */}
                           <div className="child-dates-cell">
                             <div className="dates-range-row">
                               <span className="dates-text">
@@ -939,7 +917,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                             </div>
                           </div>
 
-                          {/* УПРАВЛЕНИЕ ОБЯЗАТЕЛЬНОЙ И ДОПУСТИМОЙ ТЕХНИКОЙ */}
                           <div>
                             <div className="eq-chip-box">
                               {sub.equipment.map((eq) => (
@@ -950,9 +927,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                                       ? "eq-chip-required"
                                       : "eq-chip-allowed"
                                   }`}
-                                  title="Нажмите на статус (Обяз./Допуст.), чтобы переключить тип требования"
                                 >
-                                  {/* Индикатор обязательности: клик переключает тип */}
                                   {!isLocked ? (
                                     <button
                                       type="button"
@@ -984,7 +959,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                                     {eq.name}
                                   </span>
 
-                                  {/* Кнопки уменьшения и увеличения количества */}
                                   {!isLocked && (
                                     <button
                                       type="button"
@@ -1023,7 +997,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                                     </button>
                                   )}
 
-                                  {/* Кнопка полного удаления техники из этапа */}
                                   {!isLocked && (
                                     <button
                                       type="button"
@@ -1035,7 +1008,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                                           eq.typeCode,
                                         )
                                       }
-                                      title="Удалить технику из этого этапа"
+                                      title="Удалить технику"
                                     >
                                       ✕
                                     </button>
@@ -1043,7 +1016,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                                 </div>
                               ))}
 
-                              {/* Выбор техники для добавления */}
                               {!isLocked && (
                                 <div className="eq-add-dropdown-wrap">
                                   <select
@@ -1063,7 +1035,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                                     }}
                                   >
                                     <option value="">+ Добавить технику</option>
-                                    <optgroup label="Обязательная техника (должна работать на объекте)">
+                                    <optgroup label="Обязательная техника">
                                       {equipmentTypes
                                         .filter(
                                           (et) =>
@@ -1089,7 +1061,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                                           );
                                         })}
                                     </optgroup>
-                                    <optgroup label="Допустимая техника (вспомогательная)">
+                                    <optgroup label="Допустимая техника">
                                       {equipmentTypes
                                         .filter(
                                           (et) =>
@@ -1121,7 +1093,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                             </div>
                           </div>
 
-                          {/* Диаграмма Ганта */}
                           <div>
                             <div className="timeline-cell">
                               <div className="gantt-timeline-track" />
@@ -1154,6 +1125,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
         <CameraManagerModal
           projectId={project.id}
           onClose={() => setIsCameraModalOpen(false)}
+          isReadOnly={isReadOnly}
         />
       )}
 

@@ -1,17 +1,21 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
+import { RootState } from "../../store";
+
 import { ForemanObjectManager } from "../../components/foreman/ForemanObjectManager";
 import {
-  getAuthHeaders,
+  fetchWithAuth,
   getLiveSummary,
   LiveSummaryResponse,
 } from "../../api/api";
 import Header from "../../components/Header";
-import "../../styles/ForemanPage.css";
+
 import arrowLeftIcon from "../../assets/images/Arrow_Left_MD.svg";
 import arrowRightIcon from "../../assets/images/Arrow_Right_MD.svg";
+import lockIcon from "../../assets/images/Lock.svg";
 
-const API_URL = process.env.REACT_APP_API_URL || "";
+import "../../styles/ForemanPage.css";
 
 export interface ProjectData {
   id: string;
@@ -68,6 +72,12 @@ export const ForemanPage: React.FC = () => {
   const { projectId: urlProjectId } = useParams<{ projectId?: string }>();
   const navigate = useNavigate();
 
+  // Проверка роли: если зашел Администратор без роли прораба — включаем только чтение
+  const currentUser = useSelector((state: RootState) => state.auth.user);
+  const isAdmin = Boolean(currentUser?.roles?.includes("admin"));
+  const isForeman = Boolean(currentUser?.roles?.includes("foreman"));
+  const isReadOnly = isAdmin && !isForeman;
+
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     urlProjectId || null,
   );
@@ -89,7 +99,6 @@ export const ForemanPage: React.FC = () => {
     }
   }, [urlProjectId]);
 
-  // Загрузка паспорта ОКС, графиков и статуса (вызывается также при reloadSchedules)
   const loadProjectDetails = useCallback(async () => {
     if (!selectedProjectId) {
       setProject(null);
@@ -98,18 +107,13 @@ export const ForemanPage: React.FC = () => {
       return;
     }
 
-    const headers = getAuthHeaders();
     try {
       const [projRes, schedRes, camerasRes, eqRes, summaryData] =
         await Promise.all([
-          fetch(`${API_URL}/api/v1/projects/${selectedProjectId}`, { headers }),
-          fetch(`${API_URL}/api/v1/projects/${selectedProjectId}/schedules`, {
-            headers,
-          }),
-          fetch(`${API_URL}/api/v1/projects/${selectedProjectId}/cameras`, {
-            headers,
-          }),
-          fetch(`${API_URL}/api/v1/dictionaries/equipment-types`, { headers }),
+          fetchWithAuth(`/api/v1/projects/${selectedProjectId}`),
+          fetchWithAuth(`/api/v1/projects/${selectedProjectId}/schedules`),
+          fetchWithAuth(`/api/v1/projects/${selectedProjectId}/cameras`),
+          fetchWithAuth(`/api/v1/dictionaries/equipment-types`),
           getLiveSummary(selectedProjectId).catch(() => null),
         ]);
 
@@ -142,23 +146,19 @@ export const ForemanPage: React.FC = () => {
     }
   }, [selectedProjectId]);
 
-  // Первичная загрузка списка доступных объектов
   useEffect(() => {
     let isMounted = true;
 
     const fetchProjects = async () => {
       setIsLoading(true);
       setErrorMessage("");
-      const headers = getAuthHeaders();
 
       try {
-        const res = await fetch(`${API_URL}/api/v1/projects`, { headers });
+        const res = await fetchWithAuth(`/api/v1/projects`);
         const list = await parseJsonResponse(res, null);
 
         if (!list || !Array.isArray(list)) {
-          throw new Error(
-            "Не удалось получить список объектов со строительного сервера",
-          );
+          throw new Error("Не удалось получить список объектов");
         }
 
         if (isMounted) {
@@ -186,12 +186,28 @@ export const ForemanPage: React.FC = () => {
     loadProjectDetails();
   }, [loadProjectDetails]);
 
+  // Фоновое автообновление данных раз в 5 секунд
+  useEffect(() => {
+    if (!selectedProjectId) return;
+
+    const intervalId = setInterval(() => {
+      if (document.hidden) return;
+      loadProjectDetails();
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [selectedProjectId, loadProjectDetails]);
+
   const handleSelectProject = (projId: string) => {
     setSelectedProjectId(projId);
     navigate(`/foreman/${projId}`);
   };
 
   const handleBackToSelection = () => {
+    if (isAdmin) {
+      navigate("/admin/registry");
+      return;
+    }
     setSelectedProjectId(null);
     setProject(null);
     setSchedules([]);
@@ -216,30 +232,6 @@ export const ForemanPage: React.FC = () => {
   }
 
   if (!selectedProjectId) {
-    if (availableProjects.length === 0) {
-      return (
-        <div className="foreman-page">
-          <Header />
-          <div className="foreman-content">
-            <div className="empty-state-container">
-              <h2 className="empty-state-title">ОКС не назначен</h2>
-              <p className="empty-state-description">
-                {errorMessage ||
-                  "За вашей учетной записью пока не закреплено ни одного объекта капитального строительства."}
-              </p>
-              <button
-                type="button"
-                className="foreman-primary-button"
-                onClick={() => window.location.reload()}
-              >
-                Обновить данные
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
     return (
       <div className="foreman-page">
         <Header />
@@ -248,9 +240,8 @@ export const ForemanPage: React.FC = () => {
             <div className="project-selector-header">
               <h2>Выберите объект строительства</h2>
               <p>
-                За вашей учетной записью закреплено объектов:{" "}
-                {availableProjects.length}. Нажмите на нужную стройплощадку для
-                перехода к графику Ганта:
+                Доступных объектов: {availableProjects.length}. Нажмите на
+                нужную стройплощадку для перехода к графику Ганта:
               </p>
             </div>
 
@@ -295,7 +286,7 @@ export const ForemanPage: React.FC = () => {
               className="foreman-primary-button"
               onClick={handleBackToSelection}
             >
-              Вернуться к списку объектов
+              Вернуться назад
             </button>
           </div>
         </div>
@@ -308,6 +299,25 @@ export const ForemanPage: React.FC = () => {
   return (
     <div className="foreman-page">
       <Header />
+
+      {/* Баннер режима только чтения для Администратора */}
+      {isReadOnly && (
+        <div className="foreman-readonly-banner-wrap">
+          <div className="foreman-readonly-banner">
+            <img src={lockIcon} alt="" className="readonly-banner-icon" />
+            <div className="readonly-banner-text">
+              <strong>
+                Режим наблюдателя (Департамент градостроительной политики)
+              </strong>
+              <span>
+                Вы просматриваете объект в режиме чтения. Формирование этапов,
+                изменение сроков, привязка техники и отметки о ликвидации
+                простоя заблокированы.
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="foreman-toolbar-switch">
         <div className="foreman-project-selector-group">
@@ -333,7 +343,11 @@ export const ForemanPage: React.FC = () => {
           onClick={handleBackToSelection}
         >
           <img src={arrowLeftIcon} alt="" className="btn-icon-svg" />
-          <span>Реестр строек ({availableProjects.length})</span>
+          <span>
+            {isAdmin
+              ? "Вернуться в реестр строек"
+              : `Все объекты (${availableProjects.length})`}
+          </span>
         </button>
       </div>
 
@@ -387,18 +401,22 @@ export const ForemanPage: React.FC = () => {
           </div>
 
           <div className="foreman-kpi-card">
-            <span className="kpi-caption">Полномочия прораба</span>
+            <span className="kpi-caption">Полномочия на объекте</span>
             <div className="kpi-title-strong">
-              {project.status === "ACTIVE" ||
-              project.schedule_status === "ACTIVE"
-                ? "График зафиксирован"
-                : "Формирование графика"}
+              {isReadOnly
+                ? "Только чтение"
+                : project.status === "ACTIVE" ||
+                    project.schedule_status === "ACTIVE"
+                  ? "График зафиксирован"
+                  : "Формирование графика"}
             </div>
             <span className="kpi-sub-text">
-              {project.status === "ACTIVE" ||
-              project.schedule_status === "ACTIVE"
-                ? "Редактирование закрыто, ведется видеомониторинг"
-                : "Настройте сроки и технику до утверждения"}
+              {isReadOnly
+                ? "Правка графиков закреплена за прорабом объекта"
+                : project.status === "ACTIVE" ||
+                    project.schedule_status === "ACTIVE"
+                  ? "Редактирование закрыто, ведется видеомониторинг"
+                  : "Настройте сроки и технику до утверждения"}
             </span>
           </div>
         </div>
@@ -416,17 +434,20 @@ export const ForemanPage: React.FC = () => {
               </p>
             </div>
 
-            <button
-              type="button"
-              className="btn-foreman-resolve-idle"
-              onClick={() => {
-                setIdleResolvedText(
-                  "Отметка о ликвидации простоя принята. Проверьте возобновление работы техники.",
-                );
-              }}
-            >
-              Отметить ликвидацию простоя
-            </button>
+            {/* Кнопка доступна ТОЛЬКО прорабу, админ нажимать не может */}
+            {!isReadOnly && (
+              <button
+                type="button"
+                className="btn-foreman-resolve-idle"
+                onClick={() => {
+                  setIdleResolvedText(
+                    "Отметка о ликвидации простоя принята. Проверьте возобновление работы техники.",
+                  );
+                }}
+              >
+                Отметить ликвидацию простоя
+              </button>
+            )}
           </div>
         )}
 
@@ -442,6 +463,7 @@ export const ForemanPage: React.FC = () => {
         schedules={schedules}
         equipmentTypes={equipmentTypes}
         reloadSchedules={loadProjectDetails}
+        isReadOnly={isReadOnly}
       />
     </div>
   );

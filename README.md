@@ -1,89 +1,56 @@
-# Getting Started with Create React App
+# Аргус — СМР (Frontend)
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+> **Веб-платформа непрерывного мониторинга строительно-монтажных работ (СМР) и детекции строительной техники на объектах капитального строительства (ОКС) города Москвы.**
 
-## Available Scripts
+Разработано в рамках цифровизации контрольно-надзорной деятельности Градостроительного комплекса Москвы.
 
-In the project directory, you can run:
+---
 
-### `npm start`
+## Основные возможности
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in the browser.
+* **Директивные графики Ганта:** формирование технологических цепочек из нормативных шаблонов ТЗ, расчет критического пути, ручной запуск и досрочное закрытие этапов по актам АОСР.
+* **Видеоаналитика техники в реальном времени:** интеграция RTSP-камер, фиксация простоя (IDLE), дефицита обязательной техники или наличия несогласованных машин на объекте.
+* **Автоматическая трехуровневая эскалация:**
+  * 🟢 **GREEN (В норме):** работы идут строго в соответствии со стройгенпланом и графиком.
+  * 🟡 **YELLOW (Внимание):** обнаружен простой или отсутствие обязательной единицы техники на стройплощадке.
+  * 🔴 **RED (Критический инцидент):** превышен регламентный порог простоя (по умолчанию 48 часов) — кейс эскалируется инженеру технадзора.
+* **Арбитраж инцидентов инженером ПТО:**
+  1. **Форс-мажор (Фиолетовый статус):** приостановка штрафов, каскадный сдвиг сроков цепочки зависимых этапов с фиксацией в журнале аудита (*Audit Trail*).
+  2. **Штрафной коридор (Оранжевый статус):** фиксация вины подрядчика, 48 часов на нагон графика, автоматическое формирование отчета с расчетом неустойки.
+  3. **Сброс ложного срабатывания:** аннулирование алерта под персональную ответственность инженера.
+* **Макро-аналитика Департамента:** сводный мониторинг всех строек столицы, фильтрация по статусам надзора, распределение готовности по стадиям и учет суммарного времени простоя техники.
 
-The page will reload if you make edits.\
-You will also see any lint errors in the console.
+---
 
-### `npm test`
+## Ролевая модель
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+| Роль в системе | Доступные разделы | Ключевой функционал |
+| :--- | :--- | :--- |
+| **Департамент** (`admin`) | `/admin/registry`, `/admin/oks` | Реестр всех ОКС города, создание карточек объектов, выдача ролей, привязка команд, системные пороги |
+| **Инженер технадзора** (`engineer`) | `/engineer`, `/engineer/:id` | Пульт арбитража красных алертов, каскадный сдвиг сроков, фиксация юридических улик нарушений, штрафные отчеты |
+| **Прораб объекта** (`foreman`) | `/foreman`, `/foreman/:id` | Настройка этапов Ганта, привязка обязательной/допустимой техники, подключение RTSP-видеокамер, досрочная сдача этапов |
 
-### `npm run build`
+---
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+## Стек технологий
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+* **Фреймворк:** React 19 (TypeScript)
+* **Сборщик:** Create React App (react-scripts 5.0.1)
+* **Управление состоянием:** Redux Toolkit 2.x
+* **Маршрутизация:** React Router v7
+* **Стилизация:** Чистый CSS с CSS Custom Properties (Design System города Москвы)
+* **Сетевой слой:** Единый интерцептор `fetchWithAuth` с очередью ротации JWT (access token: 15 минут, refresh token в HttpOnly Cookie)
+* **Контейнеризация:** Docker (Node 18 Alpine) + Docker Compose
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+---
 
-### `npm run eject`
+## Быстрый старт
 
-**Note: this is a one-way operation. Once you `eject`, you can’t go back!**
+### 1. Переменные окружения (`.env`)
 
-If you aren’t satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+Создайте файл `.env` в корне проекта:
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you’re on your own.
-
-You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
-
-## Learn More
-
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
-
-To learn React, check out the [React documentation](https://reactjs.org/).
-
-
-
-## Auth Service
-
-access_token живёт 15 минут (expires_in: 900), поэтому на защищённых запросах нужен авто-рефреш при 401.
-
-```
-register(email, password, first_name, last_name): Promise<AuthResponse>
-login(email, password): Promise<AuthResponse>
-refresh(): Promise<AuthResponse>              // refresh_token берётся из cookie сам
-getMe(accessToken): Promise<User>
-logout(): Promise<{ message: string }>        // тоже по cookie
-logoutAll(accessToken): Promise<{ message: string }>
-```
-
-Любой не-2xx парсится в AuthApiError
-
-Авто-рефреш (createAuthFetch) oборачивает fetch для защищённых ручек: при 401 сам вызывает refresh(), обновляет токен и повторяет запрос.
-
-## API
-
-Загрузка изображения - uploadImage(file)
-Отправляет изображение на backend.
-
-Получение результатов анализа - getAnalysis()
-Получает результаты анализа фруктов с backend.
-
-`
-Загружает результаты сразу после открытия страницы.
-Каждые 5 секунд отправляет GET запрос.
-Обновляет состояние с полученными результатами.
-Останавливает интервал при размонтировании компонента.
-`
-
-# TODO
-Когда backend будет готов, если GET /api/v1/users начнёт возвращать, например:
-{
-    "data": [...],
-    "total": 57
-}
-мы легко сделаем:
-const totalPages = Math.ceil(total / ITEMS_PER_PAGE);
+```env
+REACT_APP_API_URL=http://localhost:8000
+CHOKIDAR_USEPOLLING=true
+WATCHPACK_POLLING=true

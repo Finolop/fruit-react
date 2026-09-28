@@ -7,8 +7,7 @@ import {
   ErrorDetail,
 } from "../types/auth";
 
-// Фоллбек на http://localhost:8000, если в .env пусто
-const API_URL = process.env.REACT_APP_API_URL;
+const API_URL = process.env.REACT_APP_API_URL || "";
 
 export class AuthApiError extends Error {
   code: string;
@@ -31,7 +30,6 @@ async function handleResponse<T>(res: Response): Promise<T> {
     } catch {
       throw new Error(`HTTP ${res.status}: ${res.statusText}`);
     }
-    // Поддержка стандартного формата ошибок FastAPI (detail)
     if (body.detail && !body.error) {
       body = {
         error: {
@@ -114,46 +112,4 @@ export const logoutAll = async (
     credentials: "include",
   });
   return handleResponse(res);
-};
-
-type AccessTokenGetter = () => string | null;
-type AccessTokenSetter = (token: string) => void;
-
-// При 401 один раз пытается обновить access_token через /api/v1/auth/refresh
-export const createAuthFetch = (
-  getAccessToken: AccessTokenGetter,
-  setAccessToken: AccessTokenSetter,
-  onRefreshFail: () => void,
-) => {
-  return async function authFetch(
-    input: string,
-    init: RequestInit = {},
-  ): Promise<Response> {
-    const attempt = async (): Promise<Response> => {
-      const token = getAccessToken();
-      return fetch(`${API_URL}${input}`, {
-        ...init,
-        credentials: "include",
-        headers: {
-          ...(init.headers || {}),
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      });
-    };
-
-    let res = await attempt();
-
-    if (res.status === 401) {
-      try {
-        const refreshed = await refresh();
-        setAccessToken(refreshed.access_token);
-        res = await attempt();
-      } catch {
-        onRefreshFail();
-        return res;
-      }
-    }
-
-    return res;
-  };
 };

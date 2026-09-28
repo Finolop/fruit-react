@@ -292,6 +292,15 @@ const RegistryList: React.FC = () => {
   const handleOpen = (id: string) => {
     navigate(`/foreman/${id}`);
   };
+//  автообновление реестра всех строек Москвы каждые 10 секунд
+  useEffect(() => {
+    const intervalId = setInterval(() => {
+      if (document.hidden) return;
+      loadData();
+    }, 10000);
+
+    return () => clearInterval(intervalId);
+  }, [loadData]);
 
   return (
     <div className="registry-layout">

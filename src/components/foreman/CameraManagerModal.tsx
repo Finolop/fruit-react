@@ -3,14 +3,20 @@ import { monitoringApi, CameraItem } from "../../api/monitoringApi";
 import cameraIcon from "../../assets/images/Camera.svg";
 import trashIcon from "../../assets/images/Trash_Full.svg";
 import closeIcon from "../../assets/images/Close_MD.svg";
+import lockIcon from "../../assets/images/Lock.svg";
 import "../../styles/CameraModal.css";
 
 interface Props {
   projectId: string;
   onClose: () => void;
+  isReadOnly?: boolean; // Блокировка только для наблюдателя (Департамент)
 }
 
-export const CameraManagerModal: React.FC<Props> = ({ projectId, onClose }) => {
+export const CameraManagerModal: React.FC<Props> = ({
+  projectId,
+  onClose,
+  isReadOnly = false,
+}) => {
   const [cameras, setCameras] = useState<CameraItem[]>([]);
   const [newStreamUrl, setNewStreamUrl] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -36,6 +42,8 @@ export const CameraManagerModal: React.FC<Props> = ({ projectId, onClose }) => {
 
   const handleAddCamera = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isReadOnly) return;
+
     if (!newStreamUrl.trim()) {
       setErrorText("Укажите RTSP-ссылку или URL видеопотока");
       return;
@@ -48,7 +56,9 @@ export const CameraManagerModal: React.FC<Props> = ({ projectId, onClose }) => {
     try {
       await monitoringApi.addCamera(projectId, newStreamUrl.trim());
       setNewStreamUrl("");
-      setSuccessText("Камера успешно подключена и передана в контур мониторинга");
+      setSuccessText(
+        "Камера успешно подключена и передана в контур видеоаналитики",
+      );
       await loadCameras();
     } catch (err: any) {
       setErrorText(err.message || "Не удалось добавить камеру");
@@ -58,6 +68,8 @@ export const CameraManagerModal: React.FC<Props> = ({ projectId, onClose }) => {
   };
 
   const handleToggleActive = async (camera: CameraItem) => {
+    if (isReadOnly) return;
+
     setErrorText("");
     setSuccessText("");
     try {
@@ -69,7 +81,13 @@ export const CameraManagerModal: React.FC<Props> = ({ projectId, onClose }) => {
   };
 
   const handleDeleteCamera = async (cameraId: string) => {
-    if (!window.confirm("Удалить эту камеру со стройплощадки? Детекция по ней будет прекращена.")) {
+    if (isReadOnly) return;
+
+    if (
+      !window.confirm(
+        "Удалить эту камеру со стройплощадки? Детекция техники по ней будет остановлена.",
+      )
+    ) {
       return;
     }
     setErrorText("");
@@ -90,8 +108,16 @@ export const CameraManagerModal: React.FC<Props> = ({ projectId, onClose }) => {
           <div className="camera-modal-header-info">
             <img src={cameraIcon} alt="" className="camera-modal-header-icon" />
             <div>
-              <h3>Видеонаблюдение стройплощадки</h3>
-              <p>Подключение RTSP / HTTP видеопотоков для нейросетевого мониторинга техники</p>
+              <h3>
+                {isReadOnly
+                  ? "Видеокамеры объекта (Режим наблюдения)"
+                  : "Видеонаблюдение и детекция техники"}
+              </h3>
+              <p>
+                {isReadOnly
+                  ? "Просмотр активных видеопотоков объекта"
+                  : "Подключение RTSP / HTTP видеопотоков для нейросетевого мониторинга техники"}
+              </p>
             </div>
           </div>
           <button
@@ -100,70 +126,113 @@ export const CameraManagerModal: React.FC<Props> = ({ projectId, onClose }) => {
             onClick={onClose}
             title="Закрыть окно"
           >
-            <img src={closeIcon} alt="Закрыть" className="ui-icon-sm" />
+            <img src={closeIcon} alt="✕" className="ui-icon-sm" />
           </button>
         </div>
 
         <div className="camera-modal-body">
-          {errorText && <div className="camera-modal-alert error">{errorText}</div>}
-          {successText && <div className="camera-modal-alert success">{successText}</div>}
+          {/* Предупреждение показывается ТОЛЬКО Департаменту (admin) */}
+          {isReadOnly && (
+            <div className="camera-modal-readonly-note">
+              <img src={lockIcon} alt="" className="btn-icon-svg" />
+              <span>
+                <strong>Режим наблюдателя (Департамент):</strong> управление
+                видеокамерами (добавление новых потоков, приостановка и
+                удаление) доступно инженеру технадзора и прорабу объекта.
+              </span>
+            </div>
+          )}
 
-          {/* Форма подключения новой камеры */}
-          <form onSubmit={handleAddCamera} className="camera-add-card">
-            <label htmlFor="camera-stream-input" className="camera-add-card-label">
-              Подключить новую видеокамеру
-            </label>
+          {errorText && (
+            <div className="camera-modal-alert error">{errorText}</div>
+          )}
+          {successText && (
+            <div className="camera-modal-alert success">{successText}</div>
+          )}
 
-            <div className="camera-input-row">
-              <input
-                id="camera-stream-input"
-                type="text"
-                placeholder="rtsp://admin:pass@192.168.1.100:554/live/ch0 или http://..."
-                value={newStreamUrl}
-                onChange={(e) => setNewStreamUrl(e.target.value)}
-                disabled={isSubmitting}
-                className="camera-url-input"
-                required
-              />
-              <button
-                type="submit"
-                className="camera-add-submit-btn"
-                disabled={isSubmitting || !newStreamUrl.trim()}
+          {/* Форма подключения камеры доступна и Инженеру, и Прорабу */}
+          {!isReadOnly && (
+            <form onSubmit={handleAddCamera} className="camera-add-card">
+              <label
+                htmlFor="camera-stream-input"
+                className="camera-add-card-label"
               >
-                {isSubmitting ? "Подключение..." : "+ Подключить"}
-              </button>
-            </div>
+                Подключить новую видеокамеру к нейросети
+              </label>
 
-            <div className="camera-hints-row">
-              <span>Быстрый протокол:</span>
-              <span className="camera-hint-chip" onClick={() => setNewStreamUrl("rtsp://")}>
-                rtsp://
-              </span>
-              <span className="camera-hint-chip" onClick={() => setNewStreamUrl("http://")}>
-                http://
-              </span>
-              <span className="camera-hint-chip" onClick={() => setNewStreamUrl("https://")}>
-                https://
-              </span>
-            </div>
-          </form>
+              <div className="camera-input-row">
+                <input
+                  id="camera-stream-input"
+                  type="text"
+                  placeholder="rtsp://admin:pass@192.168.1.100:554/live/ch0 или http://..."
+                  value={newStreamUrl}
+                  onChange={(e) => setNewStreamUrl(e.target.value)}
+                  disabled={isSubmitting}
+                  className="camera-url-input"
+                  required
+                />
+                <button
+                  type="submit"
+                  className="camera-add-submit-btn"
+                  disabled={isSubmitting || !newStreamUrl.trim()}
+                >
+                  {isSubmitting ? "Подключение..." : "+ Подключить"}
+                </button>
+              </div>
+
+              <div className="camera-hints-row">
+                <span>Быстрый протокол:</span>
+                <span
+                  className="camera-hint-chip"
+                  onClick={() => setNewStreamUrl("rtsp://")}
+                >
+                  rtsp://
+                </span>
+                <span
+                  className="camera-hint-chip"
+                  onClick={() => setNewStreamUrl("http://")}
+                >
+                  http://
+                </span>
+                <span
+                  className="camera-hint-chip"
+                  onClick={() => setNewStreamUrl("https://")}
+                >
+                  https://
+                </span>
+              </div>
+            </form>
+          )}
 
           {/* Список подключенных камер */}
           <div className="camera-list-section">
             <div className="camera-list-header">
-              <span className="camera-list-title">Камеры на объекте ({cameras.length})</span>
+              <span className="camera-list-title">
+                Камеры на объекте ({cameras.length})
+              </span>
               <span className="camera-online-badge">
-                В сети: {cameras.filter((c) => c.is_active).length} из {cameras.length}
+                В сети: {cameras.filter((c) => c.is_active).length} из{" "}
+                {cameras.length}
               </span>
             </div>
 
             {isLoading ? (
-              <div className="camera-empty-box">Синхронизация камер объекта...</div>
+              <div className="camera-empty-box">
+                Синхронизация камер объекта...
+              </div>
             ) : cameras.length === 0 ? (
               <div className="camera-empty-box">
-                <img src={cameraIcon} alt="" className="camera-empty-icon-svg" />
+                <img
+                  src={cameraIcon}
+                  alt=""
+                  className="camera-empty-icon-svg"
+                />
                 <p>На этой стройплощадке пока нет подключенных камер.</p>
-                <small>Вставьте RTSP-ссылку выше, чтобы запустить фиксацию техники.</small>
+                <small>
+                  {isReadOnly
+                    ? "Видеокамеры пока не подключены к объекту."
+                    : "Вставьте RTSP-ссылку выше, чтобы запустить детекцию техники нейросетью."}
+                </small>
               </div>
             ) : (
               cameras.map((cam, idx) => (
@@ -173,20 +242,31 @@ export const CameraManagerModal: React.FC<Props> = ({ projectId, onClose }) => {
                 >
                   <div className="camera-item-top">
                     <div className="camera-status-group">
-                      <span className="camera-number-tag">Камера #{idx + 1}</span>
-                      <span className={`camera-badge-pill ${cam.is_active ? "on" : "off"}`}>
+                      <span className="camera-number-tag">
+                        Камера #{idx + 1}
+                      </span>
+                      <span
+                        className={`camera-badge-pill ${cam.is_active ? "on" : "off"}`}
+                      >
                         {cam.is_active ? "В сети (ON)" : "Отключена"}
                       </span>
                     </div>
 
-                    <button
-                      type="button"
-                      className="camera-delete-btn"
-                      title="Удалить камеру со стройки"
-                      onClick={() => handleDeleteCamera(cam.id)}
-                    >
-                      <img src={trashIcon} alt="Удалить" className="ui-icon-trash" />
-                    </button>
+                    {/* Удаление доступно инженеру и прорабу */}
+                    {!isReadOnly && (
+                      <button
+                        type="button"
+                        className="camera-delete-btn"
+                        title="Удалить камеру со стройки"
+                        onClick={() => handleDeleteCamera(cam.id)}
+                      >
+                        <img
+                          src={trashIcon}
+                          alt="Удалить"
+                          className="ui-icon-trash"
+                        />
+                      </button>
+                    )}
                   </div>
 
                   <div className="camera-url-box" title={cam.stream_url}>
@@ -195,16 +275,20 @@ export const CameraManagerModal: React.FC<Props> = ({ projectId, onClose }) => {
 
                   <div className="camera-item-bottom">
                     <span className="camera-date-text">
-                      Подключена: {new Date(cam.created_at).toLocaleDateString("ru-RU")}
+                      Подключена:{" "}
+                      {new Date(cam.created_at).toLocaleDateString("ru-RU")}
                     </span>
 
-                    <button
-                      type="button"
-                      className={`camera-toggle-btn ${cam.is_active ? "btn-stop" : "btn-start"}`}
-                      onClick={() => handleToggleActive(cam)}
-                    >
-                      {cam.is_active ? "Приостановить" : "Активировать"}
-                    </button>
+                    {/* Управление активностью доступно инженеру и прорабу */}
+                    {!isReadOnly && (
+                      <button
+                        type="button"
+                        className={`camera-toggle-btn ${cam.is_active ? "btn-stop" : "btn-start"}`}
+                        onClick={() => handleToggleActive(cam)}
+                      >
+                        {cam.is_active ? "Приостановить" : "Активировать"}
+                      </button>
+                    )}
                   </div>
                 </div>
               ))
@@ -213,7 +297,11 @@ export const CameraManagerModal: React.FC<Props> = ({ projectId, onClose }) => {
         </div>
 
         <div className="camera-modal-footer">
-          <button type="button" className="camera-modal-close-action" onClick={onClose}>
+          <button
+            type="button"
+            className="camera-modal-close-action"
+            onClick={onClose}
+          >
             Закрыть
           </button>
         </div>

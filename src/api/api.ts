@@ -1,27 +1,37 @@
 const API_URL = process.env.REACT_APP_API_URL || "";
 
 // ==========================================
-// Типы данных мониторинга (Live Summary)
+// Типы Live Summary по спецификации OpenAPI
 // ==========================================
 
+export interface LiveSummaryStage {
+  name: string;
+  days_current: number;
+  days_total_stage: number;
+  days_remaining: number;
+  progress_status: string;
+}
+
+export interface LiveSummaryEquipment {
+  required_total: number;
+  detected_total: number;
+  active_count: number;
+  idle_count: number;
+}
+
 export interface LiveSummaryResponse {
-  project_id: string;
-  alert_level: "GREEN" | "YELLOW" | "RED";
-  special_status?: "ORANGE" | "PURPLE" | null;
+  project_name: string;
   physical_progress_percent: number;
   time_elapsed_percent: number;
-  current_stage?: {
-    name: string;
-    days_remaining: number;
-  };
-  equipment_realtime?: {
-    active_count: number;
-    idle_count: number;
-  };
+  alert_level: "GREEN" | "YELLOW" | "RED" | string;
+  special_status: "ORANGE" | "PURPLE" | "NONE" | string;
+  special_status_deadline: string | null;
+  current_stage: LiveSummaryStage;
+  equipment_realtime: LiveSummaryEquipment;
 }
 
 // ==========================================
-// Утилиты работы с токенами и заголовками
+// Утилиты работы с токенами
 // ==========================================
 
 export const getAccessToken = (): string | null => {
@@ -44,22 +54,19 @@ export const clearTokensAndRedirect = async (): Promise<void> => {
   } finally {
     localStorage.removeItem("access_token");
     localStorage.removeItem("token");
-    localStorage.removeItem("user_data");
-    window.location.href = "/auth";
+    localStorage.removeItem("userRole");
+    window.location.href = "/login";
   }
 };
 
 export const getAuthHeaders = (): Record<string, string> => {
   const token = getAccessToken();
-
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
   };
-
   if (token) {
     headers["Authorization"] = `Bearer ${token}`;
   }
-
   return headers;
 };
 
@@ -100,19 +107,27 @@ export const refreshAuthToken = async (): Promise<string | null> => {
     }
     return null;
   } catch (err) {
-    console.warn("Срок действия сессии истек, требуется повторная авторизация:", err);
+    console.warn(
+      "Срок действия сессии истек, требуется повторная авторизация:",
+      err,
+    );
     return null;
   }
 };
 
 // ==========================================
-// Сетевой интерцептор
+// Единый сетевой интерцептор
 // ==========================================
 
 export const fetchWithAuth = async (
   input: RequestInfo | URL,
-  init: RequestInit = {}
+  init: RequestInit = {},
 ): Promise<Response> => {
+  let url = input;
+  if (typeof input === "string" && input.startsWith("/")) {
+    url = `${API_URL}${input}`;
+  }
+
   const token = getAccessToken();
   const headers = new Headers(init.headers || {});
 
@@ -124,13 +139,19 @@ export const fetchWithAuth = async (
     headers.set("Authorization", `Bearer ${token}`);
   }
 
-  const response = await fetch(input, {
+  const response = await fetch(url, {
     ...init,
     headers,
     credentials: "include",
   });
 
-  if (response.status === 401) {
+  const urlStr = typeof url === "string" ? url : url.toString();
+  const isAuthEndpoint =
+    urlStr.includes("/auth/refresh") ||
+    urlStr.includes("/auth/login") ||
+    urlStr.includes("/auth/register");
+
+  if (response.status === 401 && !isAuthEndpoint) {
     if (!isRefreshing) {
       isRefreshing = true;
 
@@ -140,7 +161,7 @@ export const fetchWithAuth = async (
       if (newToken) {
         onTokenRefreshed(newToken);
         headers.set("Authorization", `Bearer ${newToken}`);
-        return fetch(input, {
+        return fetch(url, {
           ...init,
           headers,
           credentials: "include",
@@ -155,7 +176,7 @@ export const fetchWithAuth = async (
     return new Promise<Response>((resolve) => {
       addRefreshSubscriber(async (newToken: string) => {
         headers.set("Authorization", `Bearer ${newToken}`);
-        const retryRes = await fetch(input, {
+        const retryRes = await fetch(url, {
           ...init,
           headers,
           credentials: "include",
@@ -172,16 +193,31 @@ export const fetchWithAuth = async (
 // Запросы мониторинга и файлов
 // ==========================================
 
+export const getLiveSummary = async (
+  projectId: string,
+): Promise<LiveSummaryResponse> => {
+  const response = await fetchWithAuth(
+    `/api/v1/projects/${projectId}/live-summary`,
+    { method: "GET" },
+  );
+
+  if (!response.ok) {
+    throw new Error("Ошибка получения Live Summary");
+  }
+
+  return response.json();
+};
+
 export const uploadCameraFrame = async (cameraId: string, file: File) => {
   const formData = new FormData();
   formData.append("file", file);
 
   const response = await fetchWithAuth(
-    `${API_URL}/api/v1/cameras/${cameraId}/frames/upload`,
+    `/api/v1/cameras/${cameraId}/frames/upload`,
     {
       method: "POST",
       body: formData,
-    }
+    },
   );
 
   if (!response.ok) {
@@ -191,31 +227,14 @@ export const uploadCameraFrame = async (cameraId: string, file: File) => {
   return response.json();
 };
 
-export const getIntervalAnalytics = async (
+export const getProjectFrames = async (
   projectId: string,
   limit = 50,
-  offset = 0
+  offset = 0,
 ) => {
   const response = await fetchWithAuth(
-    `${API_URL}/api/v1/projects/${projectId}/interval-analytics?limit=${limit}&offset=${offset}`,
-    {
-      method: "GET",
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error("Ошибка получения интервальной аналитики");
-  }
-
-  return response.json();
-};
-
-export const getProjectFrames = async (projectId: string, limit = 50) => {
-  const response = await fetchWithAuth(
-    `${API_URL}/api/v1/projects/${projectId}/frames?limit=${limit}`,
-    {
-      method: "GET",
-    }
+    `/api/v1/projects/${projectId}/frames?limit=${limit}&offset=${offset}`,
+    { method: "GET" },
   );
 
   if (!response.ok) {
@@ -225,16 +244,18 @@ export const getProjectFrames = async (projectId: string, limit = 50) => {
   return response.json();
 };
 
-export const getLiveSummary = async (projectId: string): Promise<LiveSummaryResponse> => {
+export const getIntervalAnalytics = async (
+  projectId: string,
+  limit = 50,
+  offset = 0,
+) => {
   const response = await fetchWithAuth(
-    `${API_URL}/api/v1/projects/${projectId}/live-summary`,
-    {
-      method: "GET",
-    }
+    `/api/v1/projects/${projectId}/interval-analytics?limit=${limit}&offset=${offset}`,
+    { method: "GET" },
   );
 
   if (!response.ok) {
-    throw new Error("Ошибка получения Live Summary");
+    throw new Error("Ошибка получения интервальной аналитики");
   }
 
   return response.json();

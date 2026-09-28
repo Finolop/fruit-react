@@ -1,36 +1,6 @@
-import { getAuthHeaders } from "./api";
+import { fetchWithAuth, LiveSummaryResponse } from "./api";
 
-const API_URL = process.env.REACT_APP_API_URL || "";
-
-// ==========================================
-// DTO & Интерфейсы по OpenAPI бэкенда
-// ==========================================
-
-export interface LiveSummaryStage {
-  name: string;
-  days_current: number;
-  days_total_stage: number;
-  days_remaining: number;
-  progress_status: string;
-}
-
-export interface LiveSummaryEquipment {
-  required_total: number;
-  detected_total: number;
-  active_count: number;
-  idle_count: number;
-}
-
-export interface LiveSummaryResponse {
-  project_name: string;
-  physical_progress_percent: number;
-  time_elapsed_percent: number;
-  alert_level: string;
-  special_status: string;
-  special_status_deadline: string | null;
-  current_stage: LiveSummaryStage;
-  equipment_realtime: LiveSummaryEquipment;
-}
+export type { LiveSummaryResponse };
 
 export interface AlertResponse {
   id: string;
@@ -122,15 +92,16 @@ export interface ProjectSettingsResponse {
   frame_retention_days: number;
 }
 
-export interface ProjectSettingsUpdate {
-  yellow_to_red_timeout_hours: number;
-  idle_threshold_minutes: number;
-  frame_retention_days: number;
+export interface AuditTrailItem {
+  id: string;
+  project_id: string;
+  user_id: string;
+  user_email: string;
+  action_type: string;
+  old_values: Record<string, any>;
+  new_values: Record<string, any>;
+  created_at: string;
 }
-
-// ==========================================
-// Вспомогательный парсер ответов
-// ==========================================
 
 const handleApiResponse = async <T>(
   res: Response,
@@ -140,27 +111,23 @@ const handleApiResponse = async <T>(
     let detail = "";
     try {
       const errJson = await res.json();
-      detail = errJson?.detail?.[0]?.msg || errJson?.detail || errJson?.message;
-    } catch {
-      // Игнорируем ошибку парсинга JSON
-    }
+      if (typeof errJson?.detail === "string") {
+        detail = errJson.detail;
+      } else if (Array.isArray(errJson?.detail)) {
+        detail = errJson.detail.map((e: any) => e.msg || e.message).join(", ");
+      } else if (errJson?.message) {
+        detail = errJson.message;
+      }
+    } catch {}
     throw new Error(detail || `${defaultErrorMsg} (Код: ${res.status})`);
   }
   return res.json();
 };
 
-// ==========================================
-// Методы API инженера ПТО
-// ==========================================
-
 export const engineerApi = {
-  // 1. Шапка дашборда: светофор, прогресс, онлайн-техника
   getLiveSummary: async (projectId: string): Promise<LiveSummaryResponse> => {
-    const res = await fetch(
-      `${API_URL}/api/v1/projects/${projectId}/live-summary`,
-      {
-        headers: getAuthHeaders(),
-      },
+    const res = await fetchWithAuth(
+      `/api/v1/projects/${projectId}/live-summary`,
     );
     return handleApiResponse<LiveSummaryResponse>(
       res,
@@ -168,13 +135,9 @@ export const engineerApi = {
     );
   },
 
-  // 2. Текущий открытый алерт по объекту
   getActiveAlert: async (projectId: string): Promise<AlertResponse | null> => {
-    const res = await fetch(
-      `${API_URL}/api/v1/alerts/active?project_id=${projectId}`,
-      {
-        headers: getAuthHeaders(),
-      },
+    const res = await fetchWithAuth(
+      `/api/v1/alerts/active?project_id=${projectId}`,
     );
     if (res.status === 404) return null;
     return handleApiResponse<AlertResponse>(
@@ -183,14 +146,26 @@ export const engineerApi = {
     );
   },
 
-  // 3. Закрытие / реакция инженера на красный алерт (3 сценария)
+  getAlerts: async (
+    projectId: string,
+    limit = 50,
+    offset = 0,
+  ): Promise<AlertResponse[]> => {
+    const res = await fetchWithAuth(
+      `/api/v1/alerts?project_id=${projectId}&limit=${limit}&offset=${offset}`,
+    );
+    return handleApiResponse<AlertResponse[]>(
+      res,
+      "Ошибка получения журнала алертов",
+    );
+  },
+
   resolveAlert: async (
     alertId: string,
     payload: AlertResolveRequest,
   ): Promise<AlertResponse> => {
-    const res = await fetch(`${API_URL}/api/v1/alerts/${alertId}/resolve`, {
+    const res = await fetchWithAuth(`/api/v1/alerts/${alertId}/resolve`, {
       method: "POST",
-      headers: getAuthHeaders(),
       body: JSON.stringify(payload),
     });
     return handleApiResponse<AlertResponse>(
@@ -199,16 +174,14 @@ export const engineerApi = {
     );
   },
 
-  // 4. Каскадный сдвиг сроков цепочки этапов
   cascadeShift: async (
     projectId: string,
     payload: CascadeShiftRequest,
   ): Promise<CascadeShiftResponse> => {
-    const res = await fetch(
-      `${API_URL}/api/v1/projects/${projectId}/schedules/cascade-shift`,
+    const res = await fetchWithAuth(
+      `/api/v1/projects/${projectId}/schedules/cascade-shift`,
       {
         method: "POST",
-        headers: getAuthHeaders(),
         body: JSON.stringify(payload),
       },
     );
@@ -218,15 +191,11 @@ export const engineerApi = {
     );
   },
 
-  // 5. Текущий активный спецстатус объекта
   getCurrentSpecialStatus: async (
     projectId: string,
   ): Promise<SpecialStatusResponse | null> => {
-    const res = await fetch(
-      `${API_URL}/api/v1/special-statuses/projects/${projectId}/current`,
-      {
-        headers: getAuthHeaders(),
-      },
+    const res = await fetchWithAuth(
+      `/api/v1/special-statuses/projects/${projectId}/current`,
     );
     if (res.status === 404) return null;
     return handleApiResponse<SpecialStatusResponse>(
@@ -235,19 +204,15 @@ export const engineerApi = {
     );
   },
 
-  // 6. Закрытие окна спецстатуса инженером
   closeSpecialStatusWindow: async (
     windowId: string,
     comment: string,
   ): Promise<SpecialStatusResponse> => {
-    const res = await fetch(
-      `${API_URL}/api/v1/special-statuses/windows/${windowId}/close`,
+    const res = await fetchWithAuth(
+      `/api/v1/special-statuses/windows/${windowId}/close`,
       {
         method: "POST",
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          close_comment: comment,
-        } as SpecialStatusCloseRequest),
+        body: JSON.stringify({ close_comment: comment }),
       },
     );
     return handleApiResponse<SpecialStatusResponse>(
@@ -256,16 +221,14 @@ export const engineerApi = {
     );
   },
 
-  // 7. Отправка штрафного отчета разбора инцидента
   submitOrangeReport: async (
     windowId: string,
     payload: OrangeStatusReportCreate,
   ): Promise<OrangeStatusReportResponse> => {
-    const res = await fetch(
-      `${API_URL}/api/v1/special-statuses/windows/${windowId}/orange-report`,
+    const res = await fetchWithAuth(
+      `/api/v1/special-statuses/windows/${windowId}/orange-report`,
       {
         method: "POST",
-        headers: getAuthHeaders(),
         body: JSON.stringify(payload),
       },
     );
@@ -275,16 +238,25 @@ export const engineerApi = {
     );
   },
 
-  // 8. Список снимков с камеры для выбора улик
+  getOrangeReports: async (
+    projectId: string,
+  ): Promise<OrangeStatusReportResponse[]> => {
+    const res = await fetchWithAuth(
+      `/api/v1/special-statuses/projects/${projectId}/orange-reports`,
+    );
+    return handleApiResponse<OrangeStatusReportResponse[]>(
+      res,
+      "Ошибка загрузки реестра штрафных отчетов",
+    );
+  },
+
   getProjectFrames: async (
     projectId: string,
-    limit = 20,
+    limit = 50,
+    offset = 0,
   ): Promise<FrameItemResponse[]> => {
-    const res = await fetch(
-      `${API_URL}/api/v1/projects/${projectId}/frames?limit=${limit}`,
-      {
-        headers: getAuthHeaders(),
-      },
+    const res = await fetchWithAuth(
+      `/api/v1/projects/${projectId}/frames?limit=${limit}&offset=${offset}`,
     );
     return handleApiResponse<FrameItemResponse[]>(
       res,
@@ -292,14 +264,12 @@ export const engineerApi = {
     );
   },
 
-  // 9. Закрепление кадра как официальной улики нарушения
   markFrameAsEvidence: async (
     frameId: string,
     isSaved = true,
   ): Promise<{ message: string }> => {
-    const res = await fetch(`${API_URL}/api/v1/frames/${frameId}/evidence`, {
+    const res = await fetchWithAuth(`/api/v1/frames/${frameId}/evidence`, {
       method: "PATCH",
-      headers: getAuthHeaders(),
       body: JSON.stringify({ is_saved_for_report: isSaved }),
     });
     return handleApiResponse<{ message: string }>(
@@ -308,38 +278,48 @@ export const engineerApi = {
     );
   },
 
-  // 10. Получение индивидуальных настроек и порогов ОКС
   getProjectSettings: async (
     projectId: string,
   ): Promise<ProjectSettingsResponse> => {
-    const res = await fetch(
-      `${API_URL}/api/v1/projects/${projectId}/settings`,
-      {
-        headers: getAuthHeaders(),
-      },
-    );
+    const res = await fetchWithAuth(`/api/v1/projects/${projectId}/settings`);
     return handleApiResponse<ProjectSettingsResponse>(
       res,
       "Ошибка получения настроек ОКС",
     );
   },
 
-  // 11. Сохранение настроек и порогов ОКС
   updateProjectSettings: async (
     projectId: string,
-    payload: ProjectSettingsUpdate,
+    payload: ProjectSettingsResponse,
   ): Promise<ProjectSettingsResponse> => {
-    const res = await fetch(
-      `${API_URL}/api/v1/projects/${projectId}/settings`,
-      {
-        method: "PUT",
-        headers: getAuthHeaders(),
-        body: JSON.stringify(payload),
-      },
-    );
+    const res = await fetchWithAuth(`/api/v1/projects/${projectId}/settings`, {
+      method: "PUT",
+      body: JSON.stringify(payload),
+    });
     return handleApiResponse<ProjectSettingsResponse>(
       res,
       "Не удалось обновить настройки ОКС",
+    );
+  },
+
+  getAuditTrail: async (
+    projectId: string,
+    limit = 50,
+    offset = 0,
+    actionType?: string,
+  ): Promise<AuditTrailItem[]> => {
+    const query = new URLSearchParams({
+      limit: String(limit),
+      offset: String(offset),
+    });
+    if (actionType) query.set("action_type", actionType);
+
+    const res = await fetchWithAuth(
+      `/api/v1/projects/${projectId}/audit-trail?${query.toString()}`,
+    );
+    return handleApiResponse<AuditTrailItem[]>(
+      res,
+      "Ошибка загрузки журнала аудита",
     );
   },
 };

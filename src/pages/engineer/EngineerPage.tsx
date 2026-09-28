@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import { useSelector } from "react-redux";
+import { RootState } from "../../store";
+
 import Header from "../../components/Header";
 import { ForemanObjectManager } from "../../components/foreman/ForemanObjectManager";
 import { CameraManagerModal } from "../../components/foreman/CameraManagerModal";
@@ -14,7 +17,7 @@ import {
   EquipmentType,
   ScheduleItem,
 } from "../foreman/ForemanPage";
-import { getAuthHeaders } from "../../api/api";
+import { fetchWithAuth } from "../../api/api";
 import { CascadeShiftModal } from "../../components/engineer/CascadeShiftModal";
 
 import cameraIcon from "../../assets/images/Camera.svg";
@@ -23,11 +26,10 @@ import arrowRightIcon from "../../assets/images/Arrow_Right_MD.svg";
 import alertTriangleIcon from "../../assets/images/Triangle_Warning.svg";
 import checkIcon from "../../assets/images/Circle_Check.svg";
 import closeIcon from "../../assets/images/Close_MD.svg";
+import lockIcon from "../../assets/images/Lock.svg";
 
 import "../../styles/EngineerConsole.css";
 import "../../styles/ForemanPage.css";
-
-const API_URL = process.env.REACT_APP_API_URL || "";
 
 type ResolutionScenario =
   | "FORCE_MAJEURE_CASCADE"
@@ -47,7 +49,6 @@ const parseJsonResponse = async (res: Response, fallback: any = null) => {
   return fallback;
 };
 
-// Словарь понятных названий строительной техники
 const TECH_NAMES: Record<string, string> = {
   bulldozer: "Бульдозер",
   dump_truck: "Самосвал",
@@ -64,34 +65,40 @@ export const EngineerPage: React.FC = () => {
   const { projectId: urlProjectId } = useParams<{ projectId?: string }>();
   const navigate = useNavigate();
 
+  // Определение роли текущего пользователя
+  const currentUser = useSelector((state: RootState) => state.auth.user);
+  const isAdmin = Boolean(currentUser?.roles?.includes("admin"));
+  const isEngineer = Boolean(currentUser?.roles?.includes("engineer"));
+  // Режим только чтения: администратор без роли инженера
+  const isReadOnly = isAdmin && !isEngineer;
+
   const [availableProjects, setAvailableProjects] = useState<ProjectData[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
-    urlProjectId || null
+    urlProjectId || null,
   );
   const [project, setProject] = useState<ProjectData | null>(null);
   const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
   const [equipmentTypes, setEquipmentTypes] = useState<EquipmentType[]>([]);
 
-  // Состояния оперативного надзора
-  const [liveSummary, setLiveSummary] = useState<LiveSummaryResponse | null>(null);
+  const [liveSummary, setLiveSummary] = useState<LiveSummaryResponse | null>(
+    null,
+  );
   const [activeAlert, setActiveAlert] = useState<AlertResponse | null>(null);
   const [allOpenAlerts, setAllOpenAlerts] = useState<AlertResponse[]>([]);
   const [currentSpecialStatus, setCurrentSpecialStatus] =
     useState<SpecialStatusResponse | null>(null);
 
-  // Выбранный сценарий и модалка предупреждения
-  const [selectedScenario, setSelectedScenario] =
-    useState<ResolutionScenario>("SPECIAL_STATUS_OPEN");
+  const [selectedScenario, setSelectedScenario] = useState<ResolutionScenario>(
+    "SPECIAL_STATUS_OPEN",
+  );
   const [warningModalOpen, setWarningModalOpen] = useState(false);
 
-  // Форма штрафного отчета
   const [isPlanCaughtUp, setIsPlanCaughtUp] = useState(false);
   const [timeLostHours, setTimeLostHours] = useState(8);
   const [responsibleParty, setResponsibleParty] = useState(
-    "Бригада монолитчиков (Подрядчик)"
+    "Бригада монолитчиков (Подрядчик)",
   );
 
-  // Модальные окна
   const [isCascadeModalOpen, setIsCascadeModalOpen] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -114,13 +121,13 @@ export const EngineerPage: React.FC = () => {
       setIsLoading(true);
       setErrorMessage("");
       try {
-        const res = await fetch(`${API_URL}/api/v1/projects`, {
-          headers: getAuthHeaders(),
-        });
+        const res = await fetchWithAuth(`/api/v1/projects`);
         const list = await parseJsonResponse(res, null);
 
         if (!list || !Array.isArray(list)) {
-          throw new Error("Не удалось получить список объектов со строительного сервера");
+          throw new Error(
+            "Не удалось получить список объектов со строительного сервера",
+          );
         }
 
         if (isMounted) {
@@ -154,28 +161,44 @@ export const EngineerPage: React.FC = () => {
     }
 
     try {
-      const headers = getAuthHeaders();
-      const [projRes, schedRes, eqRes, summaryData, alertData, specStatusData, alertsListRes] =
-        await Promise.all([
-          fetch(`${API_URL}/api/v1/projects/${selectedProjectId}`, { headers }),
-          fetch(`${API_URL}/api/v1/projects/${selectedProjectId}/schedules`, { headers }),
-          fetch(`${API_URL}/api/v1/dictionaries/equipment-types`, { headers }),
-          engineerApi.getLiveSummary(selectedProjectId).catch(() => null),
-          engineerApi.getActiveAlert(selectedProjectId).catch(() => null),
-          engineerApi.getCurrentSpecialStatus(selectedProjectId).catch(() => null),
-          fetch(`${API_URL}/api/v1/alerts?project_id=${selectedProjectId}&limit=20`, { headers }).catch(() => null),
-        ]);
+      const [
+        projRes,
+        schedRes,
+        eqRes,
+        summaryData,
+        alertData,
+        specStatusData,
+        alertsListRes,
+      ] = await Promise.all([
+        fetchWithAuth(`/api/v1/projects/${selectedProjectId}`),
+        fetchWithAuth(`/api/v1/projects/${selectedProjectId}/schedules`),
+        fetchWithAuth(`/api/v1/dictionaries/equipment-types`),
+        engineerApi.getLiveSummary(selectedProjectId).catch(() => null),
+        engineerApi.getActiveAlert(selectedProjectId).catch(() => null),
+        engineerApi
+          .getCurrentSpecialStatus(selectedProjectId)
+          .catch(() => null),
+        fetchWithAuth(
+          `/api/v1/alerts?project_id=${selectedProjectId}&limit=20`,
+        ).catch(() => null),
+      ]);
 
       const projData = await parseJsonResponse(projRes, null);
       const schedData = await parseJsonResponse(schedRes, []);
       const eqData = await parseJsonResponse(eqRes, []);
-      const alertsData = alertsListRes ? await parseJsonResponse(alertsListRes, []) : [];
+      const alertsData = alertsListRes
+        ? await parseJsonResponse(alertsListRes, [])
+        : [];
 
-      const fallbackProject = availableProjects.find((p) => p.id === selectedProjectId);
+      const fallbackProject = availableProjects.find(
+        (p) => p.id === selectedProjectId,
+      );
       const finalData = projData || fallbackProject;
 
       if (!finalData) {
-        throw new Error("ОКС не найден или у вас нет прав надзора по этому объекту");
+        throw new Error(
+          "ОКС не найден или у вас нет прав надзора по этому объекту",
+        );
       }
 
       setProject({
@@ -209,6 +232,18 @@ export const EngineerPage: React.FC = () => {
     loadProjectData();
   }, [loadProjectData]);
 
+  // Фоновое автообновление каждые 5 секунд
+  useEffect(() => {
+    if (!selectedProjectId) return;
+
+    const intervalId = setInterval(() => {
+      if (document.hidden || isProcessing) return;
+      loadProjectData();
+    }, 5000);
+
+    return () => clearInterval(intervalId);
+  }, [selectedProjectId, isProcessing, loadProjectData]);
+
   const handleSelectProject = (projId: string) => {
     setSelectedProjectId(projId);
     navigate(`/engineer/${projId}`);
@@ -223,7 +258,7 @@ export const EngineerPage: React.FC = () => {
   };
 
   const executeResolveAlert = async () => {
-    if (!activeAlert) {
+    if (isReadOnly || !activeAlert) {
       setWarningModalOpen(false);
       return;
     }
@@ -234,11 +269,14 @@ export const EngineerPage: React.FC = () => {
 
     let explanation = "";
     if (selectedScenario === "FORCE_MAJEURE_CASCADE") {
-      explanation = "Внешний фактор / Форс-мажор. Сроки будут сдвинуты каскадно.";
+      explanation =
+        "Внешний фактор / Форс-мажор. Сроки будут сдвинуты каскадно.";
     } else if (selectedScenario === "SPECIAL_STATUS_OPEN") {
-      explanation = "Вина строительной бригады. Установлен коридор устранения на 48 часов.";
+      explanation =
+        "Вина строительной бригады. Установлен коридор устранения на 48 часов.";
     } else {
-      explanation = "Сброс ложного срабатывания детекции под личную ответственность инженера.";
+      explanation =
+        "Сброс ложного срабатывания детекции под личную ответственность инженера.";
     }
 
     try {
@@ -246,8 +284,11 @@ export const EngineerPage: React.FC = () => {
       await engineerApi.resolveAlert(activeAlert.id, {
         action_taken: selectedScenario,
         engineer_comment: explanation,
-        evidence_frame_ids: activeAlert.trigger_frame_id ? [activeAlert.trigger_frame_id] : [],
-        target_deadline: selectedScenario === "FALSE_ALARM" ? undefined : nextDay,
+        evidence_frame_ids: activeAlert.trigger_frame_id
+          ? [activeAlert.trigger_frame_id]
+          : [],
+        target_deadline:
+          selectedScenario === "FALSE_ALARM" ? undefined : nextDay,
       });
 
       setStatusMessage({
@@ -267,7 +308,7 @@ export const EngineerPage: React.FC = () => {
   };
 
   const handleSubmitOrangeReportAndClose = async () => {
-    if (!currentSpecialStatus) return;
+    if (isReadOnly || !currentSpecialStatus) return;
 
     setIsProcessing(true);
     setStatusMessage(null);
@@ -285,7 +326,7 @@ export const EngineerPage: React.FC = () => {
 
       await engineerApi.closeSpecialStatusWindow(
         currentSpecialStatus.id,
-        "Штрафной коридор завершен. Отчет передан в Департамент для начисления неустойки."
+        "Штрафной коридор завершен. Отчет передан в Департамент для начисления неустойки.",
       );
 
       setStatusMessage({
@@ -304,22 +345,25 @@ export const EngineerPage: React.FC = () => {
     }
   };
 
-  // Человекопонятный разбор причины алерта
   const parsedAlertInfo = useMemo(() => {
     if (!activeAlert) return null;
 
     const t = (activeAlert.trigger_type || "").toUpperCase();
     const details = activeAlert.details || {};
     const rawEq = details.equipment_type || details.type || "";
-    const eqName = TECH_NAMES[rawEq.toLowerCase()] || rawEq || "Строительная техника";
+    const eqName =
+      TECH_NAMES[rawEq.toLowerCase()] || rawEq || "Строительная техника";
     const idleMins = details.idle_minutes || details.duration_minutes || 30;
     const requiredCnt = details.required_count ?? 1;
     const detectedCnt = details.detected_count ?? 0;
-    const missingCnt = details.missing_count ?? Math.max(0, requiredCnt - detectedCnt);
-    const stage = details.stage_name || details.substage_name || "Текущий этап СМР";
+    const missingCnt =
+      details.missing_count ?? Math.max(0, requiredCnt - detectedCnt);
+    const stage =
+      details.stage_name || details.substage_name || "Текущий этап СМР";
 
     let title = "Зафиксировано регламентное отклонение";
-    let explanation = "Видеоаналитика зафиксировала нарушение технологического процесса.";
+    let explanation =
+      "Видеоаналитика зафиксировала нарушение технологического процесса.";
     let categoryTag = "Общий инцидент";
 
     if (t.includes("IDLE")) {
@@ -351,10 +395,10 @@ export const EngineerPage: React.FC = () => {
     };
   }, [activeAlert]);
 
-  // Расчет реальной потребности в технике по активным этапам
   const realEquipmentTotals = useMemo(() => {
     const activeStages = schedules.filter((s) => s.status === "IN_PROGRESS");
-    const stagesToCount = activeStages.length > 0 ? activeStages : schedules.slice(0, 1);
+    const stagesToCount =
+      activeStages.length > 0 ? activeStages : schedules.slice(0, 1);
 
     let requiredSum = 0;
     stagesToCount.forEach((s) => {
@@ -365,9 +409,15 @@ export const EngineerPage: React.FC = () => {
       });
     });
 
-    const activeCount = liveSummary?.equipment_realtime?.active_count ?? (activeAlert ? 0 : requiredSum);
-    const idleCount = liveSummary?.equipment_realtime?.idle_count ?? (activeAlert?.trigger_type?.includes("IDLE") ? 1 : 0);
-    const totalRequired = liveSummary?.equipment_realtime?.required_total || (requiredSum > 0 ? requiredSum : 2);
+    const activeCount =
+      liveSummary?.equipment_realtime?.active_count ??
+      (activeAlert ? 0 : requiredSum);
+    const idleCount =
+      liveSummary?.equipment_realtime?.idle_count ??
+      (activeAlert?.trigger_type?.includes("IDLE") ? 1 : 0);
+    const totalRequired =
+      liveSummary?.equipment_realtime?.required_total ||
+      (requiredSum > 0 ? requiredSum : 2);
 
     return { activeCount, idleCount, totalRequired };
   }, [schedules, liveSummary, activeAlert]);
@@ -450,8 +500,8 @@ export const EngineerPage: React.FC = () => {
             <div className="project-selector-header">
               <h2>Объекты строительного контроля</h2>
               <p>
-                За вами закреплено объектов: {availableProjects.length}. Выберите
-                ОКС для перехода в пульт арбитража и контроля сроков:
+                За вами закреплено объектов: {availableProjects.length}.
+                Выберите ОКС для перехода в пульт арбитража и контроля сроков:
               </p>
             </div>
 
@@ -469,7 +519,9 @@ export const EngineerPage: React.FC = () => {
                     </span>
                   </div>
                   <div className="project-selector-actions">
-                    <span className="project-selector-badge">{p.status || "ACTIVE"}</span>
+                    <span className="project-selector-badge">
+                      {p.status || "ACTIVE"}
+                    </span>
                     <img src={arrowRightIcon} alt="" className="btn-icon-svg" />
                   </div>
                 </div>
@@ -504,7 +556,9 @@ export const EngineerPage: React.FC = () => {
     );
   }
 
-  const alertLevel = (liveSummary?.alert_level || (activeAlert ? "RED" : "GREEN")).toUpperCase();
+  const alertLevel = (
+    liveSummary?.alert_level || (activeAlert ? "RED" : "GREEN")
+  ).toUpperCase();
   const specStatus = (
     liveSummary?.special_status ||
     currentSpecialStatus?.type ||
@@ -512,14 +566,31 @@ export const EngineerPage: React.FC = () => {
   ).toUpperCase();
 
   const warningData = getWarningDetails();
-  const openAlertsCount = allOpenAlerts.length > 0 ? allOpenAlerts.length : activeAlert ? 1 : 0;
+  const openAlertsCount =
+    allOpenAlerts.length > 0 ? allOpenAlerts.length : activeAlert ? 1 : 0;
 
   return (
     <div className="engineer-page">
       <Header />
 
       <div className="engineer-console-root">
-        {/* Верхняя навигационная панель инженера */}
+        {/* Информационный баннер режима только чтения для Департамента / Администратора */}
+        {isReadOnly && (
+          <div className="engineer-readonly-banner">
+            <img src={lockIcon} alt="" className="readonly-banner-icon" />
+            <div className="readonly-banner-text">
+              <strong>
+                Режим наблюдателя (Департамент градостроительной политики)
+              </strong>
+              <span>
+                Вы просматриваете оперативный пульт инженера в режиме чтения.
+                Изменение регламентных статусов, резолв алертов и сдвиг
+                директивных графиков заблокированы.
+              </span>
+            </div>
+          </div>
+        )}
+
         <div className="engineer-top-nav">
           <div className="engineer-project-selector-group">
             <span className="kpi-caption" style={{ margin: 0 }}>
@@ -546,7 +617,7 @@ export const EngineerPage: React.FC = () => {
               title="Добавление и удаление видеокамер объекта"
             >
               <img src={cameraIcon} alt="" className="btn-icon-svg" />
-              <span>Управление видеокамерами</span>
+              <span>Видеокамеры ({project.camera_url ? "1+" : "0"})</span>
             </button>
 
             <button
@@ -570,7 +641,6 @@ export const EngineerPage: React.FC = () => {
           </div>
         )}
 
-        {/* 1. СЕТКА ИЗ 5 КАРТОЧЕК KPI */}
         <div className="engineer-kpi-grid">
           <div className="engineer-kpi-card">
             <span className="kpi-caption">Паспорт ОКС</span>
@@ -590,8 +660,8 @@ export const EngineerPage: React.FC = () => {
                   alertLevel === "RED"
                     ? "red"
                     : alertLevel === "YELLOW"
-                    ? "yellow"
-                    : "green"
+                      ? "yellow"
+                      : "green"
                 }`}
               >
                 {alertLevel}
@@ -608,10 +678,10 @@ export const EngineerPage: React.FC = () => {
               {specStatus === "PURPLE"
                 ? "Форс-мажор: оформление ДС"
                 : specStatus === "ORANGE"
-                ? "Штрафной коридор"
-                : alertLevel === "RED"
-                ? "Требуется решение инженера"
-                : "Штатный режим надзора"}
+                  ? "Штрафной коридор"
+                  : alertLevel === "RED"
+                    ? "Требуется решение инженера"
+                    : "Штатный режим надзора"}
             </span>
           </div>
 
@@ -663,7 +733,6 @@ export const EngineerPage: React.FC = () => {
           </div>
         </div>
 
-        {/* 2. Блок рабочих сценариев инженера */}
         <div className="console-workflow-grid">
           <div
             className={`console-card ${
@@ -674,67 +743,90 @@ export const EngineerPage: React.FC = () => {
           >
             <div className="console-card-header">
               <h3>
-                {parsedAlertInfo ? parsedAlertInfo.title : "Оперативный надзор СМР"}
+                {parsedAlertInfo
+                  ? parsedAlertInfo.title
+                  : "Оперативный надзор СМР"}
               </h3>
             </div>
 
             {parsedAlertInfo ? (
               <div className="alert-reason-detailed-box">
                 <div className="alert-reason-tags-row">
-                  <span className="alert-tag-category">{parsedAlertInfo.categoryTag}</span>
-                  <span className="alert-tag-time">Фиксация: {parsedAlertInfo.triggeredAt}</span>
-                  <span className="alert-tag-stage">Этап: {parsedAlertInfo.stage}</span>
+                  <span className="alert-tag-category">
+                    {parsedAlertInfo.categoryTag}
+                  </span>
+                  <span className="alert-tag-time">
+                    Фиксация: {parsedAlertInfo.triggeredAt}
+                  </span>
+                  <span className="alert-tag-stage">
+                    Этап: {parsedAlertInfo.stage}
+                  </span>
                 </div>
                 <p className="alert-reason-text-desc">
                   {parsedAlertInfo.explanation}
                 </p>
                 <div className="alert-decision-prompt">
-                  Выберите регламентный сценарий арбитража для перевода статуса объекта:
+                  {isReadOnly
+                    ? "Регламентные сценарии разрешения инцидента (режим просмотра):"
+                    : "Выберите регламентный сценарий арбитража для перевода статуса объекта:"}
                 </div>
               </div>
             ) : (
               <p className="console-card-desc">
-                Критических нарушений на объекте не зафиксировано. В случае простоя техники или отставания от графика система оповестит инженера.
+                Критических нарушений на объекте не зафиксировано. В случае
+                простоя техники или отставания от графика система оповестит
+                инженера.
               </p>
             )}
 
-            {/* Выбор из трех сценариев */}
             <div className="incident-options-list">
               <div
                 className={`incident-btn-option opt-purple ${
                   selectedScenario === "FORCE_MAJEURE_CASCADE" ? "selected" : ""
-                }`}
-                onClick={() => setSelectedScenario("FORCE_MAJEURE_CASCADE")}
+                } ${isReadOnly ? "disabled-option" : ""}`}
+                onClick={() =>
+                  !isReadOnly && setSelectedScenario("FORCE_MAJEURE_CASCADE")
+                }
               >
                 <div className="opt-radio-row">
                   <input
                     type="radio"
                     name="scenario"
+                    disabled={isReadOnly}
                     checked={selectedScenario === "FORCE_MAJEURE_CASCADE"}
-                    onChange={() => setSelectedScenario("FORCE_MAJEURE_CASCADE")}
+                    onChange={() =>
+                      !isReadOnly &&
+                      setSelectedScenario("FORCE_MAJEURE_CASCADE")
+                    }
                   />
                   <span className="opt-title">
                     1. Форс-мажор (Внешний фактор) [Фиолетовый статус]
                   </span>
                 </div>
                 <span className="opt-desc">
-                  Причина не зависит от строителей (затор на МКАД, погодный коллапс).
-                  Освобождение от штрафов, каскадный сдвиг сроков через допсоглашение.
+                  Причина не зависит от строителей (затор на МКАД, погодный
+                  коллапс). Освобождение от штрафов, каскадный сдвиг сроков
+                  через допсоглашение.
                 </span>
               </div>
 
               <div
                 className={`incident-btn-option opt-orange ${
                   selectedScenario === "SPECIAL_STATUS_OPEN" ? "selected" : ""
-                }`}
-                onClick={() => setSelectedScenario("SPECIAL_STATUS_OPEN")}
+                } ${isReadOnly ? "disabled-option" : ""}`}
+                onClick={() =>
+                  !isReadOnly && setSelectedScenario("SPECIAL_STATUS_OPEN")
+                }
               >
                 <div className="opt-radio-row">
                   <input
                     type="radio"
                     name="scenario"
+                    disabled={isReadOnly}
                     checked={selectedScenario === "SPECIAL_STATUS_OPEN"}
-                    onChange={() => setSelectedScenario("SPECIAL_STATUS_OPEN")}
+                    onChange={() =>
+                      !isReadOnly && setSelectedScenario("SPECIAL_STATUS_OPEN")
+                    }
                   />
                   <span className="opt-title">
                     2. Проступок бригады [Оранжевый статус]
@@ -749,15 +841,20 @@ export const EngineerPage: React.FC = () => {
               <div
                 className={`incident-btn-option opt-green ${
                   selectedScenario === "FALSE_ALARM" ? "selected" : ""
-                }`}
-                onClick={() => setSelectedScenario("FALSE_ALARM")}
+                } ${isReadOnly ? "disabled-option" : ""}`}
+                onClick={() =>
+                  !isReadOnly && setSelectedScenario("FALSE_ALARM")
+                }
               >
                 <div className="opt-radio-row">
                   <input
                     type="radio"
                     name="scenario"
+                    disabled={isReadOnly}
                     checked={selectedScenario === "FALSE_ALARM"}
-                    onChange={() => setSelectedScenario("FALSE_ALARM")}
+                    onChange={() =>
+                      !isReadOnly && setSelectedScenario("FALSE_ALARM")
+                    }
                   />
                   <span className="opt-title">
                     3. Сброс / Ложный сигнал [Штатный режим]
@@ -770,23 +867,29 @@ export const EngineerPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Кнопка подтверждения */}
             <div className="scenario-confirm-bar">
               <button
                 type="button"
                 className="btn-confirm-scenario-trigger"
                 disabled={
+                  isReadOnly ||
                   isProcessing ||
                   !activeAlert ||
                   activeAlert.status === "RESOLVED"
                 }
                 onClick={() => setWarningModalOpen(true)}
               >
-                <img src={checkIcon} alt="" className="btn-icon-svg btn-icon-white" />
+                <img
+                  src={checkIcon}
+                  alt=""
+                  className="btn-icon-svg btn-icon-white"
+                />
                 <span>
-                  {activeAlert && activeAlert.status !== "RESOLVED"
-                    ? "Подтвердить решение надзора"
-                    : "Решений в очереди нет (активных алертов: 0)"}
+                  {isReadOnly
+                    ? "Только для инженера технадзора (режим чтения)"
+                    : activeAlert && activeAlert.status !== "RESOLVED"
+                      ? "Подтвердить решение надзора"
+                      : "Решений в очереди нет (активных алертов: 0)"}
                 </span>
               </button>
             </div>
@@ -799,15 +902,18 @@ export const EngineerPage: React.FC = () => {
               </div>
               <p className="console-card-desc">
                 Оформляются документы на компенсацию сроков. После подписания
-                дополнительного соглашения инженер может актуализировать даты всех
-                зависимых этапов.
+                дополнительного соглашения инженер может актуализировать даты
+                всех зависимых этапов.
               </p>
               <button
                 type="button"
                 className="action-trigger-btn purple"
+                disabled={isReadOnly}
                 onClick={() => setIsCascadeModalOpen(true)}
               >
-                Выполнить каскадный сдвиг сроков
+                {isReadOnly
+                  ? "Сдвиг сроков доступен только инженеру"
+                  : "Выполнить каскадный сдвиг сроков"}
               </button>
             </div>
           ) : specStatus === "ORANGE" && currentSpecialStatus ? (
@@ -818,13 +924,17 @@ export const EngineerPage: React.FC = () => {
               <p className="console-card-desc">
                 Подрядчику выделено время на ликвидацию отставания. Контрольный
                 срок:{" "}
-                {new Date(currentSpecialStatus.target_deadline).toLocaleString("ru-RU")}.
+                {new Date(currentSpecialStatus.target_deadline).toLocaleString(
+                  "ru-RU",
+                )}
+                .
               </p>
 
               <div className="orange-report-form">
                 <label className="report-checkbox-label">
                   <input
                     type="checkbox"
+                    disabled={isReadOnly}
                     checked={isPlanCaughtUp}
                     onChange={(e) => setIsPlanCaughtUp(e.target.checked)}
                   />
@@ -838,6 +948,7 @@ export const EngineerPage: React.FC = () => {
                       <input
                         type="number"
                         min="1"
+                        disabled={isReadOnly}
                         value={timeLostHours}
                         onChange={(e) =>
                           setTimeLostHours(parseInt(e.target.value, 10) || 1)
@@ -849,6 +960,7 @@ export const EngineerPage: React.FC = () => {
                       <label>Виновная сторона (для расчета неустойки):</label>
                       <input
                         type="text"
+                        disabled={isReadOnly}
                         value={responsibleParty}
                         onChange={(e) => setResponsibleParty(e.target.value)}
                       />
@@ -859,12 +971,14 @@ export const EngineerPage: React.FC = () => {
                 <button
                   type="button"
                   className="action-trigger-btn orange"
-                  disabled={isProcessing}
+                  disabled={isReadOnly || isProcessing}
                   onClick={handleSubmitOrangeReportAndClose}
                 >
-                  {isProcessing
-                    ? "Фиксация..."
-                    : "Закрыть окно и отправить штрафной отчет"}
+                  {isReadOnly
+                    ? "Закрытие доступно только инженеру"
+                    : isProcessing
+                      ? "Фиксация..."
+                      : "Закрыть окно и отправить штрафной отчет"}
                 </button>
               </div>
             </div>
@@ -880,15 +994,17 @@ export const EngineerPage: React.FC = () => {
               <button
                 type="button"
                 className="action-trigger-btn"
+                disabled={isReadOnly}
                 onClick={() => setIsCascadeModalOpen(true)}
               >
-                Каскадный перенос этапов
+                {isReadOnly
+                  ? "Перенос доступен только инженеру"
+                  : "Каскадный перенос этапов"}
               </button>
             </div>
           )}
         </div>
 
-        {/* 3. Диаграмма Ганта объекта */}
         <div className="console-gantt-container">
           <h3 className="console-gantt-title">
             Директивный график выполнения работ
@@ -899,13 +1015,12 @@ export const EngineerPage: React.FC = () => {
             equipmentTypes={equipmentTypes}
             reloadSchedules={loadProjectData}
             hideTopBar={true}
-            isEngineer={true}
+            isEngineer={!isReadOnly}
           />
         </div>
       </div>
 
-      {/* Модальное окно с предупреждением при подтверждении статуса */}
-      {warningModalOpen && (
+      {warningModalOpen && !isReadOnly && (
         <div
           className="modal-backdrop"
           onClick={() => setWarningModalOpen(false)}
@@ -913,7 +1028,11 @@ export const EngineerPage: React.FC = () => {
           <div className="modal-window" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <div className="warning-modal-title-row">
-                <img src={alertTriangleIcon} alt="" className="modal-icon-svg" />
+                <img
+                  src={alertTriangleIcon}
+                  alt=""
+                  className="modal-icon-svg"
+                />
                 <h3>Подтверждение регламентного решения</h3>
               </div>
               <button
@@ -927,7 +1046,9 @@ export const EngineerPage: React.FC = () => {
 
             <div className="modal-body">
               <div className="warning-modal-summary">
-                <span className={`special-mode-badge ${warningData.badgeClass}`}>
+                <span
+                  className={`special-mode-badge ${warningData.badgeClass}`}
+                >
                   {warningData.badge}
                 </span>
                 <p className="warning-title-text">{warningData.title}</p>
@@ -937,7 +1058,8 @@ export const EngineerPage: React.FC = () => {
 
               <p className="warning-note-text">
                 Запись о принятом решении с таймстемпом и вашим идентификатором
-                будет внесена в журнал аудита объекта капитального строительства.
+                будет внесена в журнал аудита объекта капитального
+                строительства.
               </p>
             </div>
 
@@ -957,16 +1079,23 @@ export const EngineerPage: React.FC = () => {
                 onClick={executeResolveAlert}
                 disabled={isProcessing}
               >
-                <img src={checkIcon} alt="" className="btn-icon-svg btn-icon-white" />
-                <span>{isProcessing ? "Фиксация в аудите..." : "Да, подтверждаю решение"}</span>
+                <img
+                  src={checkIcon}
+                  alt=""
+                  className="btn-icon-svg btn-icon-white"
+                />
+                <span>
+                  {isProcessing
+                    ? "Фиксация в аудите..."
+                    : "Да, подтверждаю решение"}
+                </span>
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Модальное окно каскадного сдвига */}
-      {isCascadeModalOpen && selectedProjectId && (
+      {isCascadeModalOpen && selectedProjectId && !isReadOnly && (
         <CascadeShiftModal
           projectId={selectedProjectId}
           schedules={schedules}
@@ -975,11 +1104,11 @@ export const EngineerPage: React.FC = () => {
         />
       )}
 
-      {/* Модальное окно управления видеокамерами */}
       {isCameraModalOpen && selectedProjectId && (
         <CameraManagerModal
           projectId={selectedProjectId}
           onClose={() => setIsCameraModalOpen(false)}
+          isReadOnly={isReadOnly}
         />
       )}
     </div>

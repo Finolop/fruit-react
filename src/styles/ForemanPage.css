@@ -373,3 +373,47 @@
     align-items: flex-start;
   }
 }
+
+/* ==========================================================================
+   БАННЕР РЕЖИМА НАБЛЮДАТЕЛЯ ДЛЯ АДМИНИСТРАТОРА НА СТРАНИЦЕ ПРОРАБА
+   ========================================================================== */
+
+.foreman-readonly-banner-wrap {
+  padding: 16px 24px 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.foreman-readonly-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 20px;
+  background: #eff6ff;
+  border: 1.5px solid #93c5fd;
+  border-left: 5px solid #2563eb;
+  border-radius: var(--radius-md, 8px);
+}
+
+.foreman-readonly-banner .readonly-banner-icon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+
+.foreman-readonly-banner .readonly-banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.foreman-readonly-banner .readonly-banner-text strong {
+  font-size: 13px;
+  color: #1e40af;
+}
+
+.foreman-readonly-banner .readonly-banner-text span {
+  font-size: 12px;
+  color: #3b82f6;
+  line-height: 1.35;
+}
