@@ -7,28 +7,28 @@
   padding: 24px;
 }
 
-/* ==========================================================================
+/*  
    ВЕРХНЯЯ ПАНЕЛЬ И КНОПКИ УПРАВЛЕНИЯ ГАНТОМ
-   ========================================================================== */
+     */
 
 .gantt-top-bar {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
   border: 1px solid var(--color-border, #e2e8f0);
   border-radius: var(--radius-md, 8px);
   padding: 20px 24px;
-  background: var(--color-surface, #ffffff);
   box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.05));
-  gap: 16px;
-  flex-wrap: wrap;
+  background: var(--color-surface, #ffffff);
 }
 
 .gantt-title-wrap h1 {
   margin: 0 0 4px;
   color: var(--color-text, #0f172a);
-  font-size: 20px;
   font-weight: 700;
+  font-size: 20px;
 }
 
 .gantt-title-wrap p {
@@ -49,17 +49,17 @@
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  background: #f0fdf4;
   border: 1.5px solid #86efac;
   border-radius: var(--radius-md, 8px);
   padding: 8px 16px;
   box-shadow: 0 1px 3px rgba(22, 163, 74, 0.08);
+  background: #f0fdf4;
 }
 
 .locked-icon {
-  font-size: 16px;
   display: flex;
   align-items: center;
+  font-size: 16px;
 }
 
 .locked-text-wrap {
@@ -69,103 +69,103 @@
 }
 
 .locked-badge-title {
-  font-size: 13px;
-  font-weight: 700;
   color: #15803d;
+  font-weight: 700;
+  font-size: 13px;
 }
 
 .locked-badge-sub {
-  font-size: 11px;
   color: #166534;
   font-weight: 500;
+  font-size: 11px;
 }
 
 /* Группа кнопок черновика */
 .schedule-draft-action-group {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
 }
 
 .btn-gantt-camera-action {
-  height: 42px;
-  padding: 0 16px;
-  border: 1px solid var(--color-border, #cbd5e1);
-  border-radius: var(--radius-md, 8px);
-  background: #ffffff;
-  color: var(--color-text, #0f172a);
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  height: 42px;
+  border: 1px solid var(--color-border, #cbd5e1);
+  border-radius: var(--radius-md, 8px);
+  padding: 0 16px;
+  color: var(--color-text, #0f172a);
+  font-weight: 600;
+  font-size: 13px;
+  background: #ffffff;
   transition:
     background-color 0.15s ease,
     border-color 0.15s ease;
+  cursor: pointer;
 }
 
 .btn-gantt-camera-action:hover {
-  background: #f8fafc;
   border-color: #94a3b8;
+  background: #f8fafc;
 }
 
 .btn-gantt-action-tool {
-  height: 42px;
-  padding: 0 14px;
-  border: 1px solid var(--color-border, #cbd5e1);
-  border-radius: var(--radius-md, 8px);
-  background: #ffffff;
-  color: #334155;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  height: 42px;
+  border: 1px solid var(--color-border, #cbd5e1);
+  border-radius: var(--radius-md, 8px);
+  padding: 0 14px;
+  color: #334155;
+  font-weight: 600;
+  font-size: 13px;
+  background: #ffffff;
   transition: all 0.15s ease;
+  cursor: pointer;
 }
 
 .btn-gantt-action-tool:hover:not(:disabled) {
-  background: #f8fafc;
   border-color: #64748b;
   color: #0f172a;
+  background: #f8fafc;
 }
 
 .btn-gantt-confirm-primary {
-  height: 42px;
-  padding: 0 20px;
-  border: none;
-  border-radius: var(--radius-md, 8px);
-  background: var(--color-primary, #e53935);
-  color: #ffffff;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 8px;
+  height: 42px;
+  border: none;
+  border-radius: var(--radius-md, 8px);
+  padding: 0 20px;
   box-shadow: 0 2px 6px rgba(229, 57, 53, 0.25);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 13px;
+  background: var(--color-primary, #e53935);
   transition: all 0.15s ease;
+  cursor: pointer;
 }
 
 .btn-gantt-confirm-primary:hover:not(:disabled) {
+  box-shadow: 0 4px 10px rgba(229, 57, 53, 0.35);
   background: var(--color-primary-dark, #c62828);
   transform: translateY(-1px);
-  box-shadow: 0 4px 10px rgba(229, 57, 53, 0.35);
 }
 
 .btn-gantt-confirm-primary:disabled,
 .btn-gantt-action-tool:disabled {
   opacity: 0.55;
-  cursor: not-allowed;
   transform: none;
+  cursor: not-allowed;
 }
 
-/* ==========================================================================
+/*  
    СООБЩЕНИЯ И ПУСТОЙ ЭКРАН
-   ========================================================================== */
+     */
 
 .gantt-msg-banner {
   box-sizing: border-box;
@@ -189,22 +189,22 @@
 }
 
 .gantt-empty-card {
+  max-width: 640px;
+  margin: 40px auto;
   border: 1px solid var(--color-border, #e2e8f0);
   border-radius: var(--radius-md, 8px);
   padding: 44px 32px;
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.05));
   text-align: center;
   background: var(--color-surface, #ffffff);
-  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.05));
-  max-width: 640px;
-  margin: 40px auto;
 }
 
 .gantt-empty-card h3 {
   margin-top: 0;
   margin-bottom: 8px;
   color: var(--color-text, #0f172a);
-  font-size: 18px;
   font-weight: 700;
+  font-size: 18px;
 }
 
 .gantt-empty-card p {
@@ -214,9 +214,9 @@
   line-height: 1.5;
 }
 
-/* ==========================================================================
+/*  
    СЕТКА ТАБЛИЦЫ ДИАГРАММЫ ГАНТА
-   ========================================================================== */
+     */
 
 .gantt-grid {
   display: flex;
@@ -224,9 +224,9 @@
   width: 100%;
   border: 1px solid var(--color-border, #e2e8f0);
   border-radius: var(--radius-md, 8px);
+  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.05));
   overflow: hidden;
   background: var(--color-surface, #ffffff);
-  box-shadow: var(--shadow-sm, 0 1px 3px rgba(0, 0, 0, 0.05));
 }
 
 .gantt-body {
@@ -241,8 +241,8 @@
   grid-template-columns: 1.8fr 1.2fr 1.9fr 1.4fr 1.7fr;
   align-items: center;
   gap: 16px;
-  border-bottom: 1px solid var(--color-border, #e2e8f0);
   box-sizing: border-box;
+  border-bottom: 1px solid var(--color-border, #e2e8f0);
 }
 
 .gantt-head {
@@ -256,8 +256,8 @@
 
 /* Родительская строка этапа */
 .gantt-parent-row {
-  padding: 15px 20px;
   min-height: 58px;
+  padding: 15px 20px;
   color: var(--color-text, #0f172a);
   font-weight: 600;
   background-color: var(--color-background, #f8fafc);
@@ -277,11 +277,11 @@
 
 /* Комфортная увеличенная строка подэтапа */
 .gantt-child-row {
-  padding: 16px 20px;
   min-height: 72px;
+  padding: 16px 20px;
+  color: var(--color-text, #0f172a);
   font-size: 14px;
   background-color: var(--color-surface, #ffffff);
-  color: var(--color-text, #0f172a);
   transition: background-color 0.15s ease;
 }
 
@@ -290,12 +290,12 @@
 }
 
 .gantt-child-title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
   padding-left: 12px;
   color: var(--color-text, #1e293b);
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
 }
 
 .substage-name-text {
@@ -303,9 +303,9 @@
   line-height: 1.35;
 }
 
-/* ==========================================================================
+/*  
    ПОДСВЕТКА КРИТИЧЕСКОГО ПУТИ
-   ========================================================================== */
+     */
 
 .gantt-child-row-critical {
   border-left: 4px solid #ef4444;
@@ -318,21 +318,21 @@
 
 .critical-path-pill {
   display: inline-block;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  padding: 2px 6px;
+  border: 1px solid #fca5a5;
   border-radius: 4px;
+  padding: 2px 6px;
 
   color: #b91c1c;
-  border: 1px solid #fca5a5;
+  font-weight: 700;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
-/* ==========================================================================
+/*  
    КОЛОНКА СТАТУСА И КНОПОК ДЕЙСТВИЙ
-   ========================================================================== */
+     */
 
 .status-col-cell {
   display: flex;
@@ -371,24 +371,24 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 5px 11px;
   border: 1.5px solid #16a34a;
   border-radius: var(--radius-md, 6px);
-  background: #f0fdf4;
+  padding: 5px 11px;
+  box-shadow: 0 1px 2px rgba(22, 163, 74, 0.1);
   color: #15803d;
-  font-size: 11px;
   font-weight: 700;
+  font-size: 11px;
+  background: #f0fdf4;
+  transition: all 0.15s ease;
   cursor: pointer;
   white-space: nowrap;
-  box-shadow: 0 1px 2px rgba(22, 163, 74, 0.1);
-  transition: all 0.15s ease;
 }
 
 .btn-start-stage-chip:hover:not(:disabled) {
-  background: #16a34a;
-  color: #ffffff;
-  transform: translateY(-1px);
   box-shadow: 0 2px 5px rgba(22, 163, 74, 0.25);
+  color: #ffffff;
+  background: #16a34a;
+  transform: translateY(-1px);
 }
 
 .btn-start-stage-chip:active:not(:disabled) {
@@ -405,32 +405,32 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 8px;
   border: 1px solid #10b981;
   border-radius: var(--radius-md, 6px);
-  background: #ecfdf5;
+  padding: 4px 8px;
   color: #047857;
-  font-size: 11px;
   font-weight: 600;
+  font-size: 11px;
+  background: #ecfdf5;
+  transition: all 0.15s ease;
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.15s ease;
 }
 
 .btn-early-complete-chip:hover {
-  background: #10b981;
   color: #ffffff;
+  background: #10b981;
 }
 
-/* ==========================================================================
-   КОЛОНКА ДАТ И СРОКА (БЕЗ РАЗРЫВА СТРОК)
-   ========================================================================== */
+/*  
+   КОЛОНКА ДАТ И СРОКА
+     */
 
 .child-dates-cell {
   display: flex;
   flex-direction: column;
-  gap: 6px;
   justify-content: center;
+  gap: 6px;
 }
 
 .dates-range-row {
@@ -441,11 +441,11 @@
 }
 
 .dates-text {
-  font-size: 13px;
-  font-weight: 600;
   color: var(--color-text, #0f172a);
-  white-space: nowrap;
+  font-weight: 600;
+  font-size: 13px;
   letter-spacing: -0.01em;
+  white-space: nowrap;
 }
 
 .parent-dates-cell {
@@ -456,40 +456,40 @@
 }
 
 .parent-dates-range {
-  font-size: 13px;
-  font-weight: 700;
   color: var(--color-text, #0f172a);
+  font-weight: 700;
+  font-size: 13px;
   white-space: nowrap;
 }
 
 .parent-days-pill {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 7px;
-  border-radius: 4px;
-  background: #f1f5f9;
-  color: #475569;
   border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  padding: 2px 7px;
+  color: #475569;
+  font-weight: 600;
+  font-size: 11px;
+  background: #f1f5f9;
 }
 
 .date-badge-early {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: #f0fdf4;
-  color: #15803d;
   border: 1px solid #bbf7d0;
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: #15803d;
+  font-weight: 700;
+  font-size: 10px;
+  background: #f0fdf4;
 }
 
 .date-badge-shifted {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: #fefce8;
-  color: #854d0e;
   border: 1px solid #fef08a;
+  border-radius: 4px;
+  padding: 1px 5px;
+  color: #854d0e;
+  font-weight: 700;
+  font-size: 10px;
+  background: #fefce8;
 }
 
 .duration-ctrl {
@@ -504,12 +504,12 @@
   border: 1px solid var(--color-border, #cbd5e1);
   border-radius: var(--radius-md, 6px);
   padding: 0 6px;
-  font-size: 13px;
+  outline: none;
+  color: var(--color-text, #0f172a);
   font-weight: 600;
+  font-size: 13px;
   text-align: center;
   background: var(--color-surface, #ffffff);
-  color: var(--color-text, #0f172a);
-  outline: none;
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease;
@@ -521,8 +521,8 @@
 }
 
 .duration-num-input:disabled {
-  background: #f8fafc;
   color: #64748b;
+  background: #f8fafc;
   cursor: not-allowed;
 }
 
@@ -531,9 +531,9 @@
   font-size: 12px;
 }
 
-/* ==========================================================================
+/*  
    КОЛОНКА ПОТРЕБНОСТИ В ТЕХНИКЕ
-   ========================================================================== */
+     */
 
 .eq-chip-box {
   display: flex;
@@ -549,9 +549,9 @@
   border: 1px solid var(--color-border, #cbd5e1);
   border-radius: var(--radius-md, 6px);
   padding: 4px 8px;
+  color: var(--color-text, #0f172a);
   font-size: 12px;
   background-color: var(--color-background, #f8fafc);
-  color: var(--color-text, #0f172a);
 }
 
 .eq-chip-required {
@@ -587,21 +587,21 @@
   border: 1px dashed var(--color-border, #cbd5e1);
   border-radius: var(--radius-md, 6px);
   padding: 0 8px;
+  outline: none;
   color: var(--color-text-secondary, #64748b);
   font-size: 12px;
   background: var(--color-surface, #ffffff);
-  cursor: pointer;
-  outline: none;
   transition: border-color 0.15s ease;
+  cursor: pointer;
 }
 
 .eq-add-sel:focus {
   border-color: var(--color-primary, #e53935);
 }
 
-/* ==========================================================================
+/*  
    ДИАГРАММА ГАНТА (SVG ШКАЛА)
-   ========================================================================== */
+     */
 
 .timeline-cell {
   position: relative;
@@ -643,9 +643,9 @@
   rx: 4;
 }
 
-/* ==========================================================================
+/*  
    СДВИГ В ОБЕ СТОРОНЫ И ЧЕКБОКС (CASCADE SHIFT)
-   ========================================================================== */
+     */
 
 .shift-direction-toggle {
   display: grid;
@@ -658,27 +658,27 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
-  padding: 10px 14px;
-  border-radius: var(--radius-md, 8px);
   border: 1.5px solid #e2e8f0;
-  background: #f8fafc;
-  font-size: 12px;
-  font-weight: 600;
+  border-radius: var(--radius-md, 8px);
+  padding: 10px 14px;
   color: #475569;
-  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+  background: #f8fafc;
   transition: all 0.15s ease;
+  cursor: pointer;
 }
 
 .shift-dir-btn.active-delay {
   border-color: #ea580c;
-  background: #fff7ed;
   color: #9a3412;
+  background: #fff7ed;
 }
 
 .shift-dir-btn.active-catchup {
   border-color: #16a34a;
-  background: #f0fdf4;
   color: #166534;
+  background: #f0fdf4;
 }
 
 .shift-dir-header {
@@ -688,18 +688,18 @@
 }
 
 .shift-sign-badge {
-  font-size: 13px;
   font-weight: 700;
+  font-size: 13px;
 }
 
 .checkbox-row-aligned {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 14px;
-  background: #f8fafc;
   border: 1px solid var(--color-border, #e2e8f0);
   border-radius: var(--radius-md, 8px);
+  padding: 12px 14px;
+  background: #f8fafc;
   cursor: pointer;
 }
 
@@ -710,13 +710,13 @@
 }
 
 .checkbox-text-content strong {
-  font-size: 13px;
   color: var(--color-text, #0f172a);
+  font-size: 13px;
 }
 
 .checkbox-text-content small {
-  font-size: 11px;
   color: var(--color-text-secondary, #64748b);
+  font-size: 11px;
 }
 
 .styled-right-checkbox {
@@ -726,9 +726,9 @@
   accent-color: var(--color-primary, #e53935);
 }
 
-/* ==========================================================================
+/*  
    МОДАЛЬНЫЕ ОКНА
-   ========================================================================== */
+     */
 
 .modal-backdrop {
   position: fixed;
@@ -737,12 +737,12 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  box-sizing: border-box;
   width: 100vw;
   height: 100vh;
+  padding: 16px;
   background: rgba(15, 23, 42, 0.55);
   backdrop-filter: blur(3px);
-  padding: 16px;
-  box-sizing: border-box;
 }
 
 .modal-window {
@@ -753,12 +753,12 @@
   width: 100%;
   max-width: 520px;
   max-height: 88vh;
+  border: 1px solid var(--color-border, #e2e8f0);
   border-radius: var(--radius-md, 8px);
   padding: 24px;
   box-shadow: var(--shadow-lg, 0 10px 25px rgba(0, 0, 0, 0.15));
-  background-color: var(--color-surface, #ffffff);
-  border: 1px solid var(--color-border, #e2e8f0);
   overflow: hidden;
+  background-color: var(--color-surface, #ffffff);
 }
 
 .modal-header {
@@ -773,26 +773,26 @@
 .modal-header h3 {
   margin: 0;
   color: var(--color-text, #0f172a);
-  font-size: 18px;
   font-weight: 700;
+  font-size: 18px;
 }
 
 .btn-close {
+  display: flex;
+  justify-content: center;
+  align-items: center;
   border: none;
+  border-radius: 4px;
+  padding: 4px;
   color: var(--color-text-secondary, #64748b);
   background: transparent;
-  cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   transition: all 0.15s ease;
+  cursor: pointer;
 }
 
 .btn-close:hover {
-  background: #f1f5f9;
   color: #0f172a;
+  background: #f1f5f9;
 }
 
 .modal-body {
@@ -845,40 +845,40 @@ textarea.foreman-custom-input {
 
 .btn-gantt-secondary {
   height: 40px;
-  padding: 0 18px;
   border: 1px solid var(--color-border, #cbd5e1);
   border-radius: var(--radius-md, 6px);
+  padding: 0 18px;
   color: var(--color-text, #1e293b);
-  background-color: var(--color-surface, #ffffff);
   font-family: inherit;
-  font-size: 13px;
   font-weight: 600;
-  cursor: pointer;
+  font-size: 13px;
+  background-color: var(--color-surface, #ffffff);
   transition: all 0.15s ease;
+  cursor: pointer;
 }
 
 .btn-gantt-secondary:hover:not(:disabled) {
-  background-color: #f8fafc;
   border-color: #94a3b8;
+  background-color: #f8fafc;
 }
 
 .btn-gantt-success {
-  height: 40px;
-  padding: 0 20px;
-  border: none;
-  border-radius: var(--radius-md, 6px);
-  color: #ffffff;
-  background-color: var(--color-primary, #e53935);
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  height: 40px;
+  border: none;
+  border-radius: var(--radius-md, 6px);
+  padding: 0 20px;
+  color: #ffffff;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 13px;
+  background-color: var(--color-primary, #e53935);
   transition:
     background-color 0.15s ease,
     transform 0.1s ease;
+  cursor: pointer;
 }
 
 .btn-gantt-success:hover:not(:disabled) {
@@ -892,9 +892,9 @@ textarea.foreman-custom-input {
   cursor: not-allowed;
 }
 
-/* ==========================================================================
+/*  
    АДАПТИВНОСТЬ
-   ========================================================================== */
+     */
 
 @media (max-width: 1100px) {
   .gantt-head,
@@ -932,16 +932,16 @@ textarea.foreman-custom-input {
   }
 }
 
-/* ==========================================================================
-   СТИЛИ ДЛЯ SVG-ИКОНОК (ИСПРАВЛЕНИЕ ЧЕРНОГО ЦВЕТА И СМЕЩЕНИЙ)
-   ========================================================================== */
+/*  
+   СТИЛИ ДЛЯ SVG-ИКОНОК
+     */
 
 .btn-icon-svg {
+  display: inline-block;
+  flex-shrink: 0;
   width: 15px;
   height: 15px;
-  display: inline-block;
   vertical-align: middle;
-  flex-shrink: 0;
 }
 
 /* Фильтр для белых иконок на цветных кнопках */
@@ -950,16 +950,16 @@ textarea.foreman-custom-input {
 }
 
 .badge-icon-svg {
+  display: inline-block;
+  flex-shrink: 0;
   width: 17px;
   height: 17px;
-  display: inline-block;
   vertical-align: middle;
-  flex-shrink: 0;
 }
 
-/* ==========================================================================
+/*  
    ОБЯЗАТЕЛЬНАЯ И ДОПУСТИМАЯ ТЕХНИКА НА ЭТАПАХ
-   ========================================================================== */
+     */
 
 .eq-chip {
   display: inline-flex;
@@ -974,29 +974,29 @@ textarea.foreman-custom-input {
 /* Обязательная техника (Required) */
 .eq-chip.eq-chip-required {
   border: 1.5px solid #93c5fd;
-  background-color: #eff6ff;
   color: #1e3a8a;
+  background-color: #eff6ff;
 }
 
 /* Допустимая техника (Allowed) */
 .eq-chip.eq-chip-allowed {
   border: 1.5px dashed #fcd34d;
-  background-color: #fffbeb;
   color: #92400e;
+  background-color: #fffbeb;
 }
 
 /* Кнопка-переключатель типа требования */
 .eq-req-pill-btn {
   border: none;
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  padding: 1px 5px;
   border-radius: 4px;
-  cursor: pointer;
+  padding: 1px 5px;
+  font-weight: 700;
+  font-size: 10px;
   line-height: 1.3;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
   transition: opacity 0.15s ease;
+  cursor: pointer;
 }
 
 .eq-req-pill-btn:hover {
@@ -1004,56 +1004,120 @@ textarea.foreman-custom-input {
 }
 
 .eq-req-pill-btn.is-req {
-  background: #2563eb;
   color: #ffffff;
+  background: #2563eb;
 }
 
 .eq-req-pill-btn.is-allow {
-  background: #d97706;
   color: #ffffff;
+  background: #d97706;
 }
 
 .eq-chip-label {
-  font-weight: 600;
   color: #0f172a;
+  font-weight: 600;
 }
 
 .eq-count {
-  font-weight: 700;
   min-width: 14px;
+  font-weight: 700;
   text-align: center;
 }
 
 .eq-btn {
   border: none;
+  border-radius: 3px;
   padding: 0 4px;
   color: #475569;
   font-weight: 700;
   font-size: 13px;
+  line-height: 1;
   background: transparent;
   cursor: pointer;
-  border-radius: 3px;
-  line-height: 1;
 }
 
 .eq-btn:hover {
-  background: rgba(0, 0, 0, 0.08);
   color: #000000;
+  background: rgba(0, 0, 0, 0.08);
 }
 
 /* Кнопка удаления техники из этапа */
 .eq-remove-btn {
-  background: transparent;
+  margin-left: 2px;
   border: none;
+  padding: 0 2px;
   color: #94a3b8;
   font-size: 11px;
-  cursor: pointer;
-  padding: 0 2px;
-  margin-left: 2px;
   line-height: 1;
+  background: transparent;
   transition: color 0.15s ease;
+  cursor: pointer;
 }
 
 .eq-remove-btn:hover {
   color: #dc2626;
+}
+
+/*  
+   СЕЛЕКТОР КРИТИЧЕСКОГО ПУТИ СО СТРЕЛОЧКОЙ (ТОЛЬКО ДЛЯ ПРОРАБА)
+     */
+
+.critical-select-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.critical-path-select {
+  box-sizing: border-box;
+  height: 22px;
+  border-radius: 5px;
+  padding: 0 20px 0 8px;
+  outline: none;
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 10.5px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  background-size: 8px 5px;
+  transition: all 0.15s ease;
+  cursor: pointer;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+/* Выбран вариант «Крит. путь» (Красный) */
+.critical-path-select.is-critical {
+  border: 1.5px solid #fca5a5;
+  color: #dc2626;
+  background-color: #fef2f2;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath fill='%23dc2626' d='M0 0l4 4 4-4z'/%3E%3C/svg%3E");
+}
+
+.critical-path-select.is-critical:hover {
+  border-color: #ef4444;
+  background-color: #fee2e2;
+}
+
+/* Выбран вариант «Обычный» (Серый нейтральный) */
+.critical-path-select.not-critical {
+  border: 1px solid #cbd5e1;
+  color: #64748b;
+  background-color: #f8fafc;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='5' viewBox='0 0 8 5'%3E%3Cpath fill='%2364748b' d='M0 0l4 4 4-4z'/%3E%3C/svg%3E");
+}
+
+.critical-path-select.not-critical:hover {
+  border-color: #94a3b8;
+  color: #1e293b;
+  background-color: #f1f5f9;
+}
+
+.critical-path-select:focus {
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2);
 }

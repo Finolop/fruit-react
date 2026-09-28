@@ -1,6 +1,3 @@
-/* ==========================================================================
-   ИЗОЛИРОВАННЫЕ СТИЛИ МОДАЛКИ ВИДЕОКАМЕР (БЕЗ !IMPORTANT)
-   ========================================================================== */
 
 .camera-modal-overlay {
   position: fixed;
@@ -9,12 +6,12 @@
   display: flex;
   justify-content: center;
   align-items: center;
+  box-sizing: border-box;
   width: 100vw;
   height: 100vh;
+  padding: 16px;
   background: rgba(15, 23, 42, 0.55);
   backdrop-filter: blur(3px);
-  padding: 16px;
-  box-sizing: border-box;
 }
 
 .camera-modal-card {
@@ -24,21 +21,21 @@
   width: 100%;
   max-width: 680px;
   max-height: 88vh;
+  border: 1px solid var(--color-border, #e2e8f0);
   border-radius: var(--radius-md, 10px);
   box-shadow:
     0 20px 25px -5px rgba(0, 0, 0, 0.15),
     0 8px 10px -6px rgba(0, 0, 0, 0.1);
-  background-color: var(--color-surface, #ffffff);
-  border: 1px solid var(--color-border, #e2e8f0);
   overflow: hidden;
+  background-color: var(--color-surface, #ffffff);
 }
 
 .camera-modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px 16px;
   border-bottom: 1px solid var(--color-border, #e2e8f0);
+  padding: 20px 24px 16px;
   background: #ffffff;
 }
 
@@ -55,31 +52,31 @@
 
 .camera-modal-header h3 {
   margin: 0;
-  font-size: 18px;
-  font-weight: 700;
   color: var(--color-text, #0f172a);
+  font-weight: 700;
+  font-size: 18px;
 }
 
 .camera-modal-header p {
   margin: 4px 0 0;
-  font-size: 12px;
   color: var(--color-text-secondary, #64748b);
+  font-size: 12px;
 }
 
 .camera-modal-close-btn {
-  background: transparent;
   border: none;
-  font-size: 18px;
-  color: var(--color-text-secondary, #64748b);
-  cursor: pointer;
-  padding: 4px 8px;
   border-radius: 6px;
+  padding: 4px 8px;
+  color: var(--color-text-secondary, #64748b);
+  font-size: 18px;
+  background: transparent;
   transition: all 0.15s ease;
+  cursor: pointer;
 }
 
 .camera-modal-close-btn:hover {
-  background: #f1f5f9;
   color: #0f172a;
+  background: #f1f5f9;
 }
 
 /* Тело модального окна */
@@ -87,73 +84,73 @@
   display: flex;
   flex-direction: column;
   gap: 18px;
+  max-height: calc(88vh - 140px);
   padding: 20px 24px;
   overflow-y: auto;
-  max-height: calc(88vh - 140px);
 }
 
 /* Сообщения */
 .camera-modal-alert {
-  padding: 10px 14px;
-  border-radius: 8px;
-  font-size: 13px;
-  font-weight: 500;
   display: flex;
   align-items: center;
   gap: 8px;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-weight: 500;
+  font-size: 13px;
 }
 
 .camera-modal-alert.error {
-  background: #fef2f2;
   border: 1px solid #fecaca;
   color: #991b1b;
+  background: #fef2f2;
 }
 
 .camera-modal-alert.success {
-  background: #f0fdf4;
   border: 1px solid #bbf7d0;
   color: #166534;
+  background: #f0fdf4;
 }
 
 /* Блок подключения новой камеры */
 .camera-add-card {
-  background: #f8fafc;
-  border: 1px solid var(--color-border, #e2e8f0);
-  border-radius: var(--radius-md, 8px);
-  padding: 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-md, 8px);
+  padding: 16px;
+  background: #f8fafc;
 }
 
 .camera-add-card-label {
-  font-size: 13px;
-  font-weight: 700;
   color: #1e293b;
+  font-weight: 700;
+  font-size: 13px;
 }
 
 .camera-input-row {
   display: flex;
-  gap: 10px;
   align-items: center;
+  gap: 10px;
   width: 100%;
 }
 
 .camera-url-input {
   flex: 1;
+  box-sizing: border-box;
   min-width: 0;
   height: 44px;
-  padding: 0 14px;
   border: 1px solid var(--color-border, #cbd5e1);
   border-radius: var(--radius-md, 8px);
-  font-size: 13px;
-  color: var(--color-text, #0f172a);
-  background: #ffffff;
+  padding: 0 14px;
   outline: none;
+  color: var(--color-text, #0f172a);
+  font-size: 13px;
+  background: #ffffff;
   transition:
     border-color 0.15s ease,
     box-shadow 0.15s ease;
-  box-sizing: border-box;
 }
 
 .camera-url-input:focus {
@@ -166,20 +163,20 @@
 }
 
 .camera-add-submit-btn {
+  flex-shrink: 0;
   height: 44px;
-  padding: 0 20px;
   border: none;
   border-radius: var(--radius-md, 8px);
-  background: var(--color-primary, #e53935);
+  padding: 0 20px;
   color: #ffffff;
-  font-size: 13px;
   font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  flex-shrink: 0;
+  font-size: 13px;
+  background: var(--color-primary, #e53935);
   transition:
     background-color 0.15s ease,
     transform 0.1s ease;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
 .camera-add-submit-btn:hover:not(:disabled) {
@@ -194,22 +191,22 @@
 
 .camera-hints-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  font-size: 11px;
   color: var(--color-text-secondary, #64748b);
-  flex-wrap: wrap;
+  font-size: 11px;
 }
 
 .camera-hint-chip {
-  background: #ffffff;
   border: 1px solid #cbd5e1;
-  padding: 2px 7px;
   border-radius: 4px;
-  font-family: monospace;
-  cursor: pointer;
+  padding: 2px 7px;
   color: #334155;
+  font-family: monospace;
+  background: #ffffff;
   transition: all 0.15s ease;
+  cursor: pointer;
 }
 
 .camera-hint-chip:hover {
@@ -232,30 +229,30 @@
 }
 
 .camera-list-title {
-  font-size: 13px;
-  font-weight: 700;
   color: #0f172a;
+  font-weight: 700;
+  font-size: 13px;
 }
 
 .camera-online-badge {
-  font-size: 12px;
-  font-weight: 600;
-  color: #15803d;
-  background: #f0fdf4;
-  padding: 3px 8px;
-  border-radius: 6px;
   border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  padding: 3px 8px;
+  color: #15803d;
+  font-weight: 600;
+  font-size: 12px;
+  background: #f0fdf4;
 }
 
 /* Карточка отдельной камеры */
 .camera-item-card {
-  background: #ffffff;
-  border: 1px solid var(--color-border, #e2e8f0);
-  border-radius: var(--radius-md, 8px);
-  padding: 12px 16px;
   display: flex;
   flex-direction: column;
   gap: 10px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-md, 8px);
+  padding: 12px 16px;
+  background: #ffffff;
   transition:
     box-shadow 0.15s ease,
     border-color 0.15s ease;
@@ -287,59 +284,59 @@
 }
 
 .camera-number-tag {
-  font-size: 13px;
-  font-weight: 700;
   color: #0f172a;
+  font-weight: 700;
+  font-size: 13px;
 }
 
 .camera-badge-pill {
-  font-size: 11px;
-  font-weight: 600;
-  padding: 2px 8px;
   border-radius: 4px;
+  padding: 2px 8px;
+  font-weight: 600;
+  font-size: 11px;
 }
 
 .camera-badge-pill.on {
-  background: #f0fdf4;
-  color: #15803d;
   border: 1px solid #bbf7d0;
+  color: #15803d;
+  background: #f0fdf4;
 }
 
 .camera-badge-pill.off {
-  background: #f1f5f9;
-  color: #64748b;
   border: 1px solid #cbd5e1;
+  color: #64748b;
+  background: #f1f5f9;
 }
 
 .camera-delete-btn {
-  background: transparent;
   border: 1px solid transparent;
   border-radius: 6px;
-  cursor: pointer;
-  font-size: 15px;
   padding: 4px 6px;
   color: #64748b;
-  transition: all 0.15s ease;
+  font-size: 15px;
   line-height: 1;
+  background: transparent;
+  transition: all 0.15s ease;
+  cursor: pointer;
 }
 
 .camera-delete-btn:hover {
-  background: #fee2e2;
   color: #b91c1c;
+  background: #fee2e2;
 }
 
 .camera-url-box {
-  background: #f8fafc;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
   padding: 8px 12px;
   overflow: hidden;
+  background: #f8fafc;
 }
 
 .camera-url-box code {
+  color: #334155;
   font-family: monospace;
   font-size: 12px;
-  color: #334155;
   word-break: break-all;
 }
 
@@ -350,36 +347,36 @@
 }
 
 .camera-date-text {
-  font-size: 11px;
   color: var(--color-text-secondary, #64748b);
+  font-size: 11px;
 }
 
 .camera-toggle-btn {
-  font-size: 12px;
-  font-weight: 600;
-  padding: 5px 12px;
-  border-radius: 6px;
-  cursor: pointer;
   border: 1px solid transparent;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-weight: 600;
+  font-size: 12px;
   transition: all 0.15s ease;
+  cursor: pointer;
 }
 
 .camera-toggle-btn.btn-stop {
-  background: #f8fafc;
-  color: #475569;
   border-color: #cbd5e1;
+  color: #475569;
+  background: #f8fafc;
 }
 
 .camera-toggle-btn.btn-stop:hover {
-  background: #fee2e2;
-  color: #b91c1c;
   border-color: #fca5a5;
+  color: #b91c1c;
+  background: #fee2e2;
 }
 
 .camera-toggle-btn.btn-start {
-  background: #f0fdf4;
-  color: #166534;
   border-color: #bbf7d0;
+  color: #166534;
+  background: #f0fdf4;
 }
 
 .camera-toggle-btn.btn-start:hover {
@@ -388,25 +385,25 @@
 
 /* Пустое состояние */
 .camera-empty-box {
-  padding: 32px 20px;
-  background: #f8fafc;
   border: 1.5px dashed #cbd5e1;
   border-radius: var(--radius-md, 8px);
-  text-align: center;
+  padding: 32px 20px;
   color: var(--color-text-secondary, #64748b);
+  text-align: center;
+  background: #f8fafc;
 }
 
 .camera-empty-icon {
-  font-size: 34px;
   display: block;
   margin-bottom: 8px;
+  font-size: 34px;
 }
 
 .camera-empty-box p {
   margin: 0 0 4px;
-  font-size: 14px;
-  font-weight: 600;
   color: #334155;
+  font-weight: 600;
+  font-size: 14px;
 }
 
 .camera-empty-box small {
@@ -417,41 +414,41 @@
 .camera-modal-footer {
   display: flex;
   justify-content: flex-end;
-  padding: 14px 24px;
   border-top: 1px solid var(--color-border, #e2e8f0);
+  padding: 14px 24px;
   background: #ffffff;
 }
 
 .camera-modal-close-action {
   height: 40px;
-  padding: 0 20px;
   border: 1px solid var(--color-border, #cbd5e1);
   border-radius: var(--radius-md, 8px);
+  padding: 0 20px;
   color: var(--color-text, #1e293b);
-  background: #ffffff;
-  font-size: 13px;
   font-weight: 600;
-  cursor: pointer;
+  font-size: 13px;
+  background: #ffffff;
   transition: all 0.15s ease;
+  cursor: pointer;
 }
 
 .camera-modal-close-action:hover {
-  background: #f8fafc;
   border-color: #94a3b8;
+  background: #f8fafc;
 }
 
 .camera-modal-readonly-note {
-  padding: 10px 14px;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-left: 4px solid #2563eb;
-  border-radius: var(--radius-md, 8px);
-  font-size: 12px;
-  color: #1e40af;
-  line-height: 1.4;
   display: flex;
   align-items: center;
   gap: 10px;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius-md, 8px);
+  border-left: 4px solid #2563eb;
+  padding: 10px 14px;
+  color: #1e40af;
+  font-size: 12px;
+  line-height: 1.4;
+  background: #eff6ff;
 }
 
 .camera-modal-readonly-note strong {

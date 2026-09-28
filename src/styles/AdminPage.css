@@ -6,22 +6,22 @@
 .admin-content {
   display: grid;
   grid-template-columns: 440px 1fr;
+  align-items: start;
   gap: 24px;
+  box-sizing: border-box;
   width: 100%;
   max-width: 1920px;
   margin: 20px 0 0;
   padding: 0 25px 40px;
-  box-sizing: border-box;
-  align-items: start;
 }
 
 .admin-container {
-  padding: 32px;
+  box-sizing: border-box;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  padding: 32px;
   box-shadow: var(--shadow-md);
-  box-sizing: border-box;
+  background: var(--color-surface);
 }
 
 .admin-card-header {
@@ -32,16 +32,16 @@
 .admin-card-header h2 {
   margin: 0 0 8px;
   color: var(--color-text);
-  font-size: 22px;
   font-weight: 600;
+  font-size: 22px;
   line-height: 1.2;
 }
 
 .admin-card-header p {
   margin: 0;
   color: var(--color-text-secondary);
-  font-size: 14px;
   font-weight: 500;
+  font-size: 14px;
   line-height: 1.4;
 }
 
@@ -59,8 +59,8 @@
 
 .form-field label {
   color: var(--color-text);
-  font-size: 14px;
   font-weight: 500;
+  font-size: 14px;
 }
 
 .form-field input,
@@ -68,17 +68,17 @@
 .roles-search-input,
 .roles-filter-select,
 .modal-search-field {
+  box-sizing: border-box;
   width: 100%;
   height: 48px;
-  padding: 0 14px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  padding: 0 14px;
+  outline: none;
   color: var(--color-text);
   font-family: inherit;
   font-size: 14px;
-  outline: none;
-  box-sizing: border-box;
+  background: var(--color-surface);
   transition:
     border-color 0.2s ease,
     box-shadow 0.2s ease;
@@ -86,14 +86,14 @@
 
 .form-field select,
 .roles-filter-select {
-  appearance: none;
-  -webkit-appearance: none;
-  -moz-appearance: none;
   padding-right: 42px;
   background-image: url("../assets/images/arrow_down.svg");
   background-repeat: no-repeat;
   background-position: right 14px center;
   background-size: 16px;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
 }
 
 .form-field input:focus,
@@ -117,15 +117,15 @@
   margin-top: 8px;
   border: 0;
   border-radius: var(--radius-md);
-  background: var(--color-primary);
   color: var(--color-surface);
   font-family: inherit;
-  font-size: 14px;
   font-weight: 600;
-  cursor: pointer;
+  font-size: 14px;
+  background: var(--color-primary);
   transition:
     background-color 0.2s ease,
     transform 0.1s ease;
+  cursor: pointer;
 }
 
 .admin-primary-button:hover {
@@ -142,51 +142,49 @@
 }
 
 .admin-success-message {
-  padding: 12px 14px;
+  margin-bottom: 16px;
   border: 1px solid #10b981;
   border-radius: var(--radius-md);
-  background: #ecfdf5;
+  padding: 12px 14px;
   color: #047857;
   font-size: 14px;
-  margin-bottom: 16px;
+  background: #ecfdf5;
 }
 
 .admin-error-message {
-  padding: 12px 14px;
+  margin-bottom: 16px;
   border: 1px solid var(--color-primary);
   border-radius: var(--radius-md);
-  background: var(--color-primary-soft);
+  padding: 12px 14px;
   color: var(--color-primary-dark);
   font-size: 14px;
-  margin-bottom: 16px;
+  background: var(--color-primary-soft);
 }
 
 .role-edit-button {
-  padding: 7px 12px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: var(--color-surface);
+  padding: 7px 12px;
   color: var(--color-text);
   font-family: inherit;
-  font-size: 12px;
   font-weight: 500;
-  white-space: nowrap;
-  cursor: pointer;
+  font-size: 12px;
+  background: var(--color-surface);
   transition:
     background-color 0.2s ease,
     border-color 0.2s ease,
     color 0.2s ease;
+  cursor: pointer;
+  white-space: nowrap;
 }
 
 .role-edit-button:hover {
   border-color: var(--color-primary);
-  background: var(--color-primary-light);
   color: var(--color-primary-dark);
+  background: var(--color-primary-light);
 }
 
-/* ==========================================================================
-   УПРАВЛЕНИЕ РОЛЯМИ И ПРИВЯЗКА К ОБЪЕКТАМ
-   ========================================================================== */
+/* УПРАВЛЕНИЕ РОЛЯМИ И ПРИВЯЗКА К ОБЪЕКТАМ */
 
 .role-management-flow {
   display: flex;
@@ -195,9 +193,9 @@
 }
 
 .role-section-divider {
+  margin: 0;
   border: 0;
   border-top: 1px solid var(--color-border);
-  margin: 0;
 }
 
 .subform-header {
@@ -207,8 +205,8 @@
 .subform-header h3 {
   margin: 0 0 4px;
   color: var(--color-text);
-  font-size: 16px;
   font-weight: 600;
+  font-size: 16px;
 }
 
 .subform-header p {
@@ -219,8 +217,8 @@
 
 .role-change-row {
   display: flex;
-  gap: 12px;
   align-items: flex-end;
+  gap: 12px;
 }
 
 .role-change-row .form-field-email {
@@ -232,10 +230,10 @@
 }
 
 .role-change-row .btn-role-submit {
+  flex-shrink: 0;
   width: 160px;
   height: 48px;
   margin-top: 0;
-  flex-shrink: 0;
 }
 
 .assign-grid-fields {
@@ -253,26 +251,26 @@
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
-  width: 100%;
-  max-height: 220px;
-  overflow-y: auto;
-  background: var(--color-surface);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  box-shadow: var(--shadow-md);
   z-index: 50;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-height: 220px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  overflow-y: auto;
+  background: var(--color-surface);
 }
 
 .autocomplete-item {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 10px 14px;
-  cursor: pointer;
   border-bottom: 1px solid var(--color-border);
+  padding: 10px 14px;
   transition: background-color 0.15s ease;
+  cursor: pointer;
 }
 
 .autocomplete-item:last-child {
@@ -290,38 +288,38 @@
 }
 
 .autocomplete-user-email {
-  font-size: 13px;
-  font-weight: 600;
   color: var(--color-text);
+  font-weight: 600;
+  font-size: 13px;
 }
 
 .autocomplete-user-name {
-  font-size: 12px;
   color: var(--color-text-secondary);
+  font-size: 12px;
 }
 
 .autocomplete-user-id {
-  font-size: 11px;
-  font-family: monospace;
   color: var(--color-text-muted, #9ca3af);
+  font-family: monospace;
+  font-size: 11px;
 }
 
 /* Список привязанных сотрудников */
 .assignments-preview-box {
-  background: var(--color-background);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  background: var(--color-background);
 }
 
 .assignments-preview-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text);
   margin: 0;
+  color: var(--color-text);
+  font-weight: 600;
+  font-size: 13px;
 }
 
 .assignments-preview-list {
@@ -334,38 +332,36 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 8px;
-  background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: 6px;
+  padding: 4px 8px;
   font-size: 12px;
+  background: var(--color-surface);
 }
 
 .assignment-item-tag code {
-  font-family: monospace;
   color: var(--color-text-secondary);
+  font-family: monospace;
 }
 
 .btn-unassign-chip {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  padding: 2px 4px;
-  margin-left: 4px;
-  border-radius: 4px;
   display: inline-flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
+  margin-left: 4px;
+  border: none;
+  border-radius: 4px;
+  padding: 2px 4px;
+  background: transparent;
   transition: background-color 0.15s ease;
+  cursor: pointer;
 }
 
 .btn-unassign-chip:hover {
   background: #fee2e2;
 }
 
-/* ==========================================================================
-   АДАПТИВНОСТЬ
-   ========================================================================== */
+/*  АДАПТИВНОСТЬ  */
 
 @media (max-width: 1180px) {
   .admin-content {

@@ -1,8 +1,7 @@
 const API_URL = process.env.REACT_APP_API_URL || "";
 
-// ==========================================
-// Типы Live Summary по спецификации OpenAPI
-// ==========================================
+
+// Типы Live Summary
 
 export interface LiveSummaryStage {
   name: string;
@@ -30,9 +29,8 @@ export interface LiveSummaryResponse {
   equipment_realtime: LiveSummaryEquipment;
 }
 
-// ==========================================
+
 // Утилиты работы с токенами
-// ==========================================
 
 export const getAccessToken = (): string | null => {
   return localStorage.getItem("access_token") || localStorage.getItem("token");
@@ -70,9 +68,8 @@ export const getAuthHeaders = (): Record<string, string> => {
   return headers;
 };
 
-// ==========================================
+
 // Очередь запросов при ротации токена
-// ==========================================
 
 let isRefreshing = false;
 let refreshSubscribers: ((newToken: string) => void)[] = [];
@@ -115,9 +112,7 @@ export const refreshAuthToken = async (): Promise<string | null> => {
   }
 };
 
-// ==========================================
 // Единый сетевой интерцептор
-// ==========================================
 
 export const fetchWithAuth = async (
   input: RequestInfo | URL,
@@ -189,9 +184,8 @@ export const fetchWithAuth = async (
   return response;
 };
 
-// ==========================================
+
 // Запросы мониторинга и файлов
-// ==========================================
 
 export const getLiveSummary = async (
   projectId: string,

@@ -5,8 +5,6 @@ const HomePage = () => {
     return (
         <div>
             <Header />
-
-            
         </div>
     );
 };

@@ -87,15 +87,9 @@ const formatDateRu = (date: Date): string => {
   });
 };
 
-// ==========================================
-// Утилиты сохранения статусов «Обяз./Допуст.»
-// ==========================================
-
 const getStorageKey = (projectId: string) => `argus_eq_req_${projectId}`;
 
-const loadLocalRequirementMap = (
-  projectId: string,
-): Record<string, boolean> => {
+const loadLocalRequirementMap = (projectId: string): Record<string, boolean> => {
   try {
     const raw = localStorage.getItem(getStorageKey(projectId));
     return raw ? JSON.parse(raw) : {};
@@ -106,12 +100,15 @@ const loadLocalRequirementMap = (
 
 const saveLocalRequirementMap = (
   projectId: string,
-  map: Record<string, boolean>,
+  map: Record<string, boolean>
 ) => {
   try {
     localStorage.setItem(getStorageKey(projectId), JSON.stringify(map));
   } catch {}
 };
+
+const cleanTitle = (val: string): string =>
+  (val || "").replace(/^\d+(\.\d+)*[-.\s]+/, "").trim();
 
 export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
   project,
@@ -146,10 +143,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     project.schedule_status === "ACTIVE" ||
     hideTopBar;
 
-  const cleanTitle = (val: string): string =>
-    (val || "").replace(/^\d+(\.\d+)*[-.\s]+/, "").trim();
-
-  // Преобразование серверных данных в древовидную модель Ганта с сохранением «Обяз./Допуст.»
+  // 1. Загрузка и разбор структуры графиков
   useEffect(() => {
     const rawList = schedules || [];
     if (rawList.length === 0) {
@@ -174,9 +168,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
       let subIdx = 1;
 
       const subStages: GanttSubStage[] = subItems.map((sub: any) => {
-        const subStageName = cleanTitle(
-          sub.substage_name || sub.stage_name || "Подэтап",
-        );
+        const subStageName = cleanTitle(sub.substage_name || sub.stage_name || "Подэтап");
         const effectiveStartStr =
           sub.actual_start_date ||
           sub.phantom_start_date ||
@@ -219,17 +211,12 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
           );
 
           const finalId = matched?.id || eq.equipment_type_id || rawId;
-          const finalCode = (
-            matched?.code ||
-            rawCode ||
-            "unknown"
-          ).toLowerCase();
+          const finalCode = (matched?.code || rawCode || "unknown").toLowerCase();
           const finalName =
             matched?.name ||
             FALLBACK_EQUIPMENT_NAMES[finalCode] ||
             "Строительная техника";
 
-          // 1. Проверяем, вернул ли бэкенд флаг явно
           let backendRequired: boolean | null = null;
           if (eq.is_required !== undefined && eq.is_required !== null) {
             backendRequired =
@@ -243,14 +230,13 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
               eq.required === "true";
           }
 
-          // 2. Если бэкенд не вернул флаг, берём сохраненный выбор пользователя
           const cacheKey = `${subStageName}_${finalCode}`;
           const finalIsRequired =
             backendRequired !== null
               ? backendRequired
               : reqMap[cacheKey] !== undefined
-                ? reqMap[cacheKey]
-                : true;
+              ? reqMap[cacheKey]
+              : true;
 
           eqList.push({
             typeId: finalId,
@@ -271,7 +257,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
           isShifted: isShift,
           isEarlyCompleted: isEarly,
           status: sub.status || "PLANNED",
-          isCriticalPath: Boolean(sub.is_critical || sub.is_critical_path),
+          isCriticalPath: Boolean(sub.is_critical ?? sub.is_critical_path),
           equipment: eqList,
         };
       });
@@ -379,6 +365,30 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     );
   };
 
+  // Переключение критического пути подэтапа (вынесено в корень компонента)
+  const handleToggleCriticalPath = (
+    stageId: string,
+    subId: string,
+    isCritical: boolean,
+  ) => {
+    if (isLocked) return;
+    setStages((prev) =>
+      prev.map((maj) => {
+        if (maj.id !== stageId) return maj;
+        return {
+          ...maj,
+          subStages: maj.subStages.map((sub) => {
+            if (sub.id !== subId) return sub;
+            return {
+              ...sub,
+              isCriticalPath: isCritical,
+            };
+          }),
+        };
+      }),
+    );
+  };
+
   const handleEquipmentCountChange = (
     stageId: string,
     subId: string,
@@ -412,7 +422,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     );
   };
 
-  // Переключение Обязательная ⇄ Допустимая с сохранением в локальный кэш
   const handleToggleRequirementType = (
     stageId: string,
     subId: string,
@@ -429,7 +438,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
             const updated = sub.equipment.map((eq) => {
               if (eq.typeId === typeId) {
                 const nextIsRequired = !eq.isRequired;
-                // Запоминаем выбор пользователя
                 const reqMap = loadLocalRequirementMap(project.id);
                 reqMap[`${sub.name}_${eq.typeCode}`] = nextIsRequired;
                 saveLocalRequirementMap(project.id, reqMap);
@@ -467,7 +475,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     );
   };
 
-  // Добавление техники с мгновенной фиксацией статуса
   const handleAddEquipment = (
     stageId: string,
     subId: string,
@@ -481,10 +488,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     );
 
     const typeCode = (matched?.code || "unknown").toLowerCase();
-    const name =
-      matched?.name ||
-      FALLBACK_EQUIPMENT_NAMES[typeCode] ||
-      "Строительная техника";
+    const name = matched?.name || FALLBACK_EQUIPMENT_NAMES[typeCode] || "Строительная техника";
 
     setStages((prev) =>
       prev.map((maj) => {
@@ -497,7 +501,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
               return sub;
             }
 
-            // Фиксируем статус в кэше
             const reqMap = loadLocalRequirementMap(project.id);
             reqMap[`${sub.name}_${typeCode}`] = isRequired;
             saveLocalRequirementMap(project.id, reqMap);
@@ -542,7 +545,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     }
   };
 
-  // Сохранение правок: отправка на бэкенд и сохранение карты приоритетов
   const handleSaveBulkSync = async () => {
     if (isLocked) return;
     setIsProcessing(true);
@@ -559,15 +561,10 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
             const matched = equipmentTypes.find(
               (et) =>
                 et.id.toLowerCase() === e.typeId.toLowerCase() ||
-                (et.code && et.code.toLowerCase() === e.typeCode.toLowerCase()),
+                (et.code && et.code.toLowerCase() === e.typeCode.toLowerCase())
             );
-            const code = (
-              matched?.code ||
-              e.typeCode ||
-              "excavator"
-            ).toLowerCase();
+            const code = (matched?.code || e.typeCode || "excavator").toLowerCase();
 
-            // Сохраняем в кэш
             reqMap[`${sub.name}_${code}`] = e.isRequired;
 
             return {
@@ -584,14 +581,12 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
             sequence_order: seq++,
             base_start_date: sub.startDate.toISOString(),
             base_end_date: sub.endDate.toISOString(),
+            is_critical: sub.isCriticalPath,
+            is_critical_path: sub.isCriticalPath,
             equipment_requirements: eqReqs,
           };
 
-          if (
-            sub.id &&
-            !sub.id.startsWith("sub-") &&
-            !sub.id.startsWith("major-")
-          ) {
+          if (sub.id && !sub.id.startsWith("sub-") && !sub.id.startsWith("major-")) {
             itemPayload.id = sub.id;
           }
 
@@ -599,7 +594,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
         });
       });
 
-      // Сохраняем локально, чтобы перерисовка не сбрасывала в «Обяз.»
       saveLocalRequirementMap(project.id, reqMap);
 
       await foremanApi.bulkSync(project.id, flatList);
@@ -663,7 +657,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
               title="Управление видеопотоками площадки"
             >
               <img src={cameraIcon} alt="" className="btn-icon-svg" />
-              <span>Видеокамеры ({project.camera_url ? "1+" : "0"})</span>
+              <span>Видеокамеры</span>
             </button>
 
             {isLocked ? (
@@ -860,13 +854,37 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                             <span className="substage-name-text">
                               {sub.subNumber}. {sub.name}
                             </span>
-                            {sub.isCriticalPath && (
-                              <span
-                                className="critical-path-pill"
-                                title="Критический путь: задержка этого этапа сдвигает дату сдачи объекта"
-                              >
-                                Крит. путь
-                              </span>
+
+                            {/* Селектор критического пути со стрелочкой для прораба */}
+                            {!isLocked ? (
+                              <div className="critical-select-wrap">
+                                <select
+                                  className={`critical-path-select ${
+                                    sub.isCriticalPath ? "is-critical" : "not-critical"
+                                  }`}
+                                  value={sub.isCriticalPath ? "true" : "false"}
+                                  onChange={(e) =>
+                                    handleToggleCriticalPath(
+                                      maj.id,
+                                      sub.id,
+                                      e.target.value === "true",
+                                    )
+                                  }
+                                  title="Изменить статус критического пути"
+                                >
+                                  <option value="true">Крит. путь</option>
+                                  <option value="false">Обычный</option>
+                                </select>
+                              </div>
+                            ) : (
+                              sub.isCriticalPath && (
+                                <span
+                                  className="critical-path-pill"
+                                  title="Критический путь: задержка этапа сдвигает дату сдачи объекта"
+                                >
+                                  Крит. путь
+                                </span>
+                              )
                             )}
                           </div>
 
@@ -1064,8 +1082,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                                     value=""
                                     onChange={(e) => {
                                       if (e.target.value) {
-                                        const [type, eqId] =
-                                          e.target.value.split("::");
+                                        const [type, eqId] = e.target.value.split("::");
                                         handleAddEquipment(
                                           maj.id,
                                           sub.id,
@@ -1081,9 +1098,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                                         .filter(
                                           (et) =>
                                             !sub.equipment.some(
-                                              (e) =>
-                                                e.typeId.toLowerCase() ===
-                                                et.id.toLowerCase(),
+                                              (e) => e.typeId.toLowerCase() === et.id.toLowerCase(),
                                             ),
                                         )
                                         .map((et) => (
@@ -1091,8 +1106,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                                             key={`req-${et.id}`}
                                             value={`REQ::${et.id}`}
                                           >
-                                            ★ {et.name || et.code}{" "}
-                                            (Обязательная)
+                                            ★ {et.name || et.code} (Обязательная)
                                           </option>
                                         ))}
                                     </optgroup>
@@ -1101,9 +1115,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                                         .filter(
                                           (et) =>
                                             !sub.equipment.some(
-                                              (e) =>
-                                                e.typeId.toLowerCase() ===
-                                                et.id.toLowerCase(),
+                                              (e) => e.typeId.toLowerCase() === et.id.toLowerCase(),
                                             ),
                                         )
                                         .map((et) => (

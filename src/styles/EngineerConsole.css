@@ -1,19 +1,23 @@
+/*  
+   КОНСОЛЬ ИНЖЕНЕРА ТЕХНАДЗОРА
+     */
+
 .engineer-console-root {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-sizing: border-box;
   width: 100%;
   max-width: 1920px;
   margin: 0 auto;
   padding: 16px 24px 36px;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
 }
 
 .engineer-top-nav {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
   gap: 12px;
 }
 
@@ -23,26 +27,87 @@
   gap: 10px;
 }
 
+.kpi-caption-nav {
+  margin: 0;
+}
+
 .engineer-project-dropdown {
-  padding: 8px 12px;
-  background: var(--color-surface, #ffffff);
+  min-width: 280px;
   border: 1px solid var(--color-border, #cbd5e1);
   border-radius: var(--radius-md, 8px);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text, #0f172a);
+  padding: 8px 12px;
   outline: none;
+  color: var(--color-text, #0f172a);
+  font-weight: 600;
+  font-size: 13px;
+  background: var(--color-surface, #ffffff);
   cursor: pointer;
-  min-width: 280px;
 }
 
 .engineer-project-dropdown:focus {
   border-color: var(--color-primary, #2563eb);
 }
 
-/* ==========================================================================
-   ВЕРХНИЙ РЯД: 5 ОТДЕЛЬНЫХ КАРТОЧЕК KPI ИНЖЕНЕРА
-   ========================================================================== */
+.engineer-top-nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-camera-manage {
+  border-color: #93c5fd;
+  color: #1d4ed8;
+  font-weight: 600;
+  background: #eff6ff;
+}
+
+.btn-camera-manage:hover {
+  border-color: #60a5fa;
+  background: #dbeafe;
+}
+
+/*  
+   СТИЛИЗОВАННЫЕ КРУЖКИ-ИНДИКАТОРЫ
+     */
+
+.status-dot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.status-dot.red {
+  box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2);
+  background-color: #dc2626;
+}
+
+.status-dot.yellow {
+  box-shadow: 0 0 0 2px rgba(234, 179, 8, 0.2);
+  background-color: #eab308;
+}
+
+.status-dot.green {
+  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.2);
+  background-color: #16a34a;
+}
+
+.status-dot.orange {
+  box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.2);
+  background-color: #ea580c;
+}
+
+.status-dot.purple {
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
+  background-color: #7c3aed;
+}
+
+/*  
+   СЕТКА И КАРТОЧКИ KPI
+     */
 
 .engineer-kpi-grid {
   display: grid;
@@ -52,103 +117,103 @@
 }
 
 .engineer-kpi-card {
-  background: var(--color-surface, #ffffff);
-  border: 1px solid var(--color-border, #e2e8f0);
-  border-radius: var(--radius-md, 8px);
-  padding: 16px 18px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-  min-height: 108px;
   box-sizing: border-box;
+  min-height: 108px;
+  border: 1px solid var(--color-border, #e2e8f0);
+  border-radius: var(--radius-md, 8px);
+  padding: 16px 18px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  background: var(--color-surface, #ffffff);
 }
 
 .kpi-caption {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  color: var(--color-text-secondary, #64748b);
-  letter-spacing: 0.04em;
   margin: 0 0 6px 0;
+  color: var(--color-text-secondary, #64748b);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .kpi-title-strong {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--color-text, #0f172a);
   margin: 0;
-  white-space: nowrap;
   overflow: hidden;
+  color: var(--color-text, #0f172a);
+  font-weight: 700;
+  font-size: 16px;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .kpi-sub-text {
-  font-size: 12px;
-  color: var(--color-text-secondary, #64748b);
   margin-top: 6px;
+  color: var(--color-text-secondary, #64748b);
+  font-size: 12px;
   line-height: 1.3;
 }
 
 .kpi-accent-value {
-  font-size: 20px;
-  font-weight: 700;
   color: var(--color-text, #0f172a);
+  font-weight: 700;
+  font-size: 20px;
 }
 
 .status-badge-row {
   display: flex;
-  gap: 6px;
-  align-items: center;
   flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
 }
 
 .traffic-light-badge {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  padding: 4px 10px;
-  border-radius: var(--radius-md, 4px);
-  letter-spacing: 0.04em;
   width: fit-content;
+  border-radius: var(--radius-md, 4px);
+  padding: 4px 10px;
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
 }
 
 .traffic-light-badge.green {
-  background: #f0fdf4;
-  color: #16a34a;
   border: 1px solid #bbf7d0;
+  color: #16a34a;
+  background: #f0fdf4;
 }
 
 .traffic-light-badge.yellow {
-  background: #fefce8;
-  color: #ca8a04;
   border: 1px solid #fef08a;
+  color: #ca8a04;
+  background: #fefce8;
 }
 
 .traffic-light-badge.red {
-  background: #fef2f2;
-  color: #dc2626;
   border: 1px solid #fecaca;
+  color: #dc2626;
+  background: #fef2f2;
 }
 
 .special-mode-badge {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 4px 8px;
-  border-radius: var(--radius-md, 4px);
   width: fit-content;
+  border-radius: var(--radius-md, 4px);
+  padding: 4px 8px;
+  font-weight: 700;
+  font-size: 11px;
 }
 
 .special-mode-badge.purple {
-  background: #f5f3ff;
-  color: #7c3aed;
   border: 1px solid #ddd6fe;
+  color: #7c3aed;
+  background: #f5f3ff;
 }
 
 .special-mode-badge.orange {
-  background: #fff7ed;
-  color: #ea580c;
   border: 1px solid #fed7aa;
+  color: #ea580c;
+  background: #fff7ed;
 }
 
 .console-eq-row {
@@ -162,23 +227,27 @@
 }
 
 .eq-unit-val {
-  font-size: 18px;
-  font-weight: 700;
   color: #2563eb;
+  font-weight: 700;
+  font-size: 18px;
 }
 
 .eq-unit-val.idle {
   color: #dc2626;
 }
 
-.eq-unit-lbl {
-  font-size: 11px;
-  color: var(--color-text-secondary, #64748b);
+.eq-unit-val-plan {
+  color: #475569;
 }
 
-/* ==========================================================================
-   БЛОКИ ДЕЙСТВИЙ ИНЖЕНЕРА: АЛЕРТ, СПЕЦСТАТУС И СДВИГ
-   ========================================================================== */
+.eq-unit-lbl {
+  color: var(--color-text-secondary, #64748b);
+  font-size: 11px;
+}
+
+/*  
+   КАРТОЧКА ОПЕРАТИВНОГО ИНЦИДЕНТА НА ДАШБОРДЕ
+     */
 
 .console-workflow-grid {
   display: grid;
@@ -187,14 +256,15 @@
 }
 
 .console-card {
-  background: var(--color-surface, #ffffff);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-sizing: border-box;
   border: 1px solid var(--color-border, #e2e8f0);
   border-radius: var(--radius-md, 8px);
   padding: 20px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
+  background: var(--color-surface, #ffffff);
 }
 
 .console-card.alert-active {
@@ -222,99 +292,568 @@
 
 .console-card-header h3 {
   margin: 0;
-  font-size: 16px;
-  font-weight: 700;
   color: var(--color-text, #0f172a);
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.alert-queue-counter-tag {
+  border: 1px solid #fecaca;
+  border-radius: 6px;
+  padding: 3px 8px;
+  color: #dc2626;
+  font-weight: 700;
+  font-size: 11px;
+  background: #fef2f2;
 }
 
 .console-card-desc {
-  font-size: 13px;
-  color: #475569;
-  line-height: 1.5;
   margin: 0;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.5;
 }
 
-.incident-options-list {
+.alert-reason-detailed-box {
   display: flex;
   flex-direction: column;
+  gap: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 14px 16px;
+  background: #f8fafc;
+}
+
+.alert-reason-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px;
 }
 
-.incident-btn-option {
-  width: 100%;
-  text-align: left;
-  padding: 12px 14px;
+.alert-tag-severity {
+  display: inline-flex;
+  align-items: center;
   border-radius: 6px;
-  border: 1px solid transparent;
+  padding: 4px 9px;
+  font-weight: 700;
+  font-size: 11px;
+}
+
+.alert-tag-severity.red {
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+.alert-tag-severity.yellow {
+  border: 1px solid #fef08a;
+  color: #854d0e;
+  background: #fefce8;
+}
+
+.alert-tag-time {
+  color: #64748b;
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.incident-critical-badge {
+  border-radius: 6px;
+  padding: 3px 8px;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 10px;
+  background: #dc2626;
+  white-space: nowrap;
+}
+
+.incident-escalate-pill {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  padding: 3px 8px;
+  color: #854d0e;
+  font-weight: 600;
+  font-size: 11px;
+  background: #fffbeb;
+}
+
+.real-alert-message {
+  color: #0f172a;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.real-alert-risk {
+  border: 1px solid #fef08a;
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: #92400e;
+  font-size: 13px;
+  line-height: 1.4;
+  background: #fefce8;
+}
+
+.scenario-confirm-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 14px;
+}
+
+.btn-confirm-scenario-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  border-radius: var(--radius-md, 8px);
+  padding: 11px 22px;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 13px;
+  background: var(--color-primary, #2563eb);
+  transition: all 0.15s ease;
   cursor: pointer;
+}
+
+.btn-confirm-scenario-trigger:hover:not(:disabled) {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.btn-confirm-scenario-trigger:disabled {
+  color: #94a3b8;
+  background: #e2e8f0;
+  cursor: not-allowed;
+}
+
+/*  
+   ПОЛНЫЕ ИЗОЛИРОВАННЫЕ СТИЛИ МОДАЛКИ
+     */
+
+/* Затемненный фон модального окна */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-sizing: border-box;
+  width: 100vw;
+  height: 100vh;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+/* Окно модалки */
+.alert-decision-modal-container {
+  display: flex !important;
+  flex-direction: column !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  max-width: 820px !important;
+  height: auto !important;
+  max-height: 92vh !important;
+  margin: 0 !important;
+  border: 1px solid #e2e8f0 !important;
+  border-radius: 14px !important;
+  padding: 0 !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+  overflow: hidden !important;
+  background: #ffffff !important;
+}
+
+/* Форма модалки */
+.alert-decision-form {
+  display: flex !important;
+  flex-direction: column !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: 92vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+}
+
+/* Шапка модалки */
+.alert-decision-modal-container .modal-header {
+  display: flex !important;
+  flex-shrink: 0 !important;
+  justify-content: space-between !important;
+  align-items: center !important;
+  box-sizing: border-box !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+  padding: 18px 24px !important;
+  background: #ffffff !important;
+}
+
+.decision-header-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.decision-icon-badge {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: center;
+  align-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #fee2e2;
+}
+
+.decision-header-text h3 {
+  margin: 0;
+  color: var(--color-text, #0f172a);
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.decision-header-text p {
+  margin: 3px 0 0;
+  color: var(--color-text-secondary, #64748b);
+  font-size: 12px;
+}
+
+.alert-decision-modal-container .btn-close {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: none;
+  border-radius: 6px;
+  padding: 6px;
+  background: transparent;
+  transition: background 0.15s ease;
+  cursor: pointer;
+}
+
+.alert-decision-modal-container .btn-close:hover {
+  background: #f1f5f9;
+}
+
+/* Тело модалки со скроллом */
+.alert-decision-modal-container .modal-body {
+  display: flex !important;
+  flex-direction: column !important;
+  flex: 1 1 auto !important;
+  gap: 16px !important;
+  box-sizing: border-box !important;
+  min-height: 0 !important;
+  padding: 20px 24px !important;
+  overflow-y: auto !important;
+}
+
+/* Карточка инцидента внутри модалки */
+.incident-summary-card {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  transition: all 0.15s ease;
+  gap: 8px;
+  box-sizing: border-box;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  border-left: 5px solid #dc2626;
+  padding: 14px 18px;
+  background: #f8fafc;
 }
 
-.incident-btn-option.opt-purple {
-  background: #f5f3ff;
-  border-color: #ddd6fe;
-  color: #6d28d9;
+.incident-summary-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
 }
 
-.incident-btn-option.opt-purple:hover {
-  background: #ede9fe;
-}
-
-.incident-btn-option.opt-orange {
-  background: #fff7ed;
-  border-color: #ffedd5;
-  color: #c2410c;
-}
-
-.incident-btn-option.opt-orange:hover {
-  background: #ffedd5;
-}
-
-.incident-btn-option.opt-green {
-  background: #f0fdf4;
-  border-color: #dcfce7;
-  color: #15803d;
-}
-
-.incident-btn-option.opt-green:hover {
-  background: #dcfce7;
-}
-
-.opt-title {
-  font-size: 13px;
+.incident-type-tag {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  padding: 3px 8px;
+  color: #1e293b;
   font-weight: 700;
+  font-size: 12px;
+  background: #ffffff;
+  white-space: nowrap;
 }
 
-.opt-desc {
+.incident-severity-badge {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  padding: 3px 8px;
+  font-weight: 700;
   font-size: 11px;
-  line-height: 1.3;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  white-space: nowrap;
 }
+
+.incident-severity-badge.red {
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  background: #fef2f2;
+}
+
+.incident-severity-badge.yellow {
+  border: 1px solid #fef08a;
+  color: #854d0e;
+  background: #fefce8;
+}
+
+/* Сетка полей ввода в модалке */
+.alert-decision-modal-container .form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.alert-decision-modal-container .form-field label {
+  color: #1e293b;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.alert-decision-modal-container input,
+.alert-decision-modal-container select,
+.alert-decision-modal-container textarea {
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px 14px;
+  outline: none;
+  color: #0f172a;
+  font-family: inherit;
+  font-size: 13px;
+  background: #ffffff;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.alert-decision-modal-container input:focus,
+.alert-decision-modal-container select:focus,
+.alert-decision-modal-container textarea:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+}
+
+/* 3 кнопки выбора сценария */
+.decision-mode-selector {
+  display: grid;
+  grid-template-columns: 1fr 1.25fr 1fr;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.mode-btn {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 2px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: #334155;
+  font-weight: 600;
+  font-size: 13px;
+  background: #ffffff;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.mode-btn:hover {
+  background: #f8fafc;
+}
+
+.mode-btn.green.active {
+  border-color: #16a34a;
+  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.15);
+  color: #166534;
+  background: #f0fdf4;
+}
+
+.mode-btn.orange.active {
+  border-color: #ea580c;
+  box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.15);
+  color: #9a3412;
+  background: #fff7ed;
+}
+
+.mode-btn.purple.active {
+  border-color: #7c3aed;
+  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.15);
+  color: #5b21b6;
+  background: #f5f3ff;
+}
+
+/* Вкладки параметров под выбранный сценарий */
+.decision-tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.decision-tab-content.green {
+  border: 1px solid #bbf7d0;
+  background: #f0fdf4;
+}
+
+.decision-tab-content.orange {
+  border: 1px solid #fed7aa;
+  background: #fff7ed;
+}
+
+.decision-tab-content.purple {
+  border: 1px solid #ddd6fe;
+  background: #f5f3ff;
+}
+
+/* Большая область ввода причины инженером */
+.large-reason-area {
+  height: 120px !important;
+  min-height: 110px !important;
+  padding: 12px 14px !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+  resize: vertical;
+}
+
+.form-row-2col {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;
+  gap: 14px;
+}
+
+.field-hint {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+
+/* Зафиксированный подвал модалки */
+.alert-decision-modal-container .modal-footer {
+  display: flex !important;
+  flex-shrink: 0 !important;
+  justify-content: flex-end !important;
+  align-items: center !important;
+  gap: 12px !important;
+  box-sizing: border-box !important;
+  border-top: 1px solid #e2e8f0 !important;
+  padding: 16px 24px !important;
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.04);
+  background: #ffffff !important;
+}
+
+.btn-gantt-secondary {
+  height: 42px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 0 20px;
+  color: #1e293b;
+  font-weight: 600;
+  font-size: 13px;
+  background: #ffffff;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.btn-gantt-secondary:hover:not(:disabled) {
+  border-color: #94a3b8;
+  background: #f8fafc;
+}
+
+.btn-gantt-success {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  border: none;
+  border-radius: 8px;
+  padding: 0 22px;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 13px;
+  background: #2563eb;
+  transition:
+    background 0.15s ease,
+    transform 0.1s ease;
+  cursor: pointer;
+}
+
+.btn-gantt-success:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.btn-gantt-success:disabled,
+.btn-gantt-secondary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btn-gantt-success.btn-green {
+  background: #16a34a !important;
+}
+
+.btn-gantt-success.btn-green:hover:not(:disabled) {
+  background: #15803d !important;
+}
+
+.btn-gantt-success.btn-orange {
+  background: #ea580c !important;
+}
+
+.btn-gantt-success.btn-orange:hover:not(:disabled) {
+  background: #c2410c !important;
+}
+
+.btn-gantt-success.btn-purple {
+  background: #7c3aed !important;
+}
+
+.btn-gantt-success.btn-purple:hover:not(:disabled) {
+  background: #6d28d9 !important;
+}
+
+/*  
+   ПРАВЫЕ КАРТОЧКИ ФОРС-МАЖОРА И ШТРАФНОГО КОРИДОРА
+     */
 
 .action-trigger-btn {
-  background: #2563eb;
-  color: #ffffff;
+  align-self: flex-start;
   border: none;
   border-radius: 6px;
   padding: 10px 16px;
-  font-size: 13px;
+  color: #ffffff;
   font-weight: 600;
-  cursor: pointer;
-  align-self: flex-start;
+  font-size: 13px;
+  background: #2563eb;
   transition: background-color 0.15s ease;
+  cursor: pointer;
 }
 
-.action-trigger-btn:hover {
+.action-trigger-btn:hover:not(:disabled) {
   background: #1d4ed8;
+}
+
+.action-trigger-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .action-trigger-btn.purple {
   background: #7c3aed;
 }
 
-.action-trigger-btn.purple:hover {
+.action-trigger-btn.purple:hover:not(:disabled) {
   background: #6d28d9;
 }
 
@@ -322,7 +861,7 @@
   background: #ea580c;
 }
 
-.action-trigger-btn.orange:hover {
+.action-trigger-btn.orange:hover:not(:disabled) {
   background: #c2410c;
 }
 
@@ -330,10 +869,10 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-  background: #f8fafc;
-  padding: 14px;
-  border-radius: 6px;
   border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 14px;
+  background: #f8fafc;
 }
 
 .report-input-row {
@@ -343,28 +882,28 @@
 }
 
 .report-input-row label {
-  font-size: 12px;
-  font-weight: 600;
   color: #334155;
+  font-weight: 600;
+  font-size: 12px;
 }
 
 .report-input-row input,
 .report-input-row select {
-  padding: 8px 10px;
   border: 1px solid #cbd5e1;
   border-radius: 6px;
-  font-size: 13px;
+  padding: 8px 10px;
   outline: none;
-  background: #fff;
+  font-size: 13px;
+  background: #ffffff;
 }
 
 .report-checkbox-label {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 13px;
-  font-weight: 500;
   color: #1e293b;
+  font-weight: 500;
+  font-size: 13px;
   cursor: pointer;
 }
 
@@ -375,11 +914,54 @@
 }
 
 .console-gantt-title {
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--color-text, #0f172a);
   margin: 0;
+  color: var(--color-text, #0f172a);
+  font-weight: 700;
+  font-size: 16px;
 }
+
+/*  
+   БАННЕР НАБЛЮДАТЕЛЯ ДЛЯ АДМИНИСТРАТОРА
+     */
+
+.engineer-readonly-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 4px;
+  border: 1.5px solid #93c5fd;
+  border-radius: var(--radius-md, 8px);
+  border-left: 5px solid #2563eb;
+  padding: 12px 18px;
+  background: #eff6ff;
+}
+
+.readonly-banner-icon {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+}
+
+.readonly-banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.readonly-banner-text strong {
+  color: #1e40af;
+  font-size: 13px;
+}
+
+.readonly-banner-text span {
+  color: #3b82f6;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+/*  
+   АДАПТИВНОСТЬ
+     */
 
 @media (max-width: 1400px) {
   .engineer-kpi-grid {
@@ -395,213 +977,18 @@
   .console-workflow-grid {
     grid-template-columns: 1fr;
   }
+
+  .decision-mode-selector {
+    grid-template-columns: 1fr;
+  }
+
+  .form-row-2col {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 600px) {
   .engineer-kpi-grid {
     grid-template-columns: 1fr;
   }
-}
-
-/* Дополнительные стили панели инженера */
-
-.engineer-top-nav-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.btn-camera-manage {
-  background: #eff6ff !important;
-  color: #1d4ed8 !important;
-  border-color: #93c5fd !important;
-  font-weight: 600 !important;
-}
-
-.btn-camera-manage:hover {
-  background: #dbeafe !important;
-  border-color: #60a5fa !important;
-}
-
-/* Карточки выбора сценариев в оперативном надзоре */
-.opt-radio-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.opt-radio-row input[type="radio"] {
-  width: 16px;
-  height: 16px;
-  cursor: pointer;
-  accent-color: var(--color-primary, #2563eb);
-}
-
-.incident-btn-option {
-  user-select: none;
-  cursor: pointer;
-  border-width: 2px !important;
-}
-
-.incident-btn-option.selected.opt-purple {
-  background: #ede9fe;
-  border-color: #7c3aed !important;
-  box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
-}
-
-.incident-btn-option.selected.opt-orange {
-  background: #ffedd5;
-  border-color: #ea580c !important;
-  box-shadow: 0 0 0 2px rgba(234, 88, 12, 0.2);
-}
-
-.incident-btn-option.selected.opt-green {
-  background: #dcfce7;
-  border-color: #16a34a !important;
-  box-shadow: 0 0 0 2px rgba(22, 163, 74, 0.2);
-}
-
-.scenario-confirm-bar {
-  margin-top: 14px;
-  display: flex;
-  justify-content: flex-end;
-}
-
-.btn-confirm-scenario-trigger {
-  background: var(--color-primary, #2563eb);
-  color: #ffffff;
-  border: none;
-  border-radius: var(--radius-md, 8px);
-  padding: 11px 22px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.btn-confirm-scenario-trigger:hover:not(:disabled) {
-  background: #1d4ed8;
-  transform: translateY(-1px);
-}
-
-.btn-confirm-scenario-trigger:disabled {
-  background: #e2e8f0;
-  color: #94a3b8;
-  cursor: not-allowed;
-  transform: none;
-}
-
-/* Модальное окно предупреждения */
-.warning-modal-title-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.warning-icon-large {
-  font-size: 24px;
-}
-
-.warning-modal-summary {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 12px;
-}
-
-.warning-title-text {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 700;
-  color: #0f172a;
-}
-
-.warning-alert-box {
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  border-left: 4px solid #dc2626;
-  border-radius: 6px;
-  padding: 12px 14px;
-  font-size: 13px;
-  line-height: 1.5;
-  color: #991b1b;
-}
-
-.warning-note-text {
-  margin: 0;
-  font-size: 12px;
-  color: #64748b;
-  line-height: 1.4;
-}
-
-.warning-confirm-btn {
-  background: #dc2626 !important;
-}
-
-.warning-confirm-btn:hover {
-  background: #b91c1c !important;
-}
-
-/* ==========================================================================
-   ПОДРОБНЫЙ РАЗБОР ПРИЧИНЫ АЛЕРТА
-   ========================================================================== */
-
-.alert-reason-detailed-box {
-  background: #fff5f5;
-  border: 1px solid #fed7d7;
-  border-left: 4px solid #e53935;
-  border-radius: 8px;
-  padding: 14px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.alert-reason-tags-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px;
-}
-
-.alert-tag-category {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.03em;
-  background: #dc2626;
-  color: #ffffff;
-  padding: 3px 8px;
-  border-radius: 4px;
-}
-
-.alert-tag-time {
-  font-size: 12px;
-  color: #64748b;
-  font-weight: 500;
-}
-
-.alert-tag-stage {
-  font-size: 12px;
-  font-weight: 600;
-  color: #1e293b;
-  background: #ffffff;
-  border: 1px solid #e2e8f0;
-  padding: 2px 7px;
-  border-radius: 4px;
-}
-
-.alert-reason-text-desc {
-  margin: 0;
-  font-size: 13px;
-  color: #1e293b;
-  line-height: 1.5;
-  font-weight: 500;
-}
-
-.alert-decision-prompt {
-  font-size: 12px;
-  font-weight: 600;
-  color: #718096;
 }

@@ -25,7 +25,6 @@ const RootRedirect = () => {
     case "ENGINEER":
       return <Navigate to="/engineer" replace />;
     default:
-      console.log("Роль не совпала, показываю HomePage");
       return <HomePage />;
   }
 };

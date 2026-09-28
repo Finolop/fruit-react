@@ -1,6 +1,6 @@
-/* ==========================================================================
+/*  
    БАЗОВЫЙ МАКЕТ СТРАНИЦЫ ИНЖЕНЕРА ТЕХНАДЗОРА
-   ========================================================================== */
+     */
 
 .engineer-page {
   display: flex;
@@ -26,9 +26,9 @@
   align-items: center;
 }
 
-/* ==========================================================================
+/*  
    LIVE SUMMARY HEADER (СВЕТОФОР, ПРОГРЕСС, ТЕХНИКА ОНЛАЙН)
-   ========================================================================== */
+     */
 
 .engineer-summary-card {
   display: grid;
@@ -143,9 +143,9 @@
   font-size: 11px;
 }
 
-/* ==========================================================================
+/*  
    ALERT BANNER & ACTION CARDS
-   ========================================================================== */
+     */
 
 .active-alert-card {
   display: flex;
@@ -214,9 +214,9 @@
   background: #f8fafc;
 }
 
-/* ==========================================================================
+/*  
    ТИПОВЫЕ МОДАЛЬНЫЕ ОКНА ИНЖЕНЕРА (РЕЗОЛВ АЛЕРТА, ФИКСАЦИЯ УЛИК)
-   ========================================================================== */
+     */
 
 .engineer-modal-overlay {
   position: fixed;
@@ -296,9 +296,9 @@
   background-repeat: no-repeat;
   background-position: right 12px center;
   background-size: 12px 8px;
-  appearance: none;
   -webkit-appearance: none;
   -moz-appearance: none;
+  appearance: none;
 }
 
 .engineer-form-field select:focus,
@@ -402,22 +402,22 @@
   cursor: not-allowed;
 }
 
-/* ==========================================================================
+/*  
    МОДАЛЬНОЕ ОКНО КАСКАДНОГО СДВИГА (ФИКСАЦИЯ КНОПОК И СКРОЛЛ)
-   ========================================================================== */
+     */
 
 .cascade-modal-container {
-  max-width: 620px !important;
-  width: 95% !important;
-  max-height: 90vh !important;
-  height: auto !important;
   display: flex !important;
   flex-direction: column !important;
-  padding: 0 !important;
   gap: 0 !important;
-  overflow: hidden !important;
+  width: 95% !important;
+  max-width: 620px !important;
+  height: auto !important;
+  max-height: 90vh !important;
   border-radius: 12px !important;
+  padding: 0 !important;
   box-shadow: 0 20px 30px rgba(0, 0, 0, 0.2) !important;
+  overflow: hidden !important;
   background: #ffffff !important;
 }
 
@@ -426,55 +426,55 @@
   display: flex !important;
   flex-direction: column !important;
   flex: 1 1 auto !important;
+  gap: 0 !important;
   min-height: 0 !important;
   max-height: 90vh !important;
-  overflow: hidden !important;
   margin: 0 !important;
-  gap: 0 !important;
+  overflow: hidden !important;
 }
 
 .cascade-modal-container .modal-header {
-  padding: 16px 22px !important;
-  border-bottom: 1px solid var(--color-border, #e2e8f0) !important;
   flex-shrink: 0 !important;
+  border-bottom: 1px solid var(--color-border, #e2e8f0) !important;
+  padding: 16px 22px !important;
   background: #ffffff !important;
 }
 
 .cascade-modal-title-wrap h3 {
   margin: 0;
-  font-size: 17px;
-  font-weight: 700;
   color: var(--color-text, #0f172a);
+  font-weight: 700;
+  font-size: 17px;
 }
 
 .cascade-modal-title-wrap p {
   margin: 3px 0 0;
-  font-size: 12px;
   color: var(--color-text-secondary, #64748b);
+  font-size: 12px;
 }
 
 /* Центральное тело формы со скроллом */
 .cascade-modal-container .modal-body {
-  padding: 16px 22px !important;
-  overflow-y: auto !important;
-  flex: 1 1 auto !important;
-  min-height: 0 !important;
   display: flex !important;
   flex-direction: column !important;
+  flex: 1 1 auto !important;
   gap: 12px !important;
+  min-height: 0 !important;
+  padding: 16px 22px !important;
+  overflow-y: auto !important;
 }
 
 /* Жестко закрепленный внизу подвал с кнопками */
 .cascade-modal-container .modal-footer {
-  padding: 12px 22px !important;
-  border-top: 1px solid var(--color-border, #e2e8f0) !important;
-  flex-shrink: 0 !important;
-  background: #ffffff !important;
   display: flex !important;
+  flex-shrink: 0 !important;
   justify-content: flex-end !important;
   align-items: center !important;
   gap: 10px !important;
+  border-top: 1px solid var(--color-border, #e2e8f0) !important;
+  padding: 12px 22px !important;
   box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.04) !important;
+  background: #ffffff !important;
 }
 
 /* Направление сдвига: Задержка / Опережение */
@@ -489,27 +489,27 @@
   flex-direction: column;
   align-items: flex-start;
   gap: 4px;
-  padding: 8px 12px;
-  border-radius: 8px;
   border: 1.5px solid #e2e8f0;
-  background: #f8fafc;
-  font-size: 12px;
-  font-weight: 600;
+  border-radius: 8px;
+  padding: 8px 12px;
   color: #475569;
-  cursor: pointer;
+  font-weight: 600;
+  font-size: 12px;
+  background: #f8fafc;
   transition: all 0.15s ease;
+  cursor: pointer;
 }
 
 .shift-dir-btn.active-delay {
   border-color: #ea580c;
-  background: #fff7ed;
   color: #9a3412;
+  background: #fff7ed;
 }
 
 .shift-dir-btn.active-catchup {
   border-color: #16a34a;
-  background: #f0fdf4;
   color: #166534;
+  background: #f0fdf4;
 }
 
 .shift-dir-header {
@@ -519,8 +519,8 @@
 }
 
 .shift-sign-badge {
-  font-size: 12px;
   font-weight: 700;
+  font-size: 12px;
 }
 
 /* Строка счетчика дней и пресеты */
@@ -531,48 +531,48 @@
 }
 
 .days-counter-pill {
-  font-size: 12px;
-  font-weight: 700;
-  padding: 2px 8px;
   border-radius: 6px;
-  background: #f1f5f9;
+  padding: 2px 8px;
   color: #0f172a;
+  font-weight: 700;
+  font-size: 12px;
+  background: #f1f5f9;
 }
 
 .preset-days-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
   margin-top: 4px;
 }
 
 .preset-hint {
-  font-size: 11px;
   color: var(--color-text-secondary, #64748b);
+  font-size: 11px;
 }
 
 .preset-day-chip {
-  padding: 3px 8px;
   border: 1px solid var(--color-border, #cbd5e1);
   border-radius: 6px;
-  background: #ffffff;
+  padding: 3px 8px;
   color: #334155;
-  font-size: 11px;
   font-weight: 600;
-  cursor: pointer;
+  font-size: 11px;
+  background: #ffffff;
   transition: all 0.15s ease;
+  cursor: pointer;
 }
 
 .preset-day-chip:hover {
-  background: #f1f5f9;
   border-color: #94a3b8;
+  background: #f1f5f9;
 }
 
 .preset-day-chip.active {
-  background: #0f172a;
-  color: #ffffff;
   border-color: #0f172a;
+  color: #ffffff;
+  background: #0f172a;
 }
 
 /* Компактный Toggle Switch Card */
@@ -581,13 +581,13 @@
   justify-content: space-between;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px;
-  background: #f8fafc;
   border: 1.5px solid var(--color-border, #e2e8f0);
   border-radius: 8px;
+  padding: 10px 14px;
+  background: #f8fafc;
+  transition: all 0.15s ease;
   cursor: pointer;
   user-select: none;
-  transition: all 0.15s ease;
 }
 
 .cascade-toggle-card:hover {
@@ -606,51 +606,51 @@
 }
 
 .cascade-toggle-title {
-  font-size: 13px;
-  font-weight: 600;
   color: #0f172a;
+  font-weight: 600;
+  font-size: 13px;
 }
 
 .cascade-toggle-desc {
-  font-size: 11px;
   color: #64748b;
+  font-size: 11px;
   line-height: 1.3;
 }
 
 /* Сам тумблер */
 .toggle-switch {
   position: relative;
+  flex-shrink: 0;
   width: 40px;
   height: 22px;
-  flex-shrink: 0;
 }
 
 .toggle-switch input {
-  opacity: 0;
   width: 0;
   height: 0;
+  opacity: 0;
 }
 
 .toggle-slider {
   position: absolute;
-  cursor: pointer;
   inset: 0;
+  border-radius: 22px;
   background-color: #cbd5e1;
   transition: 0.2s ease;
-  border-radius: 22px;
+  cursor: pointer;
 }
 
 .toggle-slider:before {
-  position: absolute;
   content: "";
-  height: 16px;
-  width: 16px;
-  left: 3px;
+  position: absolute;
   bottom: 3px;
-  background-color: white;
-  transition: 0.2s ease;
+  left: 3px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  background-color: white;
+  transition: 0.2s ease;
 }
 
 .toggle-switch input:checked + .toggle-slider {
@@ -675,30 +675,30 @@
 }
 
 .cascade-result-icon {
+  display: flex;
+  flex-shrink: 0;
+  justify-content: center;
+  align-items: center;
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: #dcfce7;
   color: #166534;
-  font-size: 17px;
   font-weight: 700;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
+  font-size: 17px;
+  background: #dcfce7;
 }
 
 .cascade-result-header h4 {
   margin: 0;
-  font-size: 15px;
-  font-weight: 700;
   color: #0f172a;
+  font-weight: 700;
+  font-size: 15px;
 }
 
 .cascade-result-header p {
   margin: 2px 0 0;
-  font-size: 12px;
   color: #64748b;
+  font-size: 12px;
 }
 
 .cascade-result-metrics {
@@ -708,26 +708,26 @@
 }
 
 .result-metric-item {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  padding: 8px 10px;
   display: flex;
   flex-direction: column;
   gap: 2px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #f8fafc;
 }
 
 .result-metric-label {
-  font-size: 10px;
-  font-weight: 600;
   color: #64748b;
+  font-weight: 600;
+  font-size: 10px;
   text-transform: uppercase;
 }
 
 .result-metric-val {
-  font-size: 12px;
-  font-weight: 700;
   color: #0f172a;
+  font-weight: 700;
+  font-size: 12px;
 }
 
 .result-metric-val.prev {
@@ -743,26 +743,26 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #f1f5f9;
   border-radius: 6px;
   padding: 8px 12px;
-  font-size: 12px;
   color: #475569;
+  font-size: 12px;
+  background: #f1f5f9;
 }
 
 .cascade-audit-pill code {
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  padding: 2px 6px;
+  color: #0f172a;
   font-family: monospace;
   font-size: 11px;
-  color: #0f172a;
   background: #ffffff;
-  padding: 2px 6px;
-  border-radius: 4px;
-  border: 1px solid #e2e8f0;
 }
 
-/* ==========================================================================
+/*  
    АДАПТИВНОСТЬ
-   ========================================================================== */
+     */
 
 @media (max-width: 1200px) {
   .engineer-summary-card {

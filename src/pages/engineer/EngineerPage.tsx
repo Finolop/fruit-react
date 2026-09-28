@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { RootState } from "../../store";
@@ -6,6 +6,12 @@ import { RootState } from "../../store";
 import Header from "../../components/Header";
 import { ForemanObjectManager } from "../../components/foreman/ForemanObjectManager";
 import { CameraManagerModal } from "../../components/foreman/CameraManagerModal";
+import {
+  AlertDecisionModal,
+  formatAlertDetails,
+} from "../../components/engineer/AlertDecisionModal";
+import { CascadeShiftModal } from "../../components/engineer/CascadeShiftModal";
+
 import {
   engineerApi,
   LiveSummaryResponse,
@@ -18,23 +24,15 @@ import {
   ScheduleItem,
 } from "../foreman/ForemanPage";
 import { fetchWithAuth } from "../../api/api";
-import { CascadeShiftModal } from "../../components/engineer/CascadeShiftModal";
 
 import cameraIcon from "../../assets/images/Camera.svg";
 import arrowLeftIcon from "../../assets/images/Arrow_Left_MD.svg";
 import arrowRightIcon from "../../assets/images/Arrow_Right_MD.svg";
-import alertTriangleIcon from "../../assets/images/Triangle_Warning.svg";
 import checkIcon from "../../assets/images/Circle_Check.svg";
-import closeIcon from "../../assets/images/Close_MD.svg";
 import lockIcon from "../../assets/images/Lock.svg";
 
 import "../../styles/EngineerConsole.css";
 import "../../styles/ForemanPage.css";
-
-type ResolutionScenario =
-  | "FORCE_MAJEURE_CASCADE"
-  | "SPECIAL_STATUS_OPEN"
-  | "FALSE_ALARM";
 
 const parseJsonResponse = async (res: Response, fallback: any = null) => {
   if (!res.ok) return fallback;
@@ -49,27 +47,13 @@ const parseJsonResponse = async (res: Response, fallback: any = null) => {
   return fallback;
 };
 
-const TECH_NAMES: Record<string, string> = {
-  bulldozer: "Бульдозер",
-  dump_truck: "Самосвал",
-  excavator: "Экскаватор",
-  mobile_crane: "Автокран",
-  truck: "Бортовой грузовик",
-  concrete_mixer: "Автобетоносмеситель (миксер)",
-  road_roller: "Каток",
-  drilling_rig: "Буровая установка",
-  pump_truck: "Автобетононасос",
-};
-
 export const EngineerPage: React.FC = () => {
   const { projectId: urlProjectId } = useParams<{ projectId?: string }>();
   const navigate = useNavigate();
 
-  // Определение роли текущего пользователя
   const currentUser = useSelector((state: RootState) => state.auth.user);
   const isAdmin = Boolean(currentUser?.roles?.includes("admin"));
   const isEngineer = Boolean(currentUser?.roles?.includes("engineer"));
-  // Режим только чтения: администратор без роли инженера
   const isReadOnly = isAdmin && !isEngineer;
 
   const [availableProjects, setAvailableProjects] = useState<ProjectData[]>([]);
@@ -88,19 +72,16 @@ export const EngineerPage: React.FC = () => {
   const [currentSpecialStatus, setCurrentSpecialStatus] =
     useState<SpecialStatusResponse | null>(null);
 
-  const [selectedScenario, setSelectedScenario] = useState<ResolutionScenario>(
-    "SPECIAL_STATUS_OPEN",
-  );
-  const [warningModalOpen, setWarningModalOpen] = useState(false);
+  const [isDecisionModalOpen, setIsDecisionModalOpen] = useState(false);
+  const [isCascadeModalOpen, setIsCascadeModalOpen] = useState(false);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
 
   const [isPlanCaughtUp, setIsPlanCaughtUp] = useState(false);
   const [timeLostHours, setTimeLostHours] = useState(8);
   const [responsibleParty, setResponsibleParty] = useState(
-    "Бригада монолитчиков (Подрядчик)",
+    "Генподрядная организация / Бригада",
   );
 
-  const [isCascadeModalOpen, setIsCascadeModalOpen] = useState(false);
-  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
@@ -179,7 +160,7 @@ export const EngineerPage: React.FC = () => {
           .getCurrentSpecialStatus(selectedProjectId)
           .catch(() => null),
         fetchWithAuth(
-          `/api/v1/alerts?project_id=${selectedProjectId}&limit=20`,
+          `/api/v1/alerts?project_id=${selectedProjectId}&limit=50`,
         ).catch(() => null),
       ]);
 
@@ -257,56 +238,6 @@ export const EngineerPage: React.FC = () => {
     navigate("/engineer");
   };
 
-  const executeResolveAlert = async () => {
-    if (isReadOnly || !activeAlert) {
-      setWarningModalOpen(false);
-      return;
-    }
-
-    setIsProcessing(true);
-    setStatusMessage(null);
-    setWarningModalOpen(false);
-
-    let explanation = "";
-    if (selectedScenario === "FORCE_MAJEURE_CASCADE") {
-      explanation =
-        "Внешний фактор / Форс-мажор. Сроки будут сдвинуты каскадно.";
-    } else if (selectedScenario === "SPECIAL_STATUS_OPEN") {
-      explanation =
-        "Вина строительной бригады. Установлен коридор устранения на 48 часов.";
-    } else {
-      explanation =
-        "Сброс ложного срабатывания детекции под личную ответственность инженера.";
-    }
-
-    try {
-      const nextDay = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
-      await engineerApi.resolveAlert(activeAlert.id, {
-        action_taken: selectedScenario,
-        engineer_comment: explanation,
-        evidence_frame_ids: activeAlert.trigger_frame_id
-          ? [activeAlert.trigger_frame_id]
-          : [],
-        target_deadline:
-          selectedScenario === "FALSE_ALARM" ? undefined : nextDay,
-      });
-
-      setStatusMessage({
-        type: "success",
-        text: `Решение надзора зарегистрировано: ${explanation}`,
-      });
-
-      await loadProjectData();
-    } catch (err: any) {
-      setStatusMessage({
-        type: "error",
-        text: err.message || "Ошибка применения решения инженера",
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   const handleSubmitOrangeReportAndClose = async () => {
     if (isReadOnly || !currentSpecialStatus) return;
 
@@ -345,112 +276,6 @@ export const EngineerPage: React.FC = () => {
     }
   };
 
-  const parsedAlertInfo = useMemo(() => {
-    if (!activeAlert) return null;
-
-    const t = (activeAlert.trigger_type || "").toUpperCase();
-    const details = activeAlert.details || {};
-    const rawEq = details.equipment_type || details.type || "";
-    const eqName =
-      TECH_NAMES[rawEq.toLowerCase()] || rawEq || "Строительная техника";
-    const idleMins = details.idle_minutes || details.duration_minutes || 30;
-    const requiredCnt = details.required_count ?? 1;
-    const detectedCnt = details.detected_count ?? 0;
-    const missingCnt =
-      details.missing_count ?? Math.max(0, requiredCnt - detectedCnt);
-    const stage =
-      details.stage_name || details.substage_name || "Текущий этап СМР";
-
-    let title = "Зафиксировано регламентное отклонение";
-    let explanation =
-      "Видеоаналитика зафиксировала нарушение технологического процесса.";
-    let categoryTag = "Общий инцидент";
-
-    if (t.includes("IDLE")) {
-      title = `Критический простой: ${eqName}`;
-      explanation = `Единица техники «${eqName}» находится без движения более ${idleMins} минут в секторе выполнения работ этапа «${stage}» (смещение трекера менее 15px). Превышен допустимый технологический интервал.`;
-      categoryTag = "Простой техники (IDLE)";
-    } else if (t.includes("DEFICIT")) {
-      title = `Дефицит обязательной техники: ${eqName}`;
-      explanation = `На активном этапе «${stage}» зафиксировано ${detectedCnt} из ${requiredCnt} обязательных единиц техники «${eqName}» (нехватка: ${missingCnt} ед.). Темп работ не соответствует графику.`;
-      categoryTag = "Дефицит на объекте";
-    } else if (t.includes("MISMATCH")) {
-      title = `Несогласованная техника на объекте: ${eqName}`;
-      explanation = `На объекте обнаружена машина «${eqName}», не входящая ни в обязательный, ни в допустимый перечень для текущего этапа «${stage}». Риск захламления стройплощадки.`;
-      categoryTag = "Нарушение стройгенплана";
-    } else if (t.includes("OFF_SCHEDULE") || t.includes("DELAY")) {
-      title = `Отклонение от директивного графика: ${stage}`;
-      explanation = `Зафиксировано отставание от утвержденных сроков либо самовольное ведение работ без открытия этапа в системе мониторинга.`;
-      categoryTag = "Срыв директивных сроков";
-    }
-
-    return {
-      title,
-      explanation,
-      categoryTag,
-      eqName,
-      stage,
-      triggeredAt: new Date(activeAlert.triggered_at).toLocaleString("ru-RU"),
-      severity: activeAlert.severity,
-    };
-  }, [activeAlert]);
-
-  const realEquipmentTotals = useMemo(() => {
-    const activeStages = schedules.filter((s) => s.status === "IN_PROGRESS");
-    const stagesToCount =
-      activeStages.length > 0 ? activeStages : schedules.slice(0, 1);
-
-    let requiredSum = 0;
-    stagesToCount.forEach((s) => {
-      (s.equipment_requirements || []).forEach((r: any) => {
-        if (r.is_required !== false) {
-          requiredSum += Number(r.required_count || r.count || 1);
-        }
-      });
-    });
-
-    const activeCount =
-      liveSummary?.equipment_realtime?.active_count ??
-      (activeAlert ? 0 : requiredSum);
-    const idleCount =
-      liveSummary?.equipment_realtime?.idle_count ??
-      (activeAlert?.trigger_type?.includes("IDLE") ? 1 : 0);
-    const totalRequired =
-      liveSummary?.equipment_realtime?.required_total ||
-      (requiredSum > 0 ? requiredSum : 2);
-
-    return { activeCount, idleCount, totalRequired };
-  }, [schedules, liveSummary, activeAlert]);
-
-  const getWarningDetails = () => {
-    switch (selectedScenario) {
-      case "FORCE_MAJEURE_CASCADE":
-        return {
-          title: "Подтверждение признания форс-мажора (Фиолетовый статус)",
-          badge: "Фиолетовый режим",
-          badgeClass: "purple",
-          warning:
-            "Внимание! Признание форс-мажора снимет вину со строительной бригады и остановит автоматическое начисление штрафных санкций. Сроки директивного графика будут подлежать каскадному сдвигу на основании допсоглашения. Данное решение необратимо фиксируется в Audit Trail.",
-        };
-      case "SPECIAL_STATUS_OPEN":
-        return {
-          title: "Подтверждение вины подрядчика (Оранжевый статус)",
-          badge: "Оранжевый коридор",
-          badgeClass: "orange",
-          warning:
-            "Внимание! Будет открыт штрафной коридор на 48 часов. Сроки сдачи объекта директивно НЕ сдвигаются. Каждая минута дальнейшего простоя будет суммироваться в счётчик удержания неустойки для итогового акта.",
-        };
-      case "FALSE_ALARM":
-        return {
-          title: "Подтверждение сброса инцидента (Ложная тревога)",
-          badge: "Сброс в зелёный",
-          badgeClass: "green",
-          warning:
-            "Внимание! Вы подтверждаете, что детекция техники была ошибочной или на объекте имело место согласованное технологическое окно. Тревога будет аннулирована под вашу персональную ответственность инженера технадзора.",
-        };
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="engineer-page">
@@ -468,30 +293,6 @@ export const EngineerPage: React.FC = () => {
   }
 
   if (!selectedProjectId) {
-    if (availableProjects.length === 0) {
-      return (
-        <div className="engineer-page">
-          <Header />
-          <div className="foreman-content">
-            <div className="empty-state-container">
-              <h2 className="empty-state-title">ОКС не назначен</h2>
-              <p className="empty-state-description">
-                {errorMessage ||
-                  "За вашей учетной записью пока не закреплено ни одного объекта контроля. Обратитесь к администратору департамента для выдачи прав технадзора."}
-              </p>
-              <button
-                type="button"
-                className="foreman-primary-button"
-                onClick={() => window.location.reload()}
-              >
-                Обновить данные
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    }
-
     return (
       <div className="engineer-page">
         <Header />
@@ -565,16 +366,18 @@ export const EngineerPage: React.FC = () => {
     ""
   ).toUpperCase();
 
-  const warningData = getWarningDetails();
   const openAlertsCount =
     allOpenAlerts.length > 0 ? allOpenAlerts.length : activeAlert ? 1 : 0;
+  const activeAlertParsed = activeAlert
+    ? formatAlertDetails(activeAlert)
+    : null;
 
   return (
     <div className="engineer-page">
       <Header />
 
       <div className="engineer-console-root">
-        {/* Информационный баннер режима только чтения для Департамента / Администратора */}
+        {/* Баннер режима только чтения для Администратора */}
         {isReadOnly && (
           <div className="engineer-readonly-banner">
             <img src={lockIcon} alt="" className="readonly-banner-icon" />
@@ -593,7 +396,7 @@ export const EngineerPage: React.FC = () => {
 
         <div className="engineer-top-nav">
           <div className="engineer-project-selector-group">
-            <span className="kpi-caption" style={{ margin: 0 }}>
+            <span className="kpi-caption kpi-caption-nav">
               Объект контроля:
             </span>
             <select
@@ -614,10 +417,10 @@ export const EngineerPage: React.FC = () => {
               type="button"
               className="btn-switch-project btn-camera-manage"
               onClick={() => setIsCameraModalOpen(true)}
-              title="Добавление и удаление видеокамер объекта"
+              title="Управление видеокамерами объекта"
             >
               <img src={cameraIcon} alt="" className="btn-icon-svg" />
-              <span>Видеокамеры ({project.camera_url ? "1+" : "0"})</span>
+              <span>Видеокамеры</span>
             </button>
 
             <button
@@ -641,6 +444,7 @@ export const EngineerPage: React.FC = () => {
           </div>
         )}
 
+        {/* 1. Сетка показателей KPI */}
         <div className="engineer-kpi-grid">
           <div className="engineer-kpi-card">
             <span className="kpi-caption">Паспорт ОКС</span>
@@ -710,19 +514,19 @@ export const EngineerPage: React.FC = () => {
             <div className="console-eq-row">
               <div className="eq-unit">
                 <span className="eq-unit-val">
-                  {realEquipmentTotals.activeCount}
+                  {liveSummary?.equipment_realtime?.active_count ?? 0}
                 </span>
                 <span className="eq-unit-lbl">В работе</span>
               </div>
               <div className="eq-unit">
                 <span className="eq-unit-val idle">
-                  {realEquipmentTotals.idleCount}
+                  {liveSummary?.equipment_realtime?.idle_count ?? 0}
                 </span>
                 <span className="eq-unit-lbl">Простой</span>
               </div>
               <div className="eq-unit">
-                <span className="eq-unit-val" style={{ color: "#475569" }}>
-                  {realEquipmentTotals.totalRequired}
+                <span className="eq-unit-val eq-unit-val-plan">
+                  {liveSummary?.equipment_realtime?.required_total ?? 0}
                 </span>
                 <span className="eq-unit-lbl">План</span>
               </div>
@@ -733,7 +537,9 @@ export const EngineerPage: React.FC = () => {
           </div>
         </div>
 
+        {/* 2. Блок оперативного надзора и решений */}
         <div className="console-workflow-grid">
+          {/* Левая карточка: Активный инцидент */}
           <div
             className={`console-card ${
               activeAlert && activeAlert.status !== "RESOLVED"
@@ -743,158 +549,93 @@ export const EngineerPage: React.FC = () => {
           >
             <div className="console-card-header">
               <h3>
-                {parsedAlertInfo
-                  ? parsedAlertInfo.title
+                {activeAlertParsed
+                  ? activeAlertParsed.title
                   : "Оперативный надзор СМР"}
               </h3>
+              {openAlertsCount > 1 && (
+                <span className="alert-queue-counter-tag">
+                  Инцидент 1 из {openAlertsCount} в очереди
+                </span>
+              )}
             </div>
 
-            {parsedAlertInfo ? (
+            {activeAlert &&
+            activeAlertParsed &&
+            activeAlert.status !== "RESOLVED" ? (
               <div className="alert-reason-detailed-box">
+                {/* Бейджи статуса со стилизованными кружками */}
                 <div className="alert-reason-tags-row">
-                  <span className="alert-tag-category">
-                    {parsedAlertInfo.categoryTag}
+                  <span
+                    className={`alert-tag-severity ${activeAlert.severity.toLowerCase()}`}
+                  >
+                    <span
+                      className={`status-dot ${activeAlert.severity.toLowerCase() === "red" ? "red" : "yellow"}`}
+                    />
+                    {activeAlert.severity === "RED"
+                      ? "КРАСНЫЙ АЛЕРТ: ТРЕБУЕТСЯ РЕШЕНИЕ"
+                      : "ЖЁЛТЫЙ АЛЕРТ: ВРЕМЯ НА УСТРАНЕНИЕ"}
                   </span>
+
+                  {activeAlertParsed.isCriticalPath && (
+                    <span className="incident-critical-badge">
+                      КРИТИЧЕСКИЙ ПУТЬ
+                    </span>
+                  )}
+
+                  {activeAlertParsed.escalateCountdown && (
+                    <span className="incident-escalate-pill">
+                      <span className="status-dot orange" />
+                      {activeAlertParsed.escalateCountdown}
+                    </span>
+                  )}
+
                   <span className="alert-tag-time">
-                    Фиксация: {parsedAlertInfo.triggeredAt}
-                  </span>
-                  <span className="alert-tag-stage">
-                    Этап: {parsedAlertInfo.stage}
+                    {new Date(activeAlert.triggered_at).toLocaleTimeString([], {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
                   </span>
                 </div>
-                <p className="alert-reason-text-desc">
-                  {parsedAlertInfo.explanation}
-                </p>
-                <div className="alert-decision-prompt">
-                  {isReadOnly
-                    ? "Регламентные сценарии разрешения инцидента (режим просмотра):"
-                    : "Выберите регламентный сценарий арбитража для перевода статуса объекта:"}
+
+                <div className="real-alert-message">
+                  <strong>Суть инцидента:</strong> {activeAlertParsed.message}
+                </div>
+
+                <div className="real-alert-risk">
+                  <strong>Оценка последствий:</strong>{" "}
+                  {activeAlertParsed.riskHint}
+                </div>
+
+                <div className="scenario-confirm-bar">
+                  <button
+                    type="button"
+                    className="btn-confirm-scenario-trigger"
+                    disabled={isReadOnly}
+                    onClick={() => setIsDecisionModalOpen(true)}
+                  >
+                    <img
+                      src={checkIcon}
+                      alt=""
+                      className="btn-icon-svg btn-icon-white"
+                    />
+                    <span>
+                      {isReadOnly
+                        ? "Режим чтения (Департамент)"
+                        : "Принять решение по инциденту"}
+                    </span>
+                  </button>
                 </div>
               </div>
             ) : (
               <p className="console-card-desc">
                 Критических нарушений на объекте не зафиксировано. В случае
-                простоя техники или отставания от графика система оповестит
-                инженера.
+                простоя техники или дефицита система откроет инцидент.
               </p>
             )}
-
-            <div className="incident-options-list">
-              <div
-                className={`incident-btn-option opt-purple ${
-                  selectedScenario === "FORCE_MAJEURE_CASCADE" ? "selected" : ""
-                } ${isReadOnly ? "disabled-option" : ""}`}
-                onClick={() =>
-                  !isReadOnly && setSelectedScenario("FORCE_MAJEURE_CASCADE")
-                }
-              >
-                <div className="opt-radio-row">
-                  <input
-                    type="radio"
-                    name="scenario"
-                    disabled={isReadOnly}
-                    checked={selectedScenario === "FORCE_MAJEURE_CASCADE"}
-                    onChange={() =>
-                      !isReadOnly &&
-                      setSelectedScenario("FORCE_MAJEURE_CASCADE")
-                    }
-                  />
-                  <span className="opt-title">
-                    1. Форс-мажор (Внешний фактор) [Фиолетовый статус]
-                  </span>
-                </div>
-                <span className="opt-desc">
-                  Причина не зависит от строителей (затор на МКАД, погодный
-                  коллапс). Освобождение от штрафов, каскадный сдвиг сроков
-                  через допсоглашение.
-                </span>
-              </div>
-
-              <div
-                className={`incident-btn-option opt-orange ${
-                  selectedScenario === "SPECIAL_STATUS_OPEN" ? "selected" : ""
-                } ${isReadOnly ? "disabled-option" : ""}`}
-                onClick={() =>
-                  !isReadOnly && setSelectedScenario("SPECIAL_STATUS_OPEN")
-                }
-              >
-                <div className="opt-radio-row">
-                  <input
-                    type="radio"
-                    name="scenario"
-                    disabled={isReadOnly}
-                    checked={selectedScenario === "SPECIAL_STATUS_OPEN"}
-                    onChange={() =>
-                      !isReadOnly && setSelectedScenario("SPECIAL_STATUS_OPEN")
-                    }
-                  />
-                  <span className="opt-title">
-                    2. Проступок бригады [Оранжевый статус]
-                  </span>
-                </div>
-                <span className="opt-desc">
-                  Тревога подтверждена. Сроки директивно не сдвигаются. Запуск
-                  штрафного коридора на 48 часов для ликвидации отставания.
-                </span>
-              </div>
-
-              <div
-                className={`incident-btn-option opt-green ${
-                  selectedScenario === "FALSE_ALARM" ? "selected" : ""
-                } ${isReadOnly ? "disabled-option" : ""}`}
-                onClick={() =>
-                  !isReadOnly && setSelectedScenario("FALSE_ALARM")
-                }
-              >
-                <div className="opt-radio-row">
-                  <input
-                    type="radio"
-                    name="scenario"
-                    disabled={isReadOnly}
-                    checked={selectedScenario === "FALSE_ALARM"}
-                    onChange={() =>
-                      !isReadOnly && setSelectedScenario("FALSE_ALARM")
-                    }
-                  />
-                  <span className="opt-title">
-                    3. Сброс / Ложный сигнал [Штатный режим]
-                  </span>
-                </div>
-                <span className="opt-desc">
-                  Ложное срабатывание классификатора техники или технологическое
-                  окно. Инцидент аннулируется с записью в аудит.
-                </span>
-              </div>
-            </div>
-
-            <div className="scenario-confirm-bar">
-              <button
-                type="button"
-                className="btn-confirm-scenario-trigger"
-                disabled={
-                  isReadOnly ||
-                  isProcessing ||
-                  !activeAlert ||
-                  activeAlert.status === "RESOLVED"
-                }
-                onClick={() => setWarningModalOpen(true)}
-              >
-                <img
-                  src={checkIcon}
-                  alt=""
-                  className="btn-icon-svg btn-icon-white"
-                />
-                <span>
-                  {isReadOnly
-                    ? "Только для инженера технадзора (режим чтения)"
-                    : activeAlert && activeAlert.status !== "RESOLVED"
-                      ? "Подтвердить решение надзора"
-                      : "Решений в очереди нет (активных алертов: 0)"}
-                </span>
-              </button>
-            </div>
           </div>
 
+          {/* Правая карточка: Статус и управление сроками */}
           {specStatus === "PURPLE" ? (
             <div className="console-card purple-active">
               <div className="console-card-header">
@@ -1005,6 +746,7 @@ export const EngineerPage: React.FC = () => {
           )}
         </div>
 
+        {/* 3. Диаграмма Ганта объекта */}
         <div className="console-gantt-container">
           <h3 className="console-gantt-title">
             Директивный график выполнения работ
@@ -1016,85 +758,22 @@ export const EngineerPage: React.FC = () => {
             reloadSchedules={loadProjectData}
             hideTopBar={true}
             isEngineer={!isReadOnly}
+            isReadOnly={isReadOnly}
           />
         </div>
       </div>
 
-      {warningModalOpen && !isReadOnly && (
-        <div
-          className="modal-backdrop"
-          onClick={() => setWarningModalOpen(false)}
-        >
-          <div className="modal-window" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="warning-modal-title-row">
-                <img
-                  src={alertTriangleIcon}
-                  alt=""
-                  className="modal-icon-svg"
-                />
-                <h3>Подтверждение регламентного решения</h3>
-              </div>
-              <button
-                type="button"
-                className="btn-close"
-                onClick={() => setWarningModalOpen(false)}
-              >
-                <img src={closeIcon} alt="Закрыть" className="ui-icon-sm" />
-              </button>
-            </div>
-
-            <div className="modal-body">
-              <div className="warning-modal-summary">
-                <span
-                  className={`special-mode-badge ${warningData.badgeClass}`}
-                >
-                  {warningData.badge}
-                </span>
-                <p className="warning-title-text">{warningData.title}</p>
-              </div>
-
-              <div className="warning-alert-box">{warningData.warning}</div>
-
-              <p className="warning-note-text">
-                Запись о принятом решении с таймстемпом и вашим идентификатором
-                будет внесена в журнал аудита объекта капитального
-                строительства.
-              </p>
-            </div>
-
-            <div className="modal-footer">
-              <button
-                type="button"
-                className="btn-gantt-secondary"
-                onClick={() => setWarningModalOpen(false)}
-                disabled={isProcessing}
-              >
-                Отмена
-              </button>
-
-              <button
-                type="button"
-                className="btn-gantt-success warning-confirm-btn"
-                onClick={executeResolveAlert}
-                disabled={isProcessing}
-              >
-                <img
-                  src={checkIcon}
-                  alt=""
-                  className="btn-icon-svg btn-icon-white"
-                />
-                <span>
-                  {isProcessing
-                    ? "Фиксация в аудите..."
-                    : "Да, подтверждаю решение"}
-                </span>
-              </button>
-            </div>
-          </div>
-        </div>
+      {/* Модальное окно вынесения решения по инциденту */}
+      {isDecisionModalOpen && activeAlert && !isReadOnly && (
+        <AlertDecisionModal
+          alert={activeAlert}
+          projectId={selectedProjectId!}
+          onClose={() => setIsDecisionModalOpen(false)}
+          onSuccess={loadProjectData}
+        />
       )}
 
+      {/* Модальное окно каскадного сдвига сроков */}
       {isCascadeModalOpen && selectedProjectId && !isReadOnly && (
         <CascadeShiftModal
           projectId={selectedProjectId}
@@ -1104,6 +783,7 @@ export const EngineerPage: React.FC = () => {
         />
       )}
 
+      {/* Модальное окно видеокамер площадки */}
       {isCameraModalOpen && selectedProjectId && (
         <CameraManagerModal
           projectId={selectedProjectId}

@@ -25,7 +25,11 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "lint": "eslint src --ext .ts,.tsx",
+    "lint:fix": "eslint src --ext .ts,.tsx --fix",
+    "sort:css": "postcss \"src/**/*.css\" --replace",
+    "format": "npm run lint:fix && npm run sort:css"
   },
   "eslintConfig": {
     "extends": [
@@ -44,5 +48,12 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "postcss": "^8.5.28",
+    "postcss-cli": "^12.0.0",
+    "postcss-sorting": "^10.0.0",
+    "stylelint": "^17.15.0",
+    "stylelint-config-standard": "^40.0.0"
   }
 }

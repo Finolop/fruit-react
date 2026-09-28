@@ -1,5 +1,3 @@
-// src/types/foreman.ts
-
 export type ScheduleStatus = "PLANNED" | "IN_PROGRESS" | "COMPLETED";
 
 export interface StageEquipmentRequirement {

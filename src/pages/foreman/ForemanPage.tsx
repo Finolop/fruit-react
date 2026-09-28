@@ -187,7 +187,6 @@ export const ForemanPage: React.FC = () => {
   }, [loadProjectDetails]);
 
   // ФОНОВЫЙ ТАЙМЕР: обновляет ТОЛЬКО live-summary (светофор, готовность, технику онлайн)
-  // Ни в коем случае НЕ трогает schedules, чтобы редактируемая техника не исчезала!
   useEffect(() => {
     if (!selectedProjectId) return;
 

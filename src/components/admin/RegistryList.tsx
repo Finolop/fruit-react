@@ -344,9 +344,7 @@ const RegistryList: React.FC = () => {
         {error && <div className="admin-error-message">{error}</div>}
 
         {activeFilter === "analytics" ? (
-          /* =======================================================
-             ПОЛНОЦЕННЫЙ ЭКРАН СРЕДНЕЙ ГОТОВНОСТИ И АНАЛИТИКИ
-             ======================================================= */
+          /* ПОЛНОЦЕННЫЙ ЭКРАН СРЕДНЕЙ ГОТОВНОСТИ И АНАЛИТИКИ */
           <div className="analytics-dashboard-view">
             {/* 4 главных макро-показателя */}
             <div className="analytics-kpi-row">
@@ -569,9 +567,7 @@ const RegistryList: React.FC = () => {
             </div>
           </div>
         ) : (
-          /* =======================================================
-             ТАБЛИЦА РЕЕСТРА С ПОИСКОМ
-             ======================================================= */
+          /* ТАБЛИЦА РЕЕСТРА С ПОИСКОМ */
           <div className="registry-table-wrapper">
             {/* Строка поиска */}
             <div className="registry-search-container">

@@ -23,8 +23,6 @@
     --shadow-lg: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
-
-/* Базовый reset */
 * {
     box-sizing: border-box;
 }
@@ -47,7 +45,7 @@ body {
     -moz-osx-font-smoothing: grayscale;
 }
 
-/* Убираем стандартные отступы */
+
 h1,
 h2,
 h3,
@@ -58,7 +56,7 @@ p {
     margin: 0;
 }
 
-/* Наследуем шрифт приложения */
+
 button,
 input,
 textarea,
@@ -101,68 +99,68 @@ html {
   background-clip: padding-box;
 }
 
-/* ==========================================================================
+/*  
    ЕДИНЫЕ РАЗМЕРЫ ВЕКТОРНЫХ SVG-ИКОНОК
-   ========================================================================== */
+     */
 
 .btn-icon-svg {
+  display: inline-block;
+  flex-shrink: 0;
   width: 15px;
   height: 15px;
-  display: inline-block;
   vertical-align: middle;
-  flex-shrink: 0;
 }
 
 .badge-icon-svg {
+  display: inline-block;
+  flex-shrink: 0;
   width: 18px;
   height: 18px;
-  display: inline-block;
   vertical-align: middle;
-  flex-shrink: 0;
 }
 
 .modal-icon-svg {
+  display: inline-block;
+  flex-shrink: 0;
   width: 22px;
   height: 22px;
-  display: inline-block;
   vertical-align: middle;
-  flex-shrink: 0;
 }
 
 .icon-chevron {
+  display: inline-block;
+  flex-shrink: 0;
   width: 12px;
   height: 12px;
-  display: inline-block;
   vertical-align: middle;
   transition: transform 0.2s ease;
-  flex-shrink: 0;
 }
 
 .ui-icon-xs {
+  display: inline-block;
   width: 12px;
   height: 12px;
-  display: inline-block;
   vertical-align: middle;
 }
 
 .ui-icon-sm {
+  display: inline-block;
   width: 14px;
   height: 14px;
-  display: inline-block;
   vertical-align: middle;
 }
 
 .ui-icon-trash {
+  display: inline-block;
   width: 16px;
   height: 16px;
-  display: inline-block;
   vertical-align: middle;
 }
 
 .camera-empty-icon-svg {
+  display: block;
   width: 38px;
   height: 38px;
-  display: block;
   margin: 0 auto 8px;
   opacity: 0.7;
 }
