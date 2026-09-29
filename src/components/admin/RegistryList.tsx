@@ -54,7 +54,7 @@ const RegistryList: React.FC = () => {
     return () => clearInterval(intervalId);
   }, [loadData]);
 
-  // Сводные счетчики по статусам
+  // Сводные счетчики по статусам объектов
   const stats: DepartmentOverview = useMemo(() => {
     const total = projects.length;
     if (total === 0) {
@@ -284,9 +284,14 @@ const RegistryList: React.FC = () => {
                       />
                     </td>
                     <td>
-                      <div className="table-object-name">{project.name}</div>
+                      <div className="table-object-name" title={project.name}>
+                        {project.name}
+                      </div>
                       {project.address && (
-                        <div className="table-object-address">
+                        <div
+                          className="table-object-address"
+                          title={project.address}
+                        >
                           {project.address}
                         </div>
                       )}

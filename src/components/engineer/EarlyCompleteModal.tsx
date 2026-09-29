@@ -2,11 +2,13 @@ import React, { useState } from "react";
 import { monitoringApi } from "../../api/monitoringApi";
 import closeIcon from "../../assets/images/Close_MD.svg";
 import checkIcon from "../../assets/images/Circle_Check.svg";
+import "../../styles/ForemanGantt.css";
 
 interface EarlyCompleteModalProps {
   projectId: string;
   stageId: string;
   stageName: string;
+  previousIncompleteStageIds?: string[];
   nextStageId?: string;
   nextStageName?: string;
   onClose: () => void;
@@ -17,6 +19,7 @@ export const EarlyCompleteModal: React.FC<EarlyCompleteModalProps> = ({
   projectId,
   stageId,
   stageName,
+  previousIncompleteStageIds = [],
   nextStageId,
   nextStageName,
   onClose,
@@ -35,13 +38,36 @@ export const EarlyCompleteModal: React.FC<EarlyCompleteModalProps> = ({
     setError("");
 
     try {
-      // 1. Досрочно закрываем текущий этап
-      await monitoringApi.completeStageEarly(projectId, stageId, {
+      const finalComment =
+        comment.trim() || "Работы завершены досрочно по акту АОСР";
+      const payload = {
         actual_end_date: new Date(endDate).toISOString(),
-        comment: comment.trim() || "Работы завершены досрочно по акту АОСР",
-      });
+        comment: finalComment,
+      };
 
-      // 2. Если есть следующий запланированный этап, автоматически переводим его в работу
+      // 1. Автоматически закрываем все предшествующие незавершенные этапы
+      if (previousIncompleteStageIds.length > 0) {
+        await Promise.all(
+          previousIncompleteStageIds.map((prevId) =>
+            monitoringApi
+              .completeStageEarly(projectId, prevId, {
+                actual_end_date: new Date(endDate).toISOString(),
+                comment: `${finalComment} (автоматически закрыт перед этапом ${stageName})`,
+              })
+              .catch((err) => {
+                console.warn(
+                  `Не удалось закрыть предшествующий этап ${prevId}:`,
+                  err,
+                );
+              }),
+          ),
+        );
+      }
+
+      // 2. Закрываем выбранный целевой этап
+      await monitoringApi.completeStageEarly(projectId, stageId, payload);
+
+      // 3. Запускаем следующий этап ТОЛЬКО если он ожидает старта 
       if (nextStageId) {
         try {
           await monitoringApi.startStage(projectId, nextStageId);
@@ -67,42 +93,47 @@ export const EarlyCompleteModal: React.FC<EarlyCompleteModalProps> = ({
       <div className="modal-window" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <h3>Досрочное закрытие этапа (АОСР)</h3>
-          <button type="button" className="btn-close" onClick={onClose}>
+          <button
+            type="button"
+            className="btn-close"
+            onClick={onClose}
+            title="Закрыть"
+          >
             <img src={closeIcon} alt="Закрыть" className="ui-icon-sm" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="admin-form">
           <div className="modal-body">
-            <div
-              className="admin-success-message"
-              style={{ margin: 0, fontSize: "13px", lineHeight: "1.4" }}
-            >
-              Подтверждение приемки зафиксирует досрочное выполнение этапа и
-              освободит технику.
+            <div className="early-complete-banner">
+              <p className="early-complete-main-text">
+                Подтверждение приемки зафиксирует досрочное выполнение работ по
+                акту АОСР.
+              </p>
+
+              {previousIncompleteStageIds.length > 0 && (
+                <p className="early-complete-warning-text">
+                  Внимание: предшествующие незавершенные подэтапы (
+                  {previousIncompleteStageIds.length} шт.) будут автоматически
+                  закрыты вместе с этим этапом.
+                </p>
+              )}
+
               {nextStageName && (
-                <div style={{ marginTop: "6px", fontWeight: 600 }}>
-                  Следующий этап «{nextStageName}» будет автоматически переведён
-                  в работу (IN_PROGRESS).
-                </div>
+                <p className="early-complete-next-text">
+                  Следующий запланированный этап «{nextStageName}» будет
+                  автоматически переведён в работу (IN_PROGRESS).
+                </p>
               )}
             </div>
 
             <div className="form-field">
               <label>Завершаемый подэтап СМР</label>
-              <div
-                style={{
-                  fontWeight: 600,
-                  color: "var(--color-text)",
-                  fontSize: "14px",
-                }}
-              >
-                {stageName}
-              </div>
+              <div className="early-complete-stage-name">{stageName}</div>
             </div>
 
             {error && (
-              <div className="admin-error-message" style={{ margin: 0 }}>
+              <div className="admin-error-message early-complete-error-box">
                 {error}
               </div>
             )}
@@ -127,9 +158,8 @@ export const EarlyCompleteModal: React.FC<EarlyCompleteModalProps> = ({
               </label>
               <textarea
                 id="modal-comment"
-                className="foreman-custom-input"
-                style={{ height: "80px", minHeight: "80px" }}
-                placeholder="Например: Акт освидетельствования скрытых работ № 14-Б/2026 от 27.09.2026..."
+                className="foreman-custom-input early-complete-textarea"
+                placeholder="Например: Акт освидетельствования скрытых работ № 14-Б/2026 от 28.09.2026..."
                 value={comment}
                 onChange={(e) => setComment(e.target.value)}
               />

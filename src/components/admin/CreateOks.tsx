@@ -10,6 +10,9 @@ interface CreateOksProps {
   onSuccess?: () => void;
 }
 
+const MAX_NAME_LENGTH = 100;
+const MAX_ADDRESS_LENGTH = 160;
+
 const CreateOks: React.FC<CreateOksProps> = ({ onSuccess }) => {
   const authFetch = useAuthFetch();
 
@@ -35,7 +38,6 @@ const CreateOks: React.FC<CreateOksProps> = ({ onSuccess }) => {
         const activeTypes = result.filter((type) => type.is_active);
         setProjectTypes(activeTypes);
 
-        // Если типы успешно пришли, выбираем первый по умолчанию
         if (activeTypes.length > 0) {
           setTypeId(activeTypes[0].id);
         }
@@ -56,8 +58,21 @@ const CreateOks: React.FC<CreateOksProps> = ({ onSuccess }) => {
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    if (!name.trim() || !address.trim() || !typeId) {
+    const trimmedName = name.trim();
+    const trimmedAddress = address.trim();
+
+    if (!trimmedName || !trimmedAddress || !typeId) {
       setErrorMessage("Пожалуйста, заполните все обязательные поля");
+      return;
+    }
+
+    if (trimmedName.length > MAX_NAME_LENGTH) {
+      setErrorMessage(`Название объекта не должно превышать ${MAX_NAME_LENGTH} символов`);
+      return;
+    }
+
+    if (trimmedAddress.length > MAX_ADDRESS_LENGTH) {
+      setErrorMessage(`Адрес объекта не должен превышать ${MAX_ADDRESS_LENGTH} символов`);
       return;
     }
 
@@ -67,21 +82,19 @@ const CreateOks: React.FC<CreateOksProps> = ({ onSuccess }) => {
 
     try {
       await createProject(authFetch, {
-        name: name.trim(),
-        address: address.trim(),
+        name: trimmedName,
+        address: trimmedAddress,
         type_id: typeId,
       });
 
       setSuccessMessage("ОКС успешно создан");
 
-      // Сброс полей формы
       setName("");
       setAddress("");
       if (projectTypes.length > 0) {
         setTypeId(projectTypes[0].id);
       }
 
-      // Вызов обратного вызова для мгновенного обновления реестра ОКС
       if (onSuccess) {
         onSuccess();
       }
@@ -105,26 +118,38 @@ const CreateOks: React.FC<CreateOksProps> = ({ onSuccess }) => {
 
       <form className="admin-form" onSubmit={handleSubmit}>
         <div className="form-field">
-          <label htmlFor="oks-name">Наименование объекта *</label>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <label htmlFor="oks-name">Наименование объекта *</label>
+            <span style={{ fontSize: "11px", color: name.length >= MAX_NAME_LENGTH ? "#dc2626" : "#64748b" }}>
+              {name.length}/{MAX_NAME_LENGTH}
+            </span>
+          </div>
           <input
             id="oks-name"
             type="text"
+            maxLength={MAX_NAME_LENGTH}
             value={name}
             onChange={(event) => setName(event.target.value)}
-            placeholder="Введите наименование объекта"
+            placeholder="Введите наименование объекта (до 100 симв.)"
             required
             disabled={isLoading}
           />
         </div>
 
         <div className="form-field">
-          <label htmlFor="oks-address">Адрес объекта *</label>
+          <div style={{ display: "flex", justifyContent: "space-between" }}>
+            <label htmlFor="oks-address">Адрес объекта *</label>
+            <span style={{ fontSize: "11px", color: address.length >= MAX_ADDRESS_LENGTH ? "#dc2626" : "#64748b" }}>
+              {address.length}/{MAX_ADDRESS_LENGTH}
+            </span>
+          </div>
           <input
             id="oks-address"
             type="text"
+            maxLength={MAX_ADDRESS_LENGTH}
             value={address}
             onChange={(event) => setAddress(event.target.value)}
-            placeholder="Введите адрес объекта"
+            placeholder="Введите адрес объекта (до 160 симв.)"
             required
             disabled={isLoading}
           />

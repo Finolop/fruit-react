@@ -223,17 +223,25 @@
 }
 
 .table-object-name {
+  max-width: 320px;
+  overflow: hidden;
   font-size: 14px;
   font-weight: 500;
   line-height: 1.4;
+  white-space: nowrap;
   color: var(--color-text);
+  text-overflow: ellipsis;
 }
 
 .table-object-address {
+  max-width: 320px;
+  overflow: hidden;
   font-size: 12px;
   line-height: 1.4;
+  white-space: nowrap;
   color: var(--color-text-secondary);
   margin-top: 4px;
+  text-overflow: ellipsis;
 }
 
 .table-stage {

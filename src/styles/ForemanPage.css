@@ -250,9 +250,9 @@
   background: #1d4ed8;
 }
 
-/*  
-   PROJECT SELECTION SCREEN
-     */
+/* ==========================================================================
+   ЭКРАН ВЫБОРА СТРОЙПЛОЩАДКИ (ЗАЩИТА ОТ ПЕРЕПОЛНЕНИЯ И ВЫХОДА ЗА РАМКИ)
+   ========================================================================== */
 
 .project-selector-wrapper {
   width: 100%;
@@ -263,10 +263,11 @@
 }
 
 .project-selector-card {
+  box-sizing: border-box;
   padding: 32px;
   background: var(--color-surface, #ffffff);
   border: 1px solid var(--color-border, #e2e8f0);
-  border-radius: var(--radius-md, 8px);
+  border-radius: var(--radius-md, 10px);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
 }
 
@@ -294,11 +295,15 @@
   gap: 12px;
 }
 
+/* Карточка отдельного объекта */
 .project-selector-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
+  box-sizing: border-box;
   padding: 16px 20px;
+  overflow: hidden;
   background: #ffffff;
   border: 1px solid var(--color-border, #e2e8f0);
   border-radius: var(--radius-md, 8px);
@@ -308,53 +313,75 @@
 
 .project-selector-item:hover {
   background: #f8fafc;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
   transform: translateY(-1px);
-  border-color: var(--color-primary, #2563eb);
+  border-color: var(--color-primary, #e53935);
 }
 
 .project-selector-info {
   display: flex;
+  flex: 1;
   flex-direction: column;
   gap: 4px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .project-selector-name {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
   font-size: 15px;
   font-weight: 600;
+  white-space: nowrap;
   color: var(--color-text, #0f172a);
+  text-overflow: ellipsis;
 }
 
 .project-selector-address {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
   font-size: 13px;
+  white-space: nowrap;
   color: var(--color-text-secondary, #64748b);
+  text-overflow: ellipsis;
 }
 
 .project-selector-actions {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
 .project-selector-badge {
   padding: 4px 10px;
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  white-space: nowrap;
   color: #475569;
   background: #f1f5f9;
   border: 1px solid #cbd5e1;
-  border-radius: var(--radius-md, 6px);
+  border-radius: 6px;
 }
 
-.project-selector-arrow {
-  font-size: 16px;
-  color: var(--color-text-secondary, #94a3b8);
-  transition: transform 0.15s ease;
-}
-
-.project-selector-item:hover .project-selector-arrow {
-  color: var(--color-primary, #2563eb);
-  transform: translateX(4px);
+.foreman-project-dropdown {
+  min-width: 220px;
+  max-width: 360px;
+  padding: 8px 12px;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--color-text, #0f172a);
+  background: var(--color-surface, #ffffff);
+  border: 1px solid var(--color-border, #cbd5e1);
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  outline: none;
+  text-overflow: ellipsis;
 }
 
 @media (max-width: 1100px) {

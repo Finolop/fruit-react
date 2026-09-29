@@ -1121,3 +1121,85 @@ textarea.foreman-custom-input {
 .critical-path-select:focus {
   box-shadow: 0 0 0 2px rgba(220, 38, 38, 0.2);
 }
+
+/* 
+   СТИЛИ МОДАЛКИ ПРИЕМКИ АОСР
+ */
+
+.early-complete-banner {
+  background: #ecfdf5;
+  border: 1px solid #10b981;
+  border-radius: var(--radius-md, 8px);
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-sizing: border-box;
+}
+
+.early-complete-main-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #047857;
+}
+
+.early-complete-warning-text {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: #b45309;
+  font-weight: 600;
+}
+
+.early-complete-next-text {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: #065f46;
+  font-weight: 600;
+}
+
+.early-complete-stage-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text, #0f172a);
+}
+
+.early-complete-error-box {
+  margin: 0;
+}
+
+.early-complete-textarea {
+  height: 80px !important;
+  min-height: 80px !important;
+  resize: vertical;
+}
+
+.icon-cross-bar {
+  position: relative;
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  vertical-align: middle;
+}
+
+.icon-cross-bar::before,
+.icon-cross-bar::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 0;
+  width: 9px;
+  height: 1.5px;
+  background-color: currentColor;
+  border-radius: 1px;
+}
+
+.icon-cross-bar::before {
+  transform: rotate(45deg);
+}
+
+.icon-cross-bar::after {
+  transform: rotate(-45deg);
+}
