@@ -17,9 +17,7 @@ const Header = () => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const user = useSelector((state: RootState) => state.auth.user);
 
-  const isDepartment = user?.roles.includes("admin");
-  const isEngineer = user?.roles.includes("engineer");
-  const isForeman = user?.roles.includes("foreman");
+  const isDepartment = user?.roles?.includes("admin");
 
   const handleLogout = async () => {
     const result = await dispatch(logoutThunk());
@@ -31,16 +29,21 @@ const Header = () => {
 
   return (
     <header className="header">
+      {/* Левая карточка: Логотип */}
       <div className="header-container header-logo">
         <div className="logo_main">
-          <img className="logo_main-img" src={logo} alt="logo" />
+          <img
+            className="logo_main-img"
+            src={logo}
+            alt="Градостроительный комплекс Москвы"
+          />
         </div>
-
-        <img className="logo_sec-img" src={logo_sec} alt="lct_logo" />
+        <img className="logo_sec-img" src={logo_sec} alt="ЛЦТ" />
       </div>
 
-      <nav className="header-container header-navigation">
-        {isDepartment && (
+      {/* Центральная часть: 2 кнопки ТОЛЬКО для Админа, иначе невидимая распорка */}
+      {isDepartment ? (
+        <nav className="header-container header-navigation">
           <div className="header-switch-group">
             <NavLink
               to="/admin/registry"
@@ -60,31 +63,12 @@ const Header = () => {
               Управление ОКС
             </NavLink>
           </div>
-        )}
+        </nav>
+      ) : (
+        <div className="header-spacer" />
+      )}
 
-        {isEngineer && (
-          <NavLink
-            to="/engineer"
-            className={({ isActive }) =>
-              isActive ? "nav-link active" : "nav-link"
-            }
-          >
-            Мои объекты
-          </NavLink>
-        )}
-
-        {isForeman && (
-          <NavLink
-            to="/foreman"
-            className={({ isActive }) =>
-              isActive ? "nav-link active" : "nav-link"
-            }
-          >
-            Мои объекты
-          </NavLink>
-        )}
-      </nav>
-
+      {/* Правая карточка: Профиль */}
       <div className="header-container header-profile">
         <button
           type="button"
@@ -93,12 +77,10 @@ const Header = () => {
         >
           <div className="header-user">
             <span className="header-user-name">
-              {user ? `${user.first_name} ${user.last_name}` : "Михаил Андреев"}
+              {user ? `${user.first_name} ${user.last_name}` : "Пользователь"}
             </span>
 
-            <span className="header-user-email">
-              {user?.email || "test@example.com"}
-            </span>
+            <span className="header-user-email">{user?.email || ""}</span>
           </div>
 
           <img

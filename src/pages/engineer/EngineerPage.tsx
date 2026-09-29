@@ -377,7 +377,7 @@ export const EngineerPage: React.FC = () => {
       <Header />
 
       <div className="engineer-console-root">
-        {/* Баннер режима только чтения для Администратора */}
+        {/* Баннер наблюдателя для Администратора */}
         {isReadOnly && (
           <div className="engineer-readonly-banner">
             <img src={lockIcon} alt="" className="readonly-banner-icon" />
@@ -420,7 +420,7 @@ export const EngineerPage: React.FC = () => {
               title="Управление видеокамерами объекта"
             >
               <img src={cameraIcon} alt="" className="btn-icon-svg" />
-              <span>Видеокамеры</span>
+              <span>Видеокамеры ({project.camera_url ? "1+" : "0"})</span>
             </button>
 
             <button
@@ -564,7 +564,7 @@ export const EngineerPage: React.FC = () => {
             activeAlertParsed &&
             activeAlert.status !== "RESOLVED" ? (
               <div className="alert-reason-detailed-box">
-                {/* Бейджи статуса со стилизованными кружками */}
+                {/* Бейджи статуса */}
                 <div className="alert-reason-tags-row">
                   <span
                     className={`alert-tag-severity ${activeAlert.severity.toLowerCase()}`}
@@ -598,13 +598,9 @@ export const EngineerPage: React.FC = () => {
                   </span>
                 </div>
 
+                {/* Суть нарушения */}
                 <div className="real-alert-message">
-                  <strong>Суть инцидента:</strong> {activeAlertParsed.message}
-                </div>
-
-                <div className="real-alert-risk">
-                  <strong>Оценка последствий:</strong>{" "}
-                  {activeAlertParsed.riskHint}
+                  <strong>Суть нарушения:</strong> {activeAlertParsed.message}
                 </div>
 
                 <div className="scenario-confirm-bar">

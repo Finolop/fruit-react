@@ -53,7 +53,6 @@ const TRIGGER_TITLES: Record<string, string> = {
 export const formatAlertDetails = (alert: AlertResponse) => {
   const details = alert.details || {};
   const rawMsg = details.message || "";
-  const riskHint = details.risk_hint || "Задержка технологического цикла СМР";
   const isCriticalPath = Boolean(details.is_critical_path);
 
   const title = TRIGGER_TITLES[alert.trigger_type] || alert.trigger_type;
@@ -96,7 +95,6 @@ export const formatAlertDetails = (alert: AlertResponse) => {
   return {
     title,
     message: cleanMessage || "Отклонение от директивных параметров",
-    riskHint,
     isCriticalPath,
     escalateCountdown,
   };
@@ -238,13 +236,9 @@ export const AlertDecisionModal: React.FC<Props> = ({
               <div className="real-alert-message">
                 <strong>Суть инцидента:</strong> {alertInfo.message}
               </div>
-
-              <div className="real-alert-risk">
-                <strong>Оценка последствий:</strong> {alertInfo.riskHint}
-              </div>
             </div>
 
-            {/* 3 кнопки выбора решения со стилизованными кружками */}
+            {/* 3 кнопки выбора решения со статусными точками */}
             <div className="form-field">
               <label>Выберите регламентное решение *</label>
               <div className="decision-mode-selector">
@@ -382,7 +376,7 @@ export const AlertDecisionModal: React.FC<Props> = ({
             )}
           </div>
 
-          {/* Фиксированный подвал (Sticky Footer) */}
+          {/* Фиксированный подвал */}
           <div className="modal-footer">
             <button
               type="button"
