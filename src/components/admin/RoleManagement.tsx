@@ -1,44 +1,44 @@
 import React, { useEffect, useState, useMemo, useRef } from "react";
-import { useAuthFetch } from "../../hooks/useAuthFetch";
+import { skipToken } from "@reduxjs/toolkit/query";
+import { User } from "../../api/apiAdmin";
 import {
-  updateUserRoleByEmail,
-  getProjects,
-  assignUserToProject,
-  getProjectAssignments,
-  removeUserFromProject,
-  ProjectListItem,
-  ProjectAssignment,
-  User,
-} from "../../api/apiAdmin";
-import closeIcon from "../../assets/images/Close_MD.svg";
+  useGetProjectsQuery,
+  useGetUsersQuery,
+  useGetProjectAssignmentsQuery,
+  useUpdateUserRoleByEmailMutation,
+  useAssignUserToProjectMutation,
+  useRemoveUserFromProjectMutation,
+  extractApiError,
+} from "../../api/rtkApi";
+import { ReactComponent as CloseIcon } from "../../assets/images/Close_MD.svg";
 
 interface RoleManagementProps {
   refreshTrigger?: number;
 }
 
-const RoleManagement: React.FC<RoleManagementProps> = ({
-  refreshTrigger = 0,
-}) => {
-  const authFetch = useAuthFetch();
+const ROLE_LABELS: Record<string, string> = {
+  admin: "Департамент",
+  engineer: "Инженер",
+  foreman: "Прораб",
+  user: "Без роли",
+};
 
-  const [projects, setProjects] = useState<ProjectListItem[]>([]);
+const formatUserRoles = (roles: string[]): string => {
+  if (!roles || roles.length === 0) return "Без роли";
+  return roles.map((r) => ROLE_LABELS[r.toLowerCase()] || r).join(", ");
+};
+
+const RoleManagement: React.FC<RoleManagementProps> = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  // Форма 1: смена роли по Email
+  // Этап 1: Выдача системной роли по Email
   const [targetEmail, setTargetEmail] = useState("");
   const [selectedRole, setSelectedRole] = useState("foreman");
-  const [isUpdatingRole, setIsUpdatingRole] = useState(false);
+  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
+  const roleDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Хранение в оперативной памяти сессии (без засорения localStorage)
-  const [knownUsers, setKnownUsers] = useState<User[]>([]);
-
-  // При первом монтировании принудительно удаляем старый кэш, если он остался в браузере
-  useEffect(() => {
-    localStorage.removeItem("admin_cached_known_users");
-  }, []);
-
-  // Форма 2: привязка к ОКС
+  // Этап 2: Привязка сотрудника к ОКС
   const [userInputValue, setUserInputValue] = useState("");
   const [selectedUserId, setSelectedUserId] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -47,11 +47,20 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
   const [assignProjectId, setAssignProjectId] = useState("");
   const [assignRoleInProject, setAssignRoleInProject] = useState("foreman");
   const [projectSearch, setProjectSearch] = useState("");
-  const [currentAssignments, setCurrentAssignments] = useState<
-    ProjectAssignment[]
-  >([]);
-  const [isAssigning, setIsAssigning] = useState(false);
-  const [isFindingByEmail, setIsFindingByEmail] = useState(false);
+
+  // Подгружаем всех активных пользователей и объекты из БД
+  const { data: dbUsers = [] } = useGetUsersQuery();
+  const { data: projects = [] } = useGetProjectsQuery({ limit: 100 });
+
+  const { data: currentAssignments = [] } = useGetProjectAssignmentsQuery(
+    assignProjectId ? assignProjectId : skipToken,
+  );
+
+  const [updateUserRoleByEmail, { isLoading: isUpdatingRole }] =
+    useUpdateUserRoleByEmailMutation();
+  const [assignUserToProject, { isLoading: isAssigning }] =
+    useAssignUserToProjectMutation();
+  const [removeUserFromProject] = useRemoveUserFromProjectMutation();
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -61,28 +70,22 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
       ) {
         setIsDropdownOpen(false);
       }
+      if (
+        roleDropdownRef.current &&
+        !roleDropdownRef.current.contains(event.target as Node)
+      ) {
+        setIsRoleDropdownOpen(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   useEffect(() => {
-    getProjects(authFetch, { limit: 100 })
-      .then((data) => {
-        setProjects(data || []);
-        if (data && data.length > 0 && !assignProjectId) {
-          setAssignProjectId(data[0].id);
-        }
-      })
-      .catch(() => {});
-  }, [refreshTrigger, authFetch, assignProjectId]);
-
-  useEffect(() => {
-    if (!assignProjectId) return;
-    getProjectAssignments(authFetch, assignProjectId)
-      .then((assignments) => setCurrentAssignments(assignments || []))
-      .catch(() => setCurrentAssignments([]));
-  }, [assignProjectId, authFetch]);
+    if (projects.length > 0 && !assignProjectId) {
+      setAssignProjectId(projects[0].id);
+    }
+  }, [projects, assignProjectId]);
 
   const filteredProjects = useMemo(() => {
     if (!projectSearch.trim()) return projects;
@@ -94,114 +97,105 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
     );
   }, [projects, projectSearch]);
 
-  const filteredUsers = useMemo(() => {
-    if (!userInputValue.trim()) return knownUsers;
-    const query = userInputValue.toLowerCase();
-    return knownUsers.filter(
+  // Список для Формы 1 (все зарегистрированные пользователи)
+  const form1FilteredUsers = useMemo(() => {
+    const q = targetEmail.trim().toLowerCase();
+    if (!q) return dbUsers;
+    return dbUsers.filter(
       (u) =>
-        u.email.toLowerCase().includes(query) ||
-        u.id.toLowerCase().includes(query) ||
-        (u.first_name && u.first_name.toLowerCase().includes(query)) ||
-        (u.last_name && u.last_name.toLowerCase().includes(query)),
+        u.email.toLowerCase().includes(q) ||
+        (u.first_name && u.first_name.toLowerCase().includes(q)) ||
+        (u.last_name && u.last_name.toLowerCase().includes(q)),
     );
-  }, [knownUsers, userInputValue]);
+  }, [dbUsers, targetEmail]);
 
+  // Список для Формы 2 (показываем и прорабов, и инженеров, и админов сразу!)
+  const eligibleUsers = useMemo(() => {
+    const rawQuery = userInputValue.split(" (")[0].trim().toLowerCase();
+
+    return dbUsers.filter((u) => {
+      const roles = (u.roles || []).map((r) => r.toLowerCase());
+      const hasAnyStaffRole =
+        roles.includes("foreman") ||
+        roles.includes("engineer") ||
+        roles.includes("admin");
+
+      if (!hasAnyStaffRole) return false;
+      if (!rawQuery) return true;
+
+      return (
+        u.email.toLowerCase().includes(rawQuery) ||
+        u.id.toLowerCase().includes(rawQuery) ||
+        (u.first_name && u.first_name.toLowerCase().includes(rawQuery)) ||
+        (u.last_name && u.last_name.toLowerCase().includes(rawQuery))
+      );
+    });
+  }, [dbUsers, userInputValue]);
+
+  // Этап 1: Выдача глобальной роли по Email
   const handleRoleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!targetEmail.trim()) return;
+    const email = targetEmail.trim();
+    if (!email) return;
 
-    setIsUpdatingRole(true);
     setErrorMessage("");
     setSuccessMessage("");
     try {
-      const updatedUser = await updateUserRoleByEmail(
-        authFetch,
-        targetEmail.trim(),
-        [selectedRole],
-      );
+      const updatedUser = await updateUserRoleByEmail({
+        email,
+        roles: [selectedRole],
+      }).unwrap();
+
       setSuccessMessage(
-        `Роль пользователя ${targetEmail} успешно сохранена (${selectedRole}). ID: ${updatedUser.id}`,
+        `Роль пользователя ${updatedUser.email} успешно сохранена (${
+          ROLE_LABELS[selectedRole] || selectedRole
+        }).`,
       );
-
-      // Добавляем только в память текущей сессии
-      setKnownUsers((prev) => {
-        const filtered = prev.filter((u) => u.id !== updatedUser.id);
-        return [updatedUser, ...filtered];
-      });
-
       setTargetEmail("");
+      setIsRoleDropdownOpen(false);
     } catch (err: any) {
-      setErrorMessage(err.message || "Ошибка обновления роли");
-    } finally {
-      setIsUpdatingRole(false);
+      setErrorMessage(extractApiError(err, "Ошибка обновления роли"));
     }
   };
 
-  // Поиск ID пользователя по Email
-  const handleFindByEmail = async () => {
-    const emailToFind = userInputValue.trim();
-    if (!emailToFind || !emailToFind.includes("@")) {
-      setErrorMessage("Введите корректный Email сотрудника для поиска");
-      return;
-    }
-
-    setIsFindingByEmail(true);
-    setErrorMessage("");
-    setSuccessMessage("");
-    try {
-      const foundUser = await updateUserRoleByEmail(authFetch, emailToFind, [
-        assignRoleInProject,
-      ]);
-
-      setKnownUsers((prev) => {
-        const filtered = prev.filter((u) => u.id !== foundUser.id);
-        return [foundUser, ...filtered];
-      });
-
-      setSelectedUserId(foundUser.id);
-      setUserInputValue(`${foundUser.email} (${foundUser.id.slice(0, 8)}...)`);
-      setSuccessMessage(
-        `Сотрудник подтверждён: ${foundUser.email} (ID: ${foundUser.id})`,
-      );
-    } catch (err: any) {
-      setErrorMessage(
-        err.message || "Пользователь с таким Email не найден в текущей базе",
-      );
-    } finally {
-      setIsFindingByEmail(false);
-    }
-  };
-
+  // При выборе сотрудника во 2-й форме автоматически выставляем его роль (Инженер или Прораб)
   const handleSelectUser = (user: User) => {
     setSelectedUserId(user.id);
-    setUserInputValue(`${user.email} (${user.id.slice(0, 8)}...)`);
+    setUserInputValue(`${user.email} (${user.first_name} ${user.last_name})`);
+
+    const roles = (user.roles || []).map((r) => r.toLowerCase());
+    if (roles.includes("engineer") && !roles.includes("foreman")) {
+      setAssignRoleInProject("engineer");
+    } else if (roles.includes("foreman") && !roles.includes("engineer")) {
+      setAssignRoleInProject("foreman");
+    }
+
     setIsDropdownOpen(false);
   };
 
+  // Этап 2: Привязка сотрудника к ОКС
   const handleAssignSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const finalUserId = selectedUserId || userInputValue.trim();
+    const rawIdentifier =
+      selectedUserId || userInputValue.split(" (")[0].trim();
 
-    if (!finalUserId || !assignProjectId) return;
+    if (!rawIdentifier || !assignProjectId) return;
 
-    setIsAssigning(true);
     setErrorMessage("");
     setSuccessMessage("");
+
     try {
-      const newAssignment = await assignUserToProject(
-        authFetch,
-        assignProjectId,
-        finalUserId,
-        assignRoleInProject,
-      );
+      await assignUserToProject({
+        projectId: assignProjectId,
+        userId: rawIdentifier,
+        roleInProject: assignRoleInProject,
+      }).unwrap();
+
       setSuccessMessage("Сотрудник успешно привязан к объекту");
-      setCurrentAssignments((prev) => [...prev, newAssignment]);
       setUserInputValue("");
       setSelectedUserId("");
     } catch (err: any) {
-      setErrorMessage(err.message || "Ошибка привязки к объекту");
-    } finally {
-      setIsAssigning(false);
+      setErrorMessage(extractApiError(err, "Ошибка привязки к объекту"));
     }
   };
 
@@ -210,13 +204,13 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
     try {
       setErrorMessage("");
       setSuccessMessage("");
-      await removeUserFromProject(authFetch, assignProjectId, assignmentId);
+      await removeUserFromProject({
+        projectId: assignProjectId,
+        assignmentId,
+      }).unwrap();
       setSuccessMessage("Сотрудник успешно отозван с объекта");
-      setCurrentAssignments((prev) =>
-        prev.filter((a) => a.id !== assignmentId),
-      );
     } catch (err: any) {
-      setErrorMessage(err.message || "Ошибка отзыва сотрудника");
+      setErrorMessage(extractApiError(err, "Ошибка отзыва сотрудника"));
     }
   };
 
@@ -237,7 +231,7 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
       )}
 
       <div className="role-management-flow">
-        {/* Форма 1: смена роли по Email */}
+        {/* Этап 1: смена роли по Email */}
         <form onSubmit={handleRoleSubmit} className="admin-form">
           <div className="subform-header">
             <h3>1. Выдача системной роли по Email</h3>
@@ -245,15 +239,48 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
           </div>
 
           <div className="role-change-row">
-            <div className="form-field form-field-email">
+            <div className="form-field form-field-email" ref={roleDropdownRef}>
               <label>Email пользователя *</label>
-              <input
-                type="email"
-                placeholder="foreman@stroi.mos.ru"
-                value={targetEmail}
-                onChange={(e) => setTargetEmail(e.target.value)}
-                required
-              />
+              <div className="autocomplete-field-wrapper">
+                <input
+                  type="email"
+                  placeholder="Выберите или введите Email..."
+                  value={targetEmail}
+                  onFocus={() => setIsRoleDropdownOpen(true)}
+                  onChange={(e) => {
+                    setTargetEmail(e.target.value);
+                    setIsRoleDropdownOpen(true);
+                  }}
+                  required
+                />
+
+                {isRoleDropdownOpen && form1FilteredUsers.length > 0 && (
+                  <div className="autocomplete-dropdown">
+                    {form1FilteredUsers.map((u) => (
+                      <div
+                        key={u.id}
+                        className="autocomplete-item"
+                        onClick={() => {
+                          setTargetEmail(u.email);
+                          setIsRoleDropdownOpen(false);
+                        }}
+                      >
+                        <div className="autocomplete-item-header">
+                          <span className="autocomplete-user-email">
+                            {u.email}
+                          </span>
+                          <span className="autocomplete-user-name">
+                            {u.first_name} {u.last_name}
+                          </span>
+                        </div>
+                        <span className="autocomplete-user-id">
+                          Текущая роль: {formatUserRoles(u.roles)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="form-field form-field-role">
@@ -280,11 +307,14 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
 
         <hr className="role-section-divider" />
 
-        {/* Форма 2: привязка к ОКС */}
+        {/* Этап 2: привязка к ОКС */}
         <form onSubmit={handleAssignSubmit} className="admin-form">
           <div className="subform-header">
             <h3>2. Назначение сотрудника на объект</h3>
-            <p>Введите Email для поиска в базе или вставьте UUID сотрудника</p>
+            <p>
+              Выберите прораба или инженера из списка (роль на объекте
+              подставится автоматически)
+            </p>
           </div>
 
           <div className="assign-grid-fields">
@@ -293,7 +323,7 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
               <div className="autocomplete-field-wrapper">
                 <input
                   type="text"
-                  placeholder="Введите Email сотрудника..."
+                  placeholder="Выберите прораба или инженера..."
                   value={userInputValue}
                   onFocus={() => setIsDropdownOpen(true)}
                   onChange={(e) => {
@@ -304,9 +334,9 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
                   required
                 />
 
-                {isDropdownOpen && knownUsers.length > 0 && (
+                {isDropdownOpen && eligibleUsers.length > 0 && (
                   <div className="autocomplete-dropdown">
-                    {filteredUsers.map((u) => (
+                    {eligibleUsers.map((u) => (
                       <div
                         key={u.id}
                         className="autocomplete-item"
@@ -322,24 +352,15 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
                             </span>
                           )}
                         </div>
-                        <span className="autocomplete-user-id">ID: {u.id}</span>
+                        <span className="autocomplete-user-id">
+                          Квалификация: {formatUserRoles(u.roles)} • ID:{" "}
+                          {u.id.slice(0, 8)}...
+                        </span>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
-
-              {userInputValue.includes("@") && !selectedUserId && (
-                <button
-                  type="button"
-                  className="role-edit-button"
-                  style={{ marginTop: "6px" }}
-                  onClick={handleFindByEmail}
-                  disabled={isFindingByEmail}
-                >
-                  {isFindingByEmail ? "Поиск в БД..." : "Найти ID по Email"}
-                </button>
-              )}
             </div>
 
             <div className="form-field">
@@ -391,24 +412,29 @@ const RoleManagement: React.FC<RoleManagementProps> = ({
                 Назначены на этот объект ({currentAssignments.length}):
               </p>
               <div className="assignments-preview-list">
-                {currentAssignments.map((a) => (
-                  <span key={a.id} className="assignment-item-tag">
-                    <strong>{a.role_in_project}:</strong>
-                    <code>{a.user_id.slice(0, 8)}...</code>
-                    <button
-                      type="button"
-                      className="btn-unassign-chip"
-                      title="Отозвать сотрудника с объекта"
-                      onClick={() => handleRemoveAssignment(a.id)}
-                    >
-                      <img
-                        src={closeIcon}
-                        alt="Отозвать"
-                        className="ui-icon-xs"
-                      />
-                    </button>
-                  </span>
-                ))}
+                {currentAssignments.map((a) => {
+                  const matchedUser = dbUsers.find((u) => u.id === a.user_id);
+                  return (
+                    <span key={a.id} className="assignment-item-tag">
+                      <strong>
+                        {ROLE_LABELS[a.role_in_project] || a.role_in_project}:
+                      </strong>
+                      <code>
+                        {matchedUser
+                          ? `${matchedUser.email} (${matchedUser.first_name} ${matchedUser.last_name})`
+                          : `${a.user_id.slice(0, 8)}...`}
+                      </code>
+                      <button
+                        type="button"
+                        className="btn-unassign-chip"
+                        title="Отозвать сотрудника с объекта"
+                        onClick={() => handleRemoveAssignment(a.id)}
+                      >
+                        <CloseIcon className="ui-icon-xs" />
+                      </button>
+                    </span>
+                  );
+                })}
               </div>
             </div>
           )}

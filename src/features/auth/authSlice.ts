@@ -10,6 +10,7 @@ import {
 } from "../../api/apiAuth";
 
 import { User } from "../../types/auth";
+import type { RootState } from "../../store";
 
 interface AuthState {
   user: User | null;
@@ -17,6 +18,16 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
 }
+
+const normalizeUser = (user?: User | null): User | null => {
+  if (!user) return null;
+  return {
+    ...user,
+    roles: Array.isArray(user.roles)
+      ? user.roles.map((r) => r.toLowerCase())
+      : [],
+  };
+};
 
 const initialState: AuthState = {
   user: null,
@@ -36,6 +47,7 @@ export const loginThunk = createAsyncThunk(
   ) => {
     try {
       const response = await login(email, password);
+      const normalizedUser = normalizeUser(response.user);
 
       // 1. Сохраняем токен авторизации для всех API запросов
       if (response.access_token) {
@@ -43,15 +55,18 @@ export const loginThunk = createAsyncThunk(
         localStorage.setItem("token", response.access_token);
       }
 
-      // 2. Сохраняем системную роль
-      const primaryRole = response.user?.roles?.[0];
+      // 2. Сохраняем системную роль в нижнем регистре
+      const primaryRole = normalizedUser?.roles?.[0];
       if (primaryRole) {
         localStorage.setItem("userRole", primaryRole);
       } else {
-        localStorage.setItem("userRole", "FOREMAN");
+        localStorage.setItem("userRole", "foreman");
       }
 
-      return response;
+      return {
+        ...response,
+        user: normalizedUser ?? undefined,
+      };
     } catch (error) {
       if (error instanceof AuthApiError) {
         return rejectWithValue(error.message);
@@ -79,18 +94,22 @@ export const registerThunk = createAsyncThunk(
   ) => {
     try {
       const response = await register(email, password, first_name, last_name);
+      const normalizedUser = normalizeUser(response.user);
 
       if (response.access_token) {
         localStorage.setItem("access_token", response.access_token);
         localStorage.setItem("token", response.access_token);
       }
 
-      const primaryRole = response.user?.roles?.[0];
+      const primaryRole = normalizedUser?.roles?.[0];
       if (primaryRole) {
         localStorage.setItem("userRole", primaryRole);
       }
 
-      return response;
+      return {
+        ...response,
+        user: normalizedUser ?? undefined,
+      };
     } catch (error) {
       if (error instanceof AuthApiError) {
         return rejectWithValue(error.message);
@@ -112,7 +131,8 @@ export const restoreSessionThunk = createAsyncThunk(
         localStorage.setItem("token", access_token);
       }
 
-      const user = await getMe(access_token);
+      const rawUser = await getMe(access_token);
+      const user = normalizeUser(rawUser)!;
 
       const primaryRole = user?.roles?.[0];
       if (primaryRole) {
@@ -247,6 +267,19 @@ const authSlice = createSlice({
       });
   },
 });
+
+// Единые регистронезависимые селекторы ролей
+export const selectUserRoles = (state: RootState): string[] =>
+  (state.auth.user?.roles || []).map((r) => r.toLowerCase());
+
+export const selectIsAdmin = (state: RootState): boolean =>
+  selectUserRoles(state).includes("admin");
+
+export const selectIsEngineer = (state: RootState): boolean =>
+  selectUserRoles(state).includes("engineer");
+
+export const selectIsForeman = (state: RootState): boolean =>
+  selectUserRoles(state).includes("foreman");
 
 export const { clearError, setAccessToken, clearAuth } = authSlice.actions;
 

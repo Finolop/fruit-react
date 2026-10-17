@@ -3,12 +3,12 @@ import { NavLink, useNavigate } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 
 import { AppDispatch, RootState } from "../store";
-import { logoutThunk } from "../features/auth/authSlice";
+import { logoutThunk, selectIsAdmin } from "../features/auth/authSlice";
 
 import "../styles/Header.css";
-import logo from "../assets/images/logo.svg";
+import { ReactComponent as LogoIcon } from "../assets/images/logo.svg";
+import { ReactComponent as ArrowDownIcon } from "../assets/images/arrow_down.svg";
 import logo_sec from "../assets/images/logo_sec.png";
-import arrow_down from "../assets/images/arrow_down.svg";
 
 const Header = () => {
   const dispatch = useDispatch<AppDispatch>();
@@ -16,8 +16,7 @@ const Header = () => {
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const user = useSelector((state: RootState) => state.auth.user);
-
-  const isDepartment = user?.roles?.includes("admin");
+  const isDepartment = useSelector(selectIsAdmin);
 
   const handleLogout = async () => {
     const result = await dispatch(logoutThunk());
@@ -32,10 +31,10 @@ const Header = () => {
       {/* Левая карточка: Логотип */}
       <div className="header-container header-logo">
         <div className="logo_main">
-          <img
+          <LogoIcon
             className="logo_main-img"
-            src={logo}
-            alt="Градостроительный комплекс Москвы"
+            viewBox="0 0 1063 1077"
+            aria-label="Градостроительный комплекс Москвы"
           />
         </div>
         <img className="logo_sec-img" src={logo_sec} alt="ЛЦТ" />
@@ -83,12 +82,10 @@ const Header = () => {
             <span className="header-user-email">{user?.email || ""}</span>
           </div>
 
-          <img
+          <ArrowDownIcon
             className={`profile-arrow ${
               isProfileOpen ? "profile-arrow-open" : ""
             }`}
-            src={arrow_down}
-            alt=""
           />
         </button>
 

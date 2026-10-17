@@ -1,10 +1,8 @@
-import React, { useEffect, useState } from "react";
-import { useAuthFetch } from "../../hooks/useAuthFetch";
+import React, { useEffect, useState, useMemo } from "react";
 import {
-  createProject,
-  getProjectTypes,
-  ProjectType,
-} from "../../api/apiAdmin";
+  useGetProjectTypesQuery,
+  useCreateProjectMutation,
+} from "../../api/rtkApi";
 
 interface CreateOksProps {
   onSuccess?: () => void;
@@ -14,46 +12,31 @@ const MAX_NAME_LENGTH = 100;
 const MAX_ADDRESS_LENGTH = 160;
 
 const CreateOks: React.FC<CreateOksProps> = ({ onSuccess }) => {
-  const authFetch = useAuthFetch();
-
   const [name, setName] = useState("");
   const [address, setAddress] = useState("");
   const [typeId, setTypeId] = useState("");
 
-  const [projectTypes, setProjectTypes] = useState<ProjectType[]>([]);
-
-  const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingTypes, setIsLoadingTypes] = useState(false);
-
   const [successMessage, setSuccessMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
+  const {
+    data: rawTypes = [],
+    isLoading: isLoadingTypes,
+    isError: isTypesError,
+  } = useGetProjectTypesQuery();
+
+  const [createProject, { isLoading }] = useCreateProjectMutation();
+
+  const projectTypes = useMemo(
+    () => rawTypes.filter((type) => type.is_active),
+    [rawTypes],
+  );
+
   useEffect(() => {
-    const loadProjectTypes = async () => {
-      setIsLoadingTypes(true);
-      setErrorMessage("");
-
-      try {
-        const result = await getProjectTypes(authFetch);
-        const activeTypes = result.filter((type) => type.is_active);
-        setProjectTypes(activeTypes);
-
-        if (activeTypes.length > 0) {
-          setTypeId(activeTypes[0].id);
-        }
-      } catch (error) {
-        if (error instanceof Error) {
-          setErrorMessage(error.message);
-        } else {
-          setErrorMessage("Не удалось загрузить типы объектов");
-        }
-      } finally {
-        setIsLoadingTypes(false);
-      }
-    };
-
-    loadProjectTypes();
-  }, [authFetch]);
+    if (projectTypes.length > 0 && !typeId) {
+      setTypeId(projectTypes[0].id);
+    }
+  }, [projectTypes, typeId]);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -67,28 +50,30 @@ const CreateOks: React.FC<CreateOksProps> = ({ onSuccess }) => {
     }
 
     if (trimmedName.length > MAX_NAME_LENGTH) {
-      setErrorMessage(`Название объекта не должно превышать ${MAX_NAME_LENGTH} символов`);
+      setErrorMessage(
+        `Название объекта не должно превышать ${MAX_NAME_LENGTH} символов`,
+      );
       return;
     }
 
     if (trimmedAddress.length > MAX_ADDRESS_LENGTH) {
-      setErrorMessage(`Адрес объекта не должен превышать ${MAX_ADDRESS_LENGTH} символов`);
+      setErrorMessage(
+        `Адрес объекта не должен превышать ${MAX_ADDRESS_LENGTH} символов`,
+      );
       return;
     }
 
     setSuccessMessage("");
     setErrorMessage("");
-    setIsLoading(true);
 
     try {
-      await createProject(authFetch, {
+      await createProject({
         name: trimmedName,
         address: trimmedAddress,
         type_id: typeId,
-      });
+      }).unwrap();
 
       setSuccessMessage("ОКС успешно создан");
-
       setName("");
       setAddress("");
       if (projectTypes.length > 0) {
@@ -98,14 +83,10 @@ const CreateOks: React.FC<CreateOksProps> = ({ onSuccess }) => {
       if (onSuccess) {
         onSuccess();
       }
-    } catch (error) {
-      if (error instanceof Error) {
-        setErrorMessage(error.message);
-      } else {
-        setErrorMessage("Не удалось создать ОКС");
-      }
-    } finally {
-      setIsLoading(false);
+    } catch (err: any) {
+      setErrorMessage(
+        err?.data?.detail || err?.message || "Не удалось создать ОКС",
+      );
     }
   };
 
@@ -120,7 +101,12 @@ const CreateOks: React.FC<CreateOksProps> = ({ onSuccess }) => {
         <div className="form-field">
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <label htmlFor="oks-name">Наименование объекта *</label>
-            <span style={{ fontSize: "11px", color: name.length >= MAX_NAME_LENGTH ? "#dc2626" : "#64748b" }}>
+            <span
+              style={{
+                fontSize: "11px",
+                color: name.length >= MAX_NAME_LENGTH ? "#dc2626" : "#64748b",
+              }}
+            >
               {name.length}/{MAX_NAME_LENGTH}
             </span>
           </div>
@@ -139,7 +125,13 @@ const CreateOks: React.FC<CreateOksProps> = ({ onSuccess }) => {
         <div className="form-field">
           <div style={{ display: "flex", justifyContent: "space-between" }}>
             <label htmlFor="oks-address">Адрес объекта *</label>
-            <span style={{ fontSize: "11px", color: address.length >= MAX_ADDRESS_LENGTH ? "#dc2626" : "#64748b" }}>
+            <span
+              style={{
+                fontSize: "11px",
+                color:
+                  address.length >= MAX_ADDRESS_LENGTH ? "#dc2626" : "#64748b",
+              }}
+            >
               {address.length}/{MAX_ADDRESS_LENGTH}
             </span>
           </div>
@@ -156,7 +148,9 @@ const CreateOks: React.FC<CreateOksProps> = ({ onSuccess }) => {
         </div>
 
         <div className="form-field">
-          <label htmlFor="oks-type">Тип объекта капитального строительства *</label>
+          <label htmlFor="oks-type">
+            Тип объекта капитального строительства *
+          </label>
           <select
             id="oks-type"
             value={typeId}
@@ -188,8 +182,10 @@ const CreateOks: React.FC<CreateOksProps> = ({ onSuccess }) => {
           <div className="admin-success-message">{successMessage}</div>
         )}
 
-        {errorMessage && (
-          <div className="admin-error-message">{errorMessage}</div>
+        {(errorMessage || isTypesError) && (
+          <div className="admin-error-message">
+            {errorMessage || "Не удалось загрузить типы объектов"}
+          </div>
         )}
       </form>
     </section>

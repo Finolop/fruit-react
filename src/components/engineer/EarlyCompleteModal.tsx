@@ -1,7 +1,10 @@
 import React, { useState } from "react";
-import { monitoringApi } from "../../api/monitoringApi";
-import closeIcon from "../../assets/images/Close_MD.svg";
-import checkIcon from "../../assets/images/Circle_Check.svg";
+import {
+  useCompleteStageEarlyMutation,
+  useStartStageMutation,
+} from "../../api/rtkApi";
+import { ReactComponent as CloseIcon } from "../../assets/images/Close_MD.svg";
+import { ReactComponent as CheckIcon } from "../../assets/images/Circle_Check.svg";
 import "../../styles/ForemanGantt.css";
 
 interface EarlyCompleteModalProps {
@@ -12,8 +15,24 @@ interface EarlyCompleteModalProps {
   nextStageId?: string;
   nextStageName?: string;
   onClose: () => void;
-  onSuccess: () => Promise<void>;
+  onSuccess?: () => Promise<void> | void;
 }
+
+const getLocalDateInputString = (d: Date = new Date()): string => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const dateInputToSafeIso = (dateStr: string): string => {
+  const [year, month, day] = dateStr.split("-").map(Number);
+  if (!year || !month || !day) {
+    return new Date().toISOString();
+  }
+  const safeDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  return safeDate.toISOString();
+};
 
 export const EarlyCompleteModal: React.FC<EarlyCompleteModalProps> = ({
   projectId,
@@ -23,37 +42,38 @@ export const EarlyCompleteModal: React.FC<EarlyCompleteModalProps> = ({
   nextStageId,
   nextStageName,
   onClose,
-  onSuccess,
 }) => {
+  const todayStr = getLocalDateInputString();
   const [comment, setComment] = useState("");
-  const [endDate, setEndDate] = useState(
-    new Date().toISOString().substring(0, 10),
-  );
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [endDate, setEndDate] = useState(todayStr);
   const [error, setError] = useState("");
+
+  const [completeStageEarly, { isLoading: isCompleting }] =
+    useCompleteStageEarlyMutation();
+  const [startStage, { isLoading: isStarting }] = useStartStageMutation();
+
+  const isSubmitting = isCompleting || isStarting;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
     setError("");
 
     try {
       const finalComment =
         comment.trim() || "Работы завершены досрочно по акту АОСР";
-      const payload = {
-        actual_end_date: new Date(endDate).toISOString(),
-        comment: finalComment,
-      };
+      const safeIsoDate = dateInputToSafeIso(endDate);
 
       // 1. Автоматически закрываем все предшествующие незавершенные этапы
       if (previousIncompleteStageIds.length > 0) {
         await Promise.all(
           previousIncompleteStageIds.map((prevId) =>
-            monitoringApi
-              .completeStageEarly(projectId, prevId, {
-                actual_end_date: new Date(endDate).toISOString(),
-                comment: `${finalComment} (автоматически закрыт перед этапом ${stageName})`,
-              })
+            completeStageEarly({
+              projectId,
+              scheduleId: prevId,
+              actual_end_date: safeIsoDate,
+              comment: `${finalComment} (автоматически закрыт перед этапом ${stageName})`,
+            })
+              .unwrap()
               .catch((err) => {
                 console.warn(
                   `Не удалось закрыть предшествующий этап ${prevId}:`,
@@ -65,12 +85,20 @@ export const EarlyCompleteModal: React.FC<EarlyCompleteModalProps> = ({
       }
 
       // 2. Закрываем выбранный целевой этап
-      await monitoringApi.completeStageEarly(projectId, stageId, payload);
+      await completeStageEarly({
+        projectId,
+        scheduleId: stageId,
+        actual_end_date: safeIsoDate,
+        comment: finalComment,
+      }).unwrap();
 
-      // 3. Запускаем следующий этап ТОЛЬКО если он ожидает старта 
+      // 3. Запускаем следующий этап ТОЛЬКО если он ожидает старта
       if (nextStageId) {
         try {
-          await monitoringApi.startStage(projectId, nextStageId);
+          await startStage({
+            projectId,
+            scheduleId: nextStageId,
+          }).unwrap();
         } catch (startErr: any) {
           console.warn(
             "Следующий этап не удалось автоматически запустить:",
@@ -79,12 +107,11 @@ export const EarlyCompleteModal: React.FC<EarlyCompleteModalProps> = ({
         }
       }
 
-      await onSuccess();
       onClose();
     } catch (err: any) {
-      setError(err.message || "Не удалось закрыть этап");
-    } finally {
-      setIsSubmitting(false);
+      setError(
+        err?.data?.detail || err?.message || "Не удалось закрыть этап",
+      );
     }
   };
 
@@ -99,7 +126,7 @@ export const EarlyCompleteModal: React.FC<EarlyCompleteModalProps> = ({
             onClick={onClose}
             title="Закрыть"
           >
-            <img src={closeIcon} alt="Закрыть" className="ui-icon-sm" />
+            <CloseIcon className="ui-icon-sm" />
           </button>
         </div>
 
@@ -146,7 +173,7 @@ export const EarlyCompleteModal: React.FC<EarlyCompleteModalProps> = ({
                 id="modal-date"
                 type="date"
                 value={endDate}
-                max={new Date().toISOString().substring(0, 10)}
+                max={todayStr}
                 onChange={(e) => setEndDate(e.target.value)}
                 required
               />
@@ -180,7 +207,7 @@ export const EarlyCompleteModal: React.FC<EarlyCompleteModalProps> = ({
               className="btn-gantt-success"
               disabled={isSubmitting}
             >
-              <img src={checkIcon} alt="" className="btn-icon-svg" />
+              <CheckIcon className="btn-icon-svg" />
               <span>
                 {isSubmitting ? "Сохранение..." : "Подтвердить приемку"}
               </span>

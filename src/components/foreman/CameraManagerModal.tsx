@@ -1,15 +1,21 @@
-import React, { useState, useEffect, useCallback } from "react";
-import { monitoringApi, CameraItem } from "../../api/monitoringApi";
-import cameraIcon from "../../assets/images/Camera.svg";
-import trashIcon from "../../assets/images/Trash_Full.svg";
-import closeIcon from "../../assets/images/Close_MD.svg";
-import lockIcon from "../../assets/images/Lock.svg";
+import React, { useState } from "react";
+import { CameraItem } from "../../api/monitoringApi";
+import {
+  useGetCamerasQuery,
+  useAddCameraMutation,
+  useToggleCameraActiveMutation,
+  useDeleteCameraMutation,
+} from "../../api/rtkApi";
+import { ReactComponent as CameraIcon } from "../../assets/images/Camera.svg";
+import { ReactComponent as TrashIcon } from "../../assets/images/Trash_Full.svg";
+import { ReactComponent as CloseIcon } from "../../assets/images/Close_MD.svg";
+import { ReactComponent as LockIcon } from "../../assets/images/Lock.svg";
 import "../../styles/CameraModal.css";
 
 interface Props {
   projectId: string;
   onClose: () => void;
-  isReadOnly?: boolean; // Блокировка только для наблюдателя (Департамент)
+  isReadOnly?: boolean;
 }
 
 export const CameraManagerModal: React.FC<Props> = ({
@@ -17,28 +23,14 @@ export const CameraManagerModal: React.FC<Props> = ({
   onClose,
   isReadOnly = false,
 }) => {
-  const [cameras, setCameras] = useState<CameraItem[]>([]);
   const [newStreamUrl, setNewStreamUrl] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorText, setErrorText] = useState("");
   const [successText, setSuccessText] = useState("");
 
-  const loadCameras = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const data = await monitoringApi.getCameras(projectId);
-      setCameras(Array.isArray(data) ? data : []);
-    } catch (err: any) {
-      setErrorText(err.message || "Ошибка загрузки списка видеокамер");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [projectId]);
-
-  useEffect(() => {
-    loadCameras();
-  }, [loadCameras]);
+  const { data: cameras = [], isLoading } = useGetCamerasQuery(projectId);
+  const [addCamera, { isLoading: isAdding }] = useAddCameraMutation();
+  const [toggleCameraActive] = useToggleCameraActiveMutation();
+  const [deleteCamera] = useDeleteCameraMutation();
 
   const handleAddCamera = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,21 +41,23 @@ export const CameraManagerModal: React.FC<Props> = ({
       return;
     }
 
-    setIsSubmitting(true);
     setErrorText("");
     setSuccessText("");
 
     try {
-      await monitoringApi.addCamera(projectId, newStreamUrl.trim());
+      await addCamera({
+        projectId,
+        streamUrl: newStreamUrl.trim(),
+      }).unwrap();
+
       setNewStreamUrl("");
       setSuccessText(
         "Камера успешно подключена и передана в контур видеоаналитики",
       );
-      await loadCameras();
     } catch (err: any) {
-      setErrorText(err.message || "Не удалось добавить камеру");
-    } finally {
-      setIsSubmitting(false);
+      setErrorText(
+        err?.data?.detail || err?.message || "Не удалось добавить камеру",
+      );
     }
   };
 
@@ -73,10 +67,15 @@ export const CameraManagerModal: React.FC<Props> = ({
     setErrorText("");
     setSuccessText("");
     try {
-      await monitoringApi.toggleCameraActive(camera.id, !camera.is_active);
-      await loadCameras();
+      await toggleCameraActive({
+        cameraId: camera.id,
+        projectId,
+        isActive: !camera.is_active,
+      }).unwrap();
     } catch (err: any) {
-      setErrorText(err.message || "Ошибка изменения активности камеры");
+      setErrorText(
+        err?.data?.detail || err?.message || "Ошибка изменения активности камеры",
+      );
     }
   };
 
@@ -93,11 +92,15 @@ export const CameraManagerModal: React.FC<Props> = ({
     setErrorText("");
     setSuccessText("");
     try {
-      await monitoringApi.deleteCamera(cameraId);
+      await deleteCamera({
+        cameraId,
+        projectId,
+      }).unwrap();
       setSuccessText("Камера удалена из системы");
-      await loadCameras();
     } catch (err: any) {
-      setErrorText(err.message || "Ошибка удаления камеры");
+      setErrorText(
+        err?.data?.detail || err?.message || "Ошибка удаления камеры",
+      );
     }
   };
 
@@ -106,7 +109,7 @@ export const CameraManagerModal: React.FC<Props> = ({
       <div className="camera-modal-card" onClick={(e) => e.stopPropagation()}>
         <div className="camera-modal-header">
           <div className="camera-modal-header-info">
-            <img src={cameraIcon} alt="" className="camera-modal-header-icon" />
+            <CameraIcon className="camera-modal-header-icon" />
             <div>
               <h3>
                 {isReadOnly
@@ -126,15 +129,14 @@ export const CameraManagerModal: React.FC<Props> = ({
             onClick={onClose}
             title="Закрыть окно"
           >
-            <img src={closeIcon} alt="✕" className="ui-icon-sm" />
+            <CloseIcon className="ui-icon-sm" />
           </button>
         </div>
 
         <div className="camera-modal-body">
-          {/* Предупреждение показывается ТОЛЬКО Департаменту (admin) */}
           {isReadOnly && (
             <div className="camera-modal-readonly-note">
-              <img src={lockIcon} alt="" className="btn-icon-svg" />
+              <LockIcon className="btn-icon-svg" />
               <span>
                 <strong>Режим наблюдателя (Департамент):</strong> управление
                 видеокамерами (добавление новых потоков, приостановка и
@@ -150,7 +152,6 @@ export const CameraManagerModal: React.FC<Props> = ({
             <div className="camera-modal-alert success">{successText}</div>
           )}
 
-          {/* Форма подключения камеры доступна и Инженеру, и Прорабу */}
           {!isReadOnly && (
             <form onSubmit={handleAddCamera} className="camera-add-card">
               <label
@@ -167,16 +168,16 @@ export const CameraManagerModal: React.FC<Props> = ({
                   placeholder="rtsp://admin:pass@192.168.1.100:554/live/ch0 или http://..."
                   value={newStreamUrl}
                   onChange={(e) => setNewStreamUrl(e.target.value)}
-                  disabled={isSubmitting}
+                  disabled={isAdding}
                   className="camera-url-input"
                   required
                 />
                 <button
                   type="submit"
                   className="camera-add-submit-btn"
-                  disabled={isSubmitting || !newStreamUrl.trim()}
+                  disabled={isAdding || !newStreamUrl.trim()}
                 >
-                  {isSubmitting ? "Подключение..." : "+ Подключить"}
+                  {isAdding ? "Подключение..." : "+ Подключить"}
                 </button>
               </div>
 
@@ -204,7 +205,6 @@ export const CameraManagerModal: React.FC<Props> = ({
             </form>
           )}
 
-          {/* Список подключенных камер */}
           <div className="camera-list-section">
             <div className="camera-list-header">
               <span className="camera-list-title">
@@ -222,11 +222,7 @@ export const CameraManagerModal: React.FC<Props> = ({
               </div>
             ) : cameras.length === 0 ? (
               <div className="camera-empty-box">
-                <img
-                  src={cameraIcon}
-                  alt=""
-                  className="camera-empty-icon-svg"
-                />
+                <CameraIcon className="camera-empty-icon-svg" />
                 <p>На этой стройплощадке пока нет подключенных камер.</p>
                 <small>
                   {isReadOnly
@@ -252,7 +248,6 @@ export const CameraManagerModal: React.FC<Props> = ({
                       </span>
                     </div>
 
-                    {/* Удаление доступно инженеру и прорабу */}
                     {!isReadOnly && (
                       <button
                         type="button"
@@ -260,11 +255,7 @@ export const CameraManagerModal: React.FC<Props> = ({
                         title="Удалить камеру со стройки"
                         onClick={() => handleDeleteCamera(cam.id)}
                       >
-                        <img
-                          src={trashIcon}
-                          alt="Удалить"
-                          className="ui-icon-trash"
-                        />
+                        <TrashIcon className="ui-icon-trash" aria-label="Удалить" />
                       </button>
                     )}
                   </div>
@@ -279,7 +270,6 @@ export const CameraManagerModal: React.FC<Props> = ({
                       {new Date(cam.created_at).toLocaleDateString("ru-RU")}
                     </span>
 
-                    {/* Управление активностью доступно инженеру и прорабу */}
                     {!isReadOnly && (
                       <button
                         type="button"
