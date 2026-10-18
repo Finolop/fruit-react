@@ -298,7 +298,9 @@ export const ForemanPage: React.FC = () => {
             <span className="kpi-caption">Объект и текущий этап</span>
             <h2 className="kpi-title-strong">{project.name}</h2>
             <span className="kpi-sub-text">
-              {liveSummary?.current_stage?.name || "Подготовительный этап"}
+              {(liveSummary?.current_stage?.name || "Подготовительный этап")
+                .replace(/^\d+(\.\d+)*[-.\s]+/, "")
+                .trim()}
             </span>
           </div>
 

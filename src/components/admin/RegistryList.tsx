@@ -278,7 +278,11 @@ const RegistryList: React.FC = () => {
                       )}
                     </td>
                     <td className="table-stage">
-                      {project.current_stage_name || "—"}
+                      {project.current_stage_name
+                        ? project.current_stage_name
+                            .replace(/^\d+(\.\d+)*[-.\s]+/, "")
+                            .trim()
+                        : "—"}
                     </td>
                     <td className="table-progress">
                       {project.physical_progress_percent !== undefined

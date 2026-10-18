@@ -400,7 +400,11 @@ export const EngineerPage: React.FC = () => {
                       : "green"
                 }`}
               >
-                {alertLevel}
+                {alertLevel === "YELLOW"
+                  ? "Желтый (Внимание)"
+                  : alertLevel === "RED"
+                    ? "Красный (Эскалация)"
+                    : "Зеленый (В норме)"}
               </span>
 
               {specStatus === "PURPLE" && (
@@ -437,7 +441,9 @@ export const EngineerPage: React.FC = () => {
               {liveSummary?.current_stage?.days_remaining ?? 0} дн. ост.
             </div>
             <span className="kpi-sub-text">
-              {liveSummary?.current_stage?.name || "Подготовительный этап"}
+              {(liveSummary?.current_stage?.name || "Подготовительный этап")
+                .replace(/^\d+(\.\d+)*[-.\s]+/, "")
+                .trim()}
             </span>
           </div>
 
