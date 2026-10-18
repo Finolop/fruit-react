@@ -26,9 +26,10 @@ export interface CameraSnapshotResponse {
   stream_url: string;
   is_active: boolean;
   captured_at: string | null;
-  image_url: string | null;
-  image_base64: string | null;
+  raw_image_base64: string | null;
+  annotated_image_base64: string | null;
   detection_count: number;
+  detected_classes_ru: string[];
 }
 
 const handleRes = async <T>(

@@ -276,3 +276,30 @@
   font-weight: 600;
   color: #0f172a;
 }
+
+
+.frame-header-title-box {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.bbox-toggle-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #1e293b;
+  background: #f1f5f9;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.bbox-toggle-label input {
+  cursor: pointer;
+  accent-color: var(--color-primary, #e53935);
+}

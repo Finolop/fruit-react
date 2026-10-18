@@ -1,4 +1,3 @@
-
 .camera-modal-overlay {
   position: fixed;
   z-index: 2500;
@@ -61,6 +60,77 @@
   margin: 4px 0 0;
   font-size: 12px;
   color: var(--color-text-secondary, #64748b);
+}
+
+/* Правая часть шапки: тоггл и крестик */
+.camera-header-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Контрол свитча-тумблера */
+.camera-switch-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.camera-switch-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+/* Трек переключателя */
+.camera-switch-track {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+}
+
+.camera-switch-track input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+/* Слайдер переключателя */
+.camera-switch-slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #cbd5e1;
+  border-radius: 22px;
+  transition: background-color 0.2s ease;
+}
+
+/* Круглый бегунок */
+.camera-switch-slider::before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease;
+}
+
+/* Включенное состояние (смещение вправо) */
+.camera-switch-track input:checked + .camera-switch-slider {
+  background-color: var(--color-primary, #e53935);
+}
+
+.camera-switch-track input:checked + .camera-switch-slider::before {
+  transform: translateX(18px);
 }
 
 .camera-modal-close-btn {
@@ -282,6 +352,16 @@
   border: 1px solid #cbd5e1;
 }
 
+.camera-detected-count-badge {
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #1e40af;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+}
+
 .camera-delete-btn {
   padding: 4px 6px;
   font-size: 15px;
@@ -312,6 +392,59 @@
   font-size: 12px;
   color: #334155;
   word-break: break-all;
+}
+
+/* Окно превью снимка (целиком без обрезания) */
+.camera-snapshot-preview-box {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 250px;
+  background: #090d16;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--color-border, #e2e8f0);
+}
+
+.camera-snapshot-preview-img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.camera-no-signal-placeholder {
+  font-size: 13px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+/* Список обнаруженной техники */
+.camera-detected-list-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.detected-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary, #64748b);
+}
+
+.detected-class-chip {
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #166534;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 4px;
 }
 
 .camera-item-bottom {
@@ -367,10 +500,10 @@
   border-radius: var(--radius-md, 8px);
 }
 
-.camera-empty-icon {
+.camera-empty-icon-svg {
   display: block;
   font-size: 34px;
-  margin-bottom: 8px;
+  margin: 0 auto 8px;
 }
 
 .camera-empty-box p {
@@ -427,70 +560,4 @@
 
 .camera-modal-readonly-note strong {
   color: #1e3a8a;
-}
-
-/* Размеры модального окна в зависимости от активной вкладки */
-.camera-modal-card.tab-cameras {
-  max-width: 680px;
-}
-
-.camera-modal-card.tab-gallery {
-  max-width: 980px;
-}
-
-/* Навигационные табы */
-.camera-modal-tabs {
-  display: flex;
-  gap: 8px;
-  padding: 12px 24px 0;
-  border-bottom: 1px solid var(--color-border, #e2e8f0);
-  background: var(--color-background, #f8fafc);
-}
-
-.camera-tab-button {
-  padding: 10px 18px;
-  font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--color-text-secondary, #64748b);
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid transparent;
-  cursor: pointer;
-  transition: color 0.15s ease, border-color 0.15s ease;
-}
-
-.camera-tab-button:hover {
-  color: var(--color-text, #0f172a);
-}
-
-.camera-tab-button.active {
-  color: var(--color-primary, #e53935);
-  border-bottom-color: var(--color-primary, #e53935);
-}
-
-.camera-detected-count-badge {
-  padding: 2px 7px;
-  font-size: 11px;
-  font-weight: 700;
-  color: #1e40af;
-  background: #eff6ff;
-  border: 1px solid #bfdbfe;
-  border-radius: 4px;
-}
-
-.camera-snapshot-preview-box {
-  width: 100%;
-  height: 180px;
-  overflow: hidden;
-  background: #0f172a;
-  border-radius: 6px;
-  border: 1px solid var(--color-border, #e2e8f0);
-}
-
-.camera-snapshot-preview-img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
 }

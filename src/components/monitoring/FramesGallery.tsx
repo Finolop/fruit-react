@@ -27,9 +27,8 @@ interface FramesGalleryProps {
 }
 
 export const FramesGallery: React.FC<FramesGalleryProps> = ({ projectId }) => {
-  const [selectedFrame, setSelectedFrame] = useState<FrameItemResponse | null>(
-    null,
-  );
+  const [selectedFrame, setSelectedFrame] = useState<FrameItemResponse | null>(null);
+  const [showBoundingBoxes, setShowBoundingBoxes] = useState<boolean>(true);
   const [imageDimensions, setImageDimensions] = useState<{
     width: number;
     height: number;
@@ -101,8 +100,7 @@ export const FramesGallery: React.FC<FramesGalleryProps> = ({ projectId }) => {
         <div className="camera-empty-box">
           <p>Кадров с камер пока не поступало</p>
           <small>
-            Кадры автоматически фиксируются воркером видеоаналитики каждые
-            несколько секунд.
+            Кадры автоматически фиксируются каждые несколько секунд.
           </small>
         </div>
       ) : (
@@ -154,7 +152,19 @@ export const FramesGallery: React.FC<FramesGalleryProps> = ({ projectId }) => {
             onClick={(e) => e.stopPropagation()}
           >
             <div className="frame-modal-header">
-              <h3>Кадр детекции #{selectedFrame.id.slice(0, 8)}</h3>
+              <div className="frame-header-title-box">
+                <h3>Кадр детекции #{selectedFrame.id.slice(0, 8)}</h3>
+                {/* Тогл включения/выключения рамок ИИ */}
+                <label className="bbox-toggle-label">
+                  <input
+                    type="checkbox"
+                    checked={showBoundingBoxes}
+                    onChange={(e) => setShowBoundingBoxes(e.target.checked)}
+                  />
+                  <span>Разметка ИИ</span>
+                </label>
+              </div>
+
               <button
                 type="button"
                 className="btn-unassign-chip"
@@ -172,34 +182,36 @@ export const FramesGallery: React.FC<FramesGalleryProps> = ({ projectId }) => {
                 onLoad={handleImageLoad}
               />
 
-              <svg
-                className="frame-bbox-svg-overlay"
-                viewBox={`0 0 ${imageDimensions.width} ${imageDimensions.height}`}
-                preserveAspectRatio="none"
-              >
-                {selectedDetections.map(
-                  (d, i) =>
-                    d.bbox &&
-                    d.bbox.length === 4 && (
-                      <g key={i}>
-                        <rect
-                          x={d.bbox[0]}
-                          y={d.bbox[1]}
-                          width={d.bbox[2] - d.bbox[0]}
-                          height={d.bbox[3] - d.bbox[1]}
-                          className="bbox-rect"
-                        />
-                        <text
-                          x={d.bbox[0] + 6}
-                          y={Math.max(d.bbox[1] - 8, 22)}
-                          className="bbox-text"
-                        >
-                          {d.label} {d.conf ? `${d.conf}%` : ""}
-                        </text>
-                      </g>
-                    ),
-                )}
-              </svg>
+              {showBoundingBoxes && (
+                <svg
+                  className="frame-bbox-svg-overlay"
+                  viewBox={`0 0 ${imageDimensions.width} ${imageDimensions.height}`}
+                  preserveAspectRatio="none"
+                >
+                  {selectedDetections.map(
+                    (d, i) =>
+                      d.bbox &&
+                      d.bbox.length === 4 && (
+                        <g key={i}>
+                          <rect
+                            x={d.bbox[0]}
+                            y={d.bbox[1]}
+                            width={d.bbox[2] - d.bbox[0]}
+                            height={d.bbox[3] - d.bbox[1]}
+                            className="bbox-rect"
+                          />
+                          <text
+                            x={d.bbox[0] + 6}
+                            y={Math.max(d.bbox[1] - 8, 22)}
+                            className="bbox-text"
+                          >
+                            {d.label} {d.conf ? `${d.conf}%` : ""}
+                          </text>
+                        </g>
+                      ),
+                  )}
+                </svg>
+              )}
             </div>
 
             <div className="engineer-form-field">
