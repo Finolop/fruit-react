@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { CameraItem } from "../../api/monitoringApi";
 import {
   useGetCamerasQuery,
@@ -11,6 +11,9 @@ import { ReactComponent as CameraIcon } from "../../assets/images/Camera.svg";
 import { ReactComponent as TrashIcon } from "../../assets/images/Trash_Full.svg";
 import { ReactComponent as CloseIcon } from "../../assets/images/Close_MD.svg";
 import { ReactComponent as LockIcon } from "../../assets/images/Lock.svg";
+import { ReactComponent as DownloadFileIcon } from "../../assets/images/File_Download.svg";
+import { ReactComponent as ExpandCornersIcon } from "../../assets/images/Expand.svg";
+
 import "../../styles/CameraModal.css";
 
 interface Props {
@@ -19,15 +22,25 @@ interface Props {
   isReadOnly?: boolean;
 }
 
+interface FullscreenImageData {
+  title: string;
+  url: string;
+  src: string;
+  detectedClasses: string[];
+}
+
 export const CameraManagerModal: React.FC<Props> = ({
   projectId,
   onClose,
   isReadOnly = false,
 }) => {
   const [newStreamUrl, setNewStreamUrl] = useState("");
-  const [showBBoxes, setShowBBoxes] = useState(true);
+  // По умолчанию выключено
+  const [showBBoxes, setShowBBoxes] = useState(false);
   const [errorText, setErrorText] = useState("");
   const [successText, setSuccessText] = useState("");
+  const [activeFullscreenImage, setActiveFullscreenImage] =
+    useState<FullscreenImageData | null>(null);
 
   const { data: cameras = [], isLoading } = useGetCamerasQuery(projectId);
   const { data: snapshots = [] } = useGetCameraSnapshotsQuery(projectId, {
@@ -38,6 +51,26 @@ export const CameraManagerModal: React.FC<Props> = ({
   const [addCamera, { isLoading: isAdding }] = useAddCameraMutation();
   const [toggleCameraActive] = useToggleCameraActiveMutation();
   const [deleteCamera] = useDeleteCameraMutation();
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setActiveFullscreenImage(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  const handleDownload = () => {
+    if (!activeFullscreenImage) return;
+    const link = document.createElement("a");
+    link.href = activeFullscreenImage.src;
+    link.download = `${activeFullscreenImage.title.replace(/\s+/g, "_")}_${Date.now()}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const handleAddCamera = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -218,110 +251,130 @@ export const CameraManagerModal: React.FC<Props> = ({
                 </small>
               </div>
             ) : (
-              cameras.map((cam, idx) => {
-                const snap = snapshots.find((s) => s.camera_id === cam.id);
-                const imageSource = showBBoxes
-                  ? snap?.annotated_image_base64 || snap?.raw_image_base64
-                  : snap?.raw_image_base64 || snap?.annotated_image_base64;
+              <div className="camera-list-grid">
+                {cameras.map((cam, idx) => {
+                  const snap = snapshots.find((s) => s.camera_id === cam.id);
+                  const imageSource = showBBoxes
+                    ? snap?.annotated_image_base64 || snap?.raw_image_base64
+                    : snap?.raw_image_base64 || snap?.annotated_image_base64;
 
-                const detectedClasses = snap?.detected_classes_ru || [];
+                  const detectedClasses = snap?.detected_classes_ru || [];
 
-                return (
-                  <div
-                    key={cam.id}
-                    className={`camera-item-card ${
-                      cam.is_active ? "online" : "offline"
-                    }`}
-                  >
-                    <div className="camera-item-top">
-                      <div className="camera-status-group">
-                        <span className="camera-number-tag">
-                          Камера #{idx + 1}
-                        </span>
-                        <span
-                          className={`camera-badge-pill ${
-                            cam.is_active ? "on" : "off"
-                          }`}
-                        >
-                          {cam.is_active ? "В сети (ON)" : "Отключена"}
-                        </span>
-                        {snap && snap.detection_count > 0 && (
-                          <span className="camera-detected-count-badge">
-                            Техники: {snap.detection_count} шт.
+                  return (
+                    <div
+                      key={cam.id}
+                      className={`camera-item-card ${
+                        cam.is_active ? "online" : "offline"
+                      }`}
+                    >
+                      <div className="camera-item-top">
+                        <div className="camera-status-group">
+                          <span className="camera-number-tag">
+                            Камера #{idx + 1}
                           </span>
+                          <span
+                            className={`camera-badge-pill ${
+                              cam.is_active ? "on" : "off"
+                            }`}
+                          >
+                            {cam.is_active ? "В сети (ON)" : "Отключена"}
+                          </span>
+                          {snap && snap.detection_count > 0 && (
+                            <span className="camera-detected-count-badge">
+                              Техники: {snap.detection_count} шт.
+                            </span>
+                          )}
+                        </div>
+
+                        {!isReadOnly && (
+                          <button
+                            type="button"
+                            className="camera-delete-btn"
+                            title="Удалить камеру"
+                            onClick={() => handleDeleteCamera(cam.id)}
+                          >
+                            <TrashIcon className="ui-icon-trash" />
+                          </button>
                         )}
                       </div>
 
-                      {!isReadOnly && (
-                        <button
-                          type="button"
-                          className="camera-delete-btn"
-                          title="Удалить камеру"
-                          onClick={() => handleDeleteCamera(cam.id)}
-                        >
-                          <TrashIcon className="ui-icon-trash" />
-                        </button>
-                      )}
-                    </div>
+                      <div className="camera-url-box" title={cam.stream_url}>
+                        <code>{cam.stream_url}</code>
+                      </div>
 
-                    <div className="camera-url-box" title={cam.stream_url}>
-                      <code>{cam.stream_url}</code>
-                    </div>
+                      {/* Область кадра с иконкой разворота */}
+                      <div
+                        className="camera-snapshot-preview-box"
+                        onClick={() =>
+                          imageSource &&
+                          setActiveFullscreenImage({
+                            title: `Камера #${idx + 1}`,
+                            url: cam.stream_url,
+                            src: imageSource,
+                            detectedClasses,
+                          })
+                        }
+                      >
+                        {imageSource ? (
+                          <>
+                            <img
+                              src={imageSource}
+                              alt={`Кадр с камеры #${idx + 1}`}
+                              className="camera-snapshot-preview-img"
+                            />
+                            <span className="camera-expand-indicator">
+                              <ExpandCornersIcon className="camera-expand-icon" />
+                              <span>Развернуть</span>
+                            </span>
+                          </>
+                        ) : (
+                          <div className="camera-no-signal-placeholder">
+                            Нет сигнала / ожидание первого снимка
+                          </div>
+                        )}
+                      </div>
 
-                    <div className="camera-snapshot-preview-box">
-                      {imageSource ? (
-                        <img
-                          src={imageSource}
-                          alt={`Кадр с камеры #${idx + 1}`}
-                          className="camera-snapshot-preview-img"
-                        />
-                      ) : (
-                        <div className="camera-no-signal-placeholder">
-                          Нет сигнала / ожидание первого снимка
+                      {detectedClasses.length > 0 && (
+                        <div className="camera-detected-list-row">
+                          <span className="detected-label">В кадре:</span>
+                          {detectedClasses.map((cls, cIdx) => (
+                            <span key={cIdx} className="detected-class-chip">
+                              {cls}
+                            </span>
+                          ))}
                         </div>
                       )}
-                    </div>
 
-                    {detectedClasses.length > 0 && (
-                      <div className="camera-detected-list-row">
-                        <span className="detected-label">В кадре:</span>
-                        {detectedClasses.map((cls, cIdx) => (
-                          <span key={cIdx} className="detected-class-chip">
-                            {cls}
-                          </span>
-                        ))}
+                      <div className="camera-item-bottom">
+                        <span className="camera-date-text">
+                          {snap?.captured_at
+                            ? `Снимок: ${new Date(
+                                snap.captured_at,
+                              ).toLocaleTimeString([], {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                                second: "2-digit",
+                              })}`
+                            : `Подключена: ${new Date(
+                                cam.created_at,
+                              ).toLocaleDateString("ru-RU")}`}
+                        </span>
+                        {!isReadOnly && (
+                          <button
+                            type="button"
+                            className={`camera-toggle-btn ${
+                              cam.is_active ? "btn-stop" : "btn-start"
+                            }`}
+                            onClick={() => handleToggleActive(cam)}
+                          >
+                            {cam.is_active ? "Приостановить" : "Активировать"}
+                          </button>
+                        )}
                       </div>
-                    )}
-
-                    <div className="camera-item-bottom">
-                      <span className="camera-date-text">
-                        {snap?.captured_at
-                          ? `Снимок: ${new Date(
-                              snap.captured_at,
-                            ).toLocaleTimeString([], {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                              second: "2-digit",
-                            })}`
-                          : `Подключена: ${new Date(
-                              cam.created_at,
-                            ).toLocaleDateString("ru-RU")}`}
-                      </span>
-                      {!isReadOnly && (
-                        <button
-                          type="button"
-                          className={`camera-toggle-btn ${
-                            cam.is_active ? "btn-stop" : "btn-start"
-                          }`}
-                          onClick={() => handleToggleActive(cam)}
-                        >
-                          {cam.is_active ? "Приостановить" : "Активировать"}
-                        </button>
-                      )}
                     </div>
-                  </div>
-                );
-              })
+                  );
+                })}
+              </div>
             )}
           </div>
         </div>
@@ -336,6 +389,78 @@ export const CameraManagerModal: React.FC<Props> = ({
           </button>
         </div>
       </div>
+
+      {/* Полноэкранный Lightbox */}
+      {activeFullscreenImage && (
+        <div
+          className="camera-fullscreen-overlay"
+          onClick={(e) => {
+            e.stopPropagation();
+            setActiveFullscreenImage(null);
+          }}
+        >
+          <div className="camera-fullscreen-top-bar">
+            <div className="camera-fullscreen-caption">
+              <h4>{activeFullscreenImage.title}</h4>
+              <span>{activeFullscreenImage.url}</span>
+            </div>
+
+            <div className="camera-fullscreen-actions">
+              <button
+                type="button"
+                className="camera-fullscreen-download-btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleDownload();
+                }}
+                title="Скачать снимок на компьютер"
+              >
+                <DownloadFileIcon className="camera-fullscreen-download-icon" />
+                <span>Скачать снимок</span>
+              </button>
+
+              <button
+                type="button"
+                className="camera-fullscreen-close-btn"
+                onClick={() => setActiveFullscreenImage(null)}
+                title="Закрыть во весь экран (Esc)"
+              >
+                <CloseIcon className="ui-icon-sm" />
+              </button>
+            </div>
+          </div>
+
+          <div
+            className="camera-fullscreen-content"
+            onClick={(e) => {
+              e.stopPropagation();
+              setActiveFullscreenImage(null);
+            }}
+          >
+            <img
+              src={activeFullscreenImage.src}
+              alt="Полноэкранный снимок"
+              className="camera-fullscreen-img"
+            />
+
+            {activeFullscreenImage.detectedClasses.length > 0 && (
+              <div
+                className="camera-fullscreen-footer"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <span className="fullscreen-detected-label">
+                  Обнаруженная техника:
+                </span>
+                {activeFullscreenImage.detectedClasses.map((cls, idx) => (
+                  <span key={idx} className="fullscreen-class-chip">
+                    {cls}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
