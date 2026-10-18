@@ -161,7 +161,7 @@ export const FramesGallery: React.FC<FramesGalleryProps> = ({ projectId }) => {
                     checked={showBoundingBoxes}
                     onChange={(e) => setShowBoundingBoxes(e.target.checked)}
                   />
-                  <span>Разметка ИИ</span>
+                  <span>Детекция техники</span>
                 </label>
               </div>
 

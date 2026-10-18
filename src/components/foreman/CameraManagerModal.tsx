@@ -155,7 +155,7 @@ export const CameraManagerModal: React.FC<Props> = ({
               className="camera-switch-control"
               title="Переключить показ рамок нейросети"
             >
-              <span className="camera-switch-label">Разметка ИИ</span>
+              <span className="camera-switch-label">Детекция техники</span>
               <span className="camera-switch-track">
                 <input
                   type="checkbox"

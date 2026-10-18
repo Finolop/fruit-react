@@ -30,7 +30,15 @@ const dateInputToSafeIso = (dateStr: string): string => {
   if (!year || !month || !day) {
     return new Date().toISOString();
   }
-  const safeDate = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
+  const now = new Date();
+  const safeDate = new Date(
+    year,
+    month - 1,
+    day,
+    now.getHours(),
+    now.getMinutes(),
+    now.getSeconds(),
+  );
   return safeDate.toISOString();
 };
 
@@ -63,28 +71,23 @@ export const EarlyCompleteModal: React.FC<EarlyCompleteModalProps> = ({
         comment.trim() || "Работы завершены досрочно по акту АОСР";
       const safeIsoDate = dateInputToSafeIso(endDate);
 
-      // 1. Автоматически закрываем все предшествующие незавершенные этапы
+      // Последовательное закрытие предшествующих этапов без состояния гонки
       if (previousIncompleteStageIds.length > 0) {
-        await Promise.all(
-          previousIncompleteStageIds.map((prevId) =>
-            completeStageEarly({
+        for (const prevId of previousIncompleteStageIds) {
+          try {
+            await completeStageEarly({
               projectId,
               scheduleId: prevId,
               actual_end_date: safeIsoDate,
               comment: `${finalComment} (автоматически закрыт перед этапом ${stageName})`,
-            })
-              .unwrap()
-              .catch((err) => {
-                console.warn(
-                  `Не удалось закрыть предшествующий этап ${prevId}:`,
-                  err,
-                );
-              }),
-          ),
-        );
+            }).unwrap();
+          } catch (prevErr) {
+            console.warn(`Предшествующий этап ${prevId} пропущен:`, prevErr);
+          }
+        }
       }
 
-      // 2. Закрываем выбранный целевой этап
+      // Закрываем целевой этап
       await completeStageEarly({
         projectId,
         scheduleId: stageId,
@@ -92,7 +95,7 @@ export const EarlyCompleteModal: React.FC<EarlyCompleteModalProps> = ({
         comment: finalComment,
       }).unwrap();
 
-      // 3. Запускаем следующий этап ТОЛЬКО если он ожидает старта
+      // Запуск следующего этапа, если он запланирован
       if (nextStageId) {
         try {
           await startStage({
@@ -147,7 +150,7 @@ export const EarlyCompleteModal: React.FC<EarlyCompleteModalProps> = ({
               {nextStageName && (
                 <p className="early-complete-next-text">
                   Следующий запланированный этап «{nextStageName}» будет
-                  автоматически переведён в работу (статус «В работе»).
+                  автоматически переведён в статус «В работе».
                 </p>
               )}
             </div>

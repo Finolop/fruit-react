@@ -34,6 +34,11 @@ const TECH_NAMES: Record<string, string> = {
   truck: "грузовик / длинномер",
 };
 
+const TECH_REGEX = new RegExp(
+  `['"]?\\b(${Object.keys(TECH_NAMES).sort((a, b) => b.length - a.length).join("|")})\\b['"]?`,
+  "gi",
+);
+
 const TRIGGER_TITLES: Record<string, string> = {
   EQUIPMENT_IDLE: "Простой строительной техники",
   DEFICIT_TRUCK: "Дефицит грузовиков / длинномеров",
@@ -54,44 +59,43 @@ const TRIGGER_TITLES: Record<string, string> = {
   DELAYED: "Срыв директивного срока этапа",
 };
 
-const TECH_REGEX = new RegExp(
-  `['"]?\\b(${Object.keys(TECH_NAMES)
-    .sort((a, b) => b.length - a.length)
-    .join("|")})\\b['"]?`,
-  "gi",
-);
-
 export const formatAlertDetails = (alert: AlertResponse) => {
   const details = alert.details || {};
-  const rawMsg = details.message || "";
-  const isCriticalPath = Boolean(details.is_critical_path);
+  const violations = Array.isArray(details.violations) ? details.violations : [];
 
-  let title = TRIGGER_TITLES[alert.trigger_type] || alert.trigger_type;
-  if (alert.trigger_type.startsWith("MISMATCH_")) {
+  const criticalViolation =
+    violations.find((v: any) => v.severity === "RED") || violations[0];
+
+  const rawMsg = criticalViolation?.message || details.message || "";
+  const isCriticalPath = Boolean(
+    criticalViolation?.is_critical_path || details.is_critical_path,
+  );
+
+  const mainTriggerType = criticalViolation?.type || alert.trigger_type;
+  let title = TRIGGER_TITLES[mainTriggerType] || mainTriggerType;
+
+  if (mainTriggerType.startsWith("MISMATCH_")) {
     title = "Лишняя техника вне регламента этапа";
-  } else if (alert.trigger_type.startsWith("SURPLUS_")) {
+  } else if (mainTriggerType.startsWith("SURPLUS_")) {
     title = "Избыток техники сверх норматива";
   } else if (
-    alert.trigger_type.startsWith("DEFICIT_") &&
-    !TRIGGER_TITLES[alert.trigger_type]
+    mainTriggerType.startsWith("DEFICIT_") &&
+    !TRIGGER_TITLES[mainTriggerType]
   ) {
     title = "Дефицит строительной техники";
   }
 
-  // Замена в один проход: регулярка находит токен, а replace подставляет русское наименование
-  const cleanMessage = rawMsg.replace(
-    TECH_REGEX,
-    (fullMatch: string, match: string) => {
-      const ruName = TECH_NAMES[match.toLowerCase()];
-      return ruName ? `«${ruName}»` : fullMatch;
-    },
-  );
+  const cleanMessage = rawMsg.replace(TECH_REGEX, (_: string, match: string) => {
+    const ruName = TECH_NAMES[match.toLowerCase()];
+    return ruName ? `«${ruName}»` : match;
+  });
 
   let escalateCountdown = "";
-  if (alert.escalate_at && alert.severity === "YELLOW") {
+  const targetEscalate = criticalViolation?.escalate_at || alert.escalate_at;
+  if (targetEscalate && alert.severity === "YELLOW") {
     try {
       const diffMins = Math.round(
-        (new Date(alert.escalate_at).getTime() - Date.now()) / (1000 * 60),
+        (new Date(targetEscalate).getTime() - Date.now()) / (1000 * 60),
       );
       if (diffMins > 0) {
         const hours = Math.floor(diffMins / 60);
@@ -197,8 +201,7 @@ export const AlertDecisionModal: React.FC<Props> = ({
               <div className="decision-header-text">
                 <h3>Решение по инциденту на объекте</h3>
                 <p>
-                  Фиксация процессуального постановления надзора в журнале
-                  аудита объекта
+                  Фиксация процессуального постановления надзора в журнале аудита объекта
                 </p>
               </div>
             </div>
@@ -294,7 +297,7 @@ export const AlertDecisionModal: React.FC<Props> = ({
             {scenario === "FALSE_ALARM" && (
               <div className="decision-tab-content green">
                 <div className="form-field">
-                  <label>Причина отмены алерта инспектором *</label>
+                  <label>Причина отмены предупреждения инспектором *</label>
                   <textarea
                     className="foreman-custom-input large-reason-area"
                     placeholder="Например: Технологический перерыв бетонирования по карте захватки / блик оптической линзы камеры / техника находилась в закрытом ангаре разгрузки..."
@@ -304,8 +307,7 @@ export const AlertDecisionModal: React.FC<Props> = ({
                   />
                   <small className="field-hint">
                     Предупреждение аннулируется в системе. Светофор объекта
-                    возвращается в ш татный зелёный режим. Штрафы не
-                    начисляются.
+                    возвращается в штатный зелёный режим. Штрафы не начисляются.
                   </small>
                 </div>
               </div>
@@ -437,7 +439,7 @@ export const AlertDecisionModal: React.FC<Props> = ({
                 {isSubmitting
                   ? "Регистрация..."
                   : scenario === "FALSE_ALARM"
-                    ? "Отменить алерт (Зелёный режим)"
+                    ? "Отменить предупреждение"
                     : scenario === "ORANGE_STATUS"
                       ? "Утвердить штрафной коридор"
                       : "Зафиксировать форс-мажор"}

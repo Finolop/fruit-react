@@ -142,11 +142,6 @@ export const EngineerPage: React.FC = () => {
     };
   }, [rawProject, availableProjects, selectedProjectId]);
 
-  const allOpenAlerts = useMemo(
-    () => alertsData.filter((a: AlertResponse) => a.status !== "RESOLVED"),
-    [alertsData],
-  );
-
   const loadProjectData = useCallback(async () => {
     if (!selectedProjectId) return;
     await Promise.all([
@@ -308,8 +303,6 @@ export const EngineerPage: React.FC = () => {
     ""
   ).toUpperCase();
 
-  const openAlertsCount =
-    allOpenAlerts.length > 0 ? allOpenAlerts.length : activeAlert ? 1 : 0;
   const activeAlertParsed = activeAlert
     ? formatAlertDetails(activeAlert)
     : null;
@@ -450,7 +443,7 @@ export const EngineerPage: React.FC = () => {
           </div>
 
           <div className="engineer-kpi-card">
-            <span className="kpi-caption">Техника и Инциденты</span>
+            <span className="kpi-caption">Техника на объекте</span>
             <div className="console-eq-row">
               <div className="eq-unit">
                 <span className="eq-unit-val">
@@ -472,7 +465,7 @@ export const EngineerPage: React.FC = () => {
               </div>
             </div>
             <span className="kpi-sub-text">
-              Открытых инцидентов в очереди: <strong>{openAlertsCount}</strong>
+              {activeAlert ? "Зафиксировано отклонение" : "Отклонений нет"}
             </span>
           </div>
         </div>
@@ -491,9 +484,9 @@ export const EngineerPage: React.FC = () => {
                   ? activeAlertParsed.title
                   : "Оперативный надзор СМР"}
               </h3>
-              {openAlertsCount > 1 && (
+              {activeAlert && activeAlert.severity === "RED" && (
                 <span className="alert-queue-counter-tag">
-                  Инцидент 1 из {openAlertsCount} в очереди
+                  Критическое нарушение
                 </span>
               )}
             </div>

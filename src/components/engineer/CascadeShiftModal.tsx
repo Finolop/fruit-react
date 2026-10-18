@@ -56,7 +56,7 @@ export const CascadeShiftModal: React.FC<Props> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fromScheduleId) {
-      setErrorText("Выберите этап, с которого начинается каскадный перенос");
+      setErrorText("Выберите этап, с которого начинается перенос");
       return;
     }
     if (!reasonComment.trim()) {
@@ -162,7 +162,7 @@ export const CascadeShiftModal: React.FC<Props> = ({
                 </div>
 
                 <div className="cascade-audit-pill">
-                  <span>Номер протокола в журнале аудита:</span>
+                  <span>Номер записи аудита:</span>
                   <code>{resultData.audit_trail_id}</code>
                 </div>
               </div>
