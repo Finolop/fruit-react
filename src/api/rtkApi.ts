@@ -124,6 +124,8 @@ export const baseQueryWithReauth: BaseQueryFn<
 export const rtkApi = createApi({
   reducerPath: "rtkApi",
   baseQuery: baseQueryWithReauth,
+  refetchOnMountOrArgChange: true,
+  refetchOnFocus: true,
   tagTypes: [
     "Projects",
     "Project",
@@ -209,7 +211,7 @@ export const rtkApi = createApi({
         method: "PATCH",
         body,
       }),
-      invalidatesTags: ["Users"],
+      invalidatesTags: ["Users", "Projects"],
     }),
 
     getProjectAssignments: builder.query<ProjectAssignment[], string>({
@@ -228,6 +230,7 @@ export const rtkApi = createApi({
       }),
       invalidatesTags: (_res, _err, { projectId }) => [
         { type: "Assignments", id: projectId },
+        "Projects",
       ],
     }),
 
@@ -241,6 +244,7 @@ export const rtkApi = createApi({
       }),
       invalidatesTags: (_res, _err, { projectId }) => [
         { type: "Assignments", id: projectId },
+        "Projects",
       ],
     }),
 

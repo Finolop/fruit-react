@@ -287,7 +287,7 @@ export const ForemanGanttView: React.FC<Props> = ({
           >
             {isSaving
               ? "Генерация..."
-              : "⚡ Сгенерировать график из шаблона ТЗ"}
+              : "Сгенерировать график из шаблона ТЗ"}
           </button>
         </div>
       ) : (

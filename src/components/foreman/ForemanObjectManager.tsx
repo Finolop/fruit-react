@@ -8,6 +8,7 @@ import {
   useApplyTemplateMutation,
   useBulkSyncSchedulesMutation,
   useConfirmScheduleMutation,
+  extractApiError,
 } from "../../api/rtkApi";
 import { CameraManagerModal } from "./CameraManagerModal";
 import { EarlyCompleteModal } from "../engineer/EarlyCompleteModal";
@@ -211,7 +212,8 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
               (rawCode && et.code && et.code.toLowerCase() === rawCode),
           );
 
-          const finalId = matched?.id || eq.equipment_type_id || rawCode || rawId;
+          const finalId =
+            matched?.id || eq.equipment_type_id || rawCode || rawId;
           const finalCode = (
             matched?.code ||
             rawCode ||
@@ -323,7 +325,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     setCollapsed((prev) => ({ ...prev, [stageId]: !prev[stageId] }));
   };
 
-  // Переключение критического пути прорабом
   const handleCriticalPathChange = (
     stageId: string,
     subId: string,
@@ -343,43 +344,71 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     );
   };
 
+  // Исправлено: при изменении длительности этапа даты последующих этапов
+  // последовательно пересчитываются без нахлёста
   const handleDurationChange = (
-    stageId: string,
+    _stageId: string,
     subId: string,
     days: number,
   ) => {
     if (isLocked) return;
     const val = Math.max(1, days || 1);
 
-    setStages((prev) =>
-      prev.map((maj) => {
-        if (maj.id !== stageId) return maj;
+    setStages((prev) => {
+      let foundTarget = false;
+      let lastEnd: Date | null = null;
 
-        const updatedSubStages = maj.subStages.map((s) => {
-          if (s.id !== subId) return s;
-          const newEnd = addDaysSafe(s.startDate, val);
-          return {
-            ...s,
-            durationDays: val,
-            endDate: newEnd,
-          };
+      return prev.map((maj) => {
+        const updatedSubs = maj.subStages.map((sub) => {
+          if (sub.id === subId) {
+            foundTarget = true;
+            const newEnd = addDaysSafe(sub.startDate, val);
+            lastEnd = newEnd;
+            return {
+              ...sub,
+              durationDays: val,
+              endDate: newEnd,
+            };
+          }
+
+          if (foundTarget && lastEnd) {
+            const nextStart = new Date(lastEnd.getTime());
+            const nextEnd = addDaysSafe(nextStart, sub.durationDays);
+            lastEnd = nextEnd;
+            return {
+              ...sub,
+              startDate: nextStart,
+              endDate: nextEnd,
+            };
+          }
+
+          return sub;
         });
 
-        const allEndTimes = updatedSubStages.map((s) => s.endDate.getTime());
-        const newMaxEnd = new Date(Math.max(...allEndTimes));
-        const newTotalDays = updatedSubStages.reduce(
+        const allStartTimes = updatedSubs.map((s) => s.startDate.getTime());
+        const allEndTimes = updatedSubs.map((s) => s.endDate.getTime());
+        const newMinStart =
+          allStartTimes.length > 0
+            ? new Date(Math.min(...allStartTimes))
+            : new Date();
+        const newMaxEnd =
+          allEndTimes.length > 0
+            ? new Date(Math.max(...allEndTimes))
+            : new Date();
+        const newTotalDays = updatedSubs.reduce(
           (acc, s) => acc + s.durationDays,
           0,
         );
 
         return {
           ...maj,
-          subStages: updatedSubStages,
+          subStages: updatedSubs,
+          startDate: newMinStart,
           endDate: newMaxEnd,
           totalDurationDays: newTotalDays,
         };
-      }),
-    );
+      });
+    });
   };
 
   const handleEquipmentCountChange = (
@@ -586,7 +615,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     } catch (err: any) {
       setStatusMessage({
         type: "error",
-        text: err?.data?.detail || err?.message || "Ошибка генерации шаблона",
+        text: extractApiError(err, "Ошибка генерации шаблона"),
       });
     }
   };
@@ -609,7 +638,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     } catch (e: any) {
       setStatusMessage({
         type: "error",
-        text: `Не удалось сохранить график: ${e?.data?.detail || e?.message}`,
+        text: `Не удалось сохранить график: ${extractApiError(e, "Ошибка")}`,
       });
     }
   };
@@ -634,7 +663,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     } catch (e: any) {
       setStatusMessage({
         type: "error",
-        text: `Ошибка утверждения: ${e?.data?.detail || e?.message}`,
+        text: `Ошибка утверждения: ${extractApiError(e, "Ошибка")}`,
       });
     }
   };
@@ -710,7 +739,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                   disabled={isProcessing}
                   title="Утвердить график и запустить фиксацию"
                 >
-                  <CheckIcon className="btn-icon-svg btn-icon-white" />
+                  <CheckIcon className="btn-icon-svg" />
                   <span>
                     {isConfirming ? "Утверждение..." : "Утвердить график"}
                   </span>
@@ -746,7 +775,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
               onClick={handleApplyTemplate}
               disabled={isProcessing}
             >
-              <ClipboardIcon className="btn-icon-svg btn-icon-white" />
+              <ClipboardIcon className="btn-icon-svg" />
               <span>
                 {isApplyingTemplate
                   ? "Генерация..."

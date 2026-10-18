@@ -8,6 +8,7 @@ import {
   getMe,
   AuthApiError,
 } from "../../api/apiAuth";
+import { rtkApi } from "../../api/rtkApi";
 
 import { User } from "../../types/auth";
 import type { RootState } from "../../store";
@@ -43,25 +44,22 @@ export const loginThunk = createAsyncThunk(
   "auth/login",
   async (
     { email, password }: { email: string; password: string },
-    { rejectWithValue },
+    { dispatch, rejectWithValue },
   ) => {
     try {
       const response = await login(email, password);
       const normalizedUser = normalizeUser(response.user);
 
-      // 1. Сохраняем токен авторизации для всех API запросов
       if (response.access_token) {
         localStorage.setItem("access_token", response.access_token);
         localStorage.setItem("token", response.access_token);
       }
 
-      // 2. Сохраняем системную роль в нижнем регистре
       const primaryRole = normalizedUser?.roles?.[0];
-      if (primaryRole) {
-        localStorage.setItem("userRole", primaryRole);
-      } else {
-        localStorage.setItem("userRole", "foreman");
-      }
+      localStorage.setItem("userRole", primaryRole || "foreman");
+
+      // Полностью сбрасываем кэш RTK Query от предыдущего аккаунта
+      dispatch(rtkApi.util.resetApiState());
 
       return {
         ...response,
@@ -90,7 +88,7 @@ export const registerThunk = createAsyncThunk(
       first_name: string;
       last_name: string;
     },
-    { rejectWithValue },
+    { dispatch, rejectWithValue },
   ) => {
     try {
       const response = await register(email, password, first_name, last_name);
@@ -105,6 +103,9 @@ export const registerThunk = createAsyncThunk(
       if (primaryRole) {
         localStorage.setItem("userRole", primaryRole);
       }
+
+      // Сбрасываем кэш при регистрации нового аккаунта
+      dispatch(rtkApi.util.resetApiState());
 
       return {
         ...response,
@@ -159,7 +160,7 @@ export const restoreSessionThunk = createAsyncThunk(
 
 export const logoutThunk = createAsyncThunk(
   "auth/logout",
-  async (_, { rejectWithValue }) => {
+  async (_, { dispatch, rejectWithValue }) => {
     try {
       await logout();
       return;
@@ -169,10 +170,11 @@ export const logoutThunk = createAsyncThunk(
       }
       return rejectWithValue("Ошибка выхода");
     } finally {
-      // Всегда очищаем локальные токены и роли
       localStorage.removeItem("access_token");
       localStorage.removeItem("token");
       localStorage.removeItem("userRole");
+      // Очищаем кэш данных при выходе из аккаунта
+      dispatch(rtkApi.util.resetApiState());
     }
   },
 );
@@ -268,7 +270,6 @@ const authSlice = createSlice({
   },
 });
 
-// Единые регистронезависимые селекторы ролей
 export const selectUserRoles = (state: RootState): string[] =>
   (state.auth.user?.roles || []).map((r) => r.toLowerCase());
 

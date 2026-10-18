@@ -5,7 +5,6 @@ import { Provider } from 'react-redux';
 import './styles/index.css';
 import "./assets/fonts/fonts.css";
 import App from './App';
-import reportWebVitals from './reportWebVitals';
 
 import { store } from './store';
 import { restoreSessionThunk  } from './features/auth/authSlice';
@@ -23,5 +22,3 @@ root.render(
         </Provider>
     </React.StrictMode>
 );
-
-reportWebVitals();
