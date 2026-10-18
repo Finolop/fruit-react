@@ -32,13 +32,11 @@ const RoleManagement: React.FC<RoleManagementProps> = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  // Этап 1: Выдача системной роли по Email
   const [targetEmail, setTargetEmail] = useState("");
   const [selectedRole, setSelectedRole] = useState("foreman");
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const roleDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Этап 2: Привязка сотрудника к ОКС
   const [userInputValue, setUserInputValue] = useState("");
   const [selectedUserId, setSelectedUserId] = useState("");
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -48,7 +46,6 @@ const RoleManagement: React.FC<RoleManagementProps> = () => {
   const [assignRoleInProject, setAssignRoleInProject] = useState("foreman");
   const [projectSearch, setProjectSearch] = useState("");
 
-  // Подгружаем всех активных пользователей и объекты из БД
   const { data: dbUsers = [] } = useGetUsersQuery();
   const { data: projects = [] } = useGetProjectsQuery({ limit: 100 });
 
@@ -97,7 +94,6 @@ const RoleManagement: React.FC<RoleManagementProps> = () => {
     );
   }, [projects, projectSearch]);
 
-  // Список для Формы 1 (все зарегистрированные пользователи)
   const form1FilteredUsers = useMemo(() => {
     const q = targetEmail.trim().toLowerCase();
     if (!q) return dbUsers;
@@ -109,7 +105,6 @@ const RoleManagement: React.FC<RoleManagementProps> = () => {
     );
   }, [dbUsers, targetEmail]);
 
-  // Список для Формы 2 (показываем и прорабов, и инженеров, и админов сразу!)
   const eligibleUsers = useMemo(() => {
     const rawQuery = userInputValue.split(" (")[0].trim().toLowerCase();
 
@@ -132,7 +127,6 @@ const RoleManagement: React.FC<RoleManagementProps> = () => {
     });
   }, [dbUsers, userInputValue]);
 
-  // Этап 1: Выдача глобальной роли по Email
   const handleRoleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const email = targetEmail.trim();
@@ -158,7 +152,6 @@ const RoleManagement: React.FC<RoleManagementProps> = () => {
     }
   };
 
-  // При выборе сотрудника во 2-й форме автоматически выставляем его роль (Инженер или Прораб)
   const handleSelectUser = (user: User) => {
     setSelectedUserId(user.id);
     setUserInputValue(`${user.email} (${user.first_name} ${user.last_name})`);
@@ -173,7 +166,6 @@ const RoleManagement: React.FC<RoleManagementProps> = () => {
     setIsDropdownOpen(false);
   };
 
-  // Этап 2: Привязка сотрудника к ОКС
   const handleAssignSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const rawIdentifier =
@@ -367,7 +359,11 @@ const RoleManagement: React.FC<RoleManagementProps> = () => {
               <label>Роль на данном объекте *</label>
               <select
                 value={assignRoleInProject}
-                onChange={(e) => setAssignRoleInProject(e.target.value)}
+                onChange={(e) => {
+                  setAssignRoleInProject(e.target.value);
+                  setSelectedUserId("");
+                  setUserInputValue("");
+                }}
               >
                 <option value="foreman">Прораб объекта</option>
                 <option value="engineer">Инженер объекта</option>

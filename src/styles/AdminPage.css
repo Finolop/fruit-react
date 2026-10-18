@@ -400,3 +400,18 @@
     font-size: 20px;
   }
 }
+
+.form-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.char-counter {
+  font-size: 11px;
+  color: #64748b;
+}
+
+.char-counter.limit-reached {
+  color: #dc2626;
+}

@@ -444,3 +444,11 @@
   line-height: 1.35;
   color: #3b82f6;
 }
+
+.kpi-caption-inline {
+  margin-bottom: 0;
+}
+
+.gantt-msg-no-margin {
+  margin: 0;
+}

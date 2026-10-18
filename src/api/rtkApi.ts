@@ -5,12 +5,7 @@ import {
   FetchArgs,
   FetchBaseQueryError,
 } from "@reduxjs/toolkit/query/react";
-import {
-  getAccessToken,
-  setAccessToken,
-  clearTokensAndRedirect,
-  LiveSummaryResponse,
-} from "./api";
+import { getAccessToken, LiveSummaryResponse } from "./api";
 import {
   ProjectListItem,
   ProjectType,
@@ -35,6 +30,7 @@ import {
   ScheduleItem,
   EquipmentType,
 } from "../pages/foreman/ForemanPage";
+import { getSharedRefreshPromise } from "./authRefresh";
 
 const API_URL = process.env.REACT_APP_API_URL || "";
 
@@ -68,27 +64,6 @@ const rawBaseQuery = fetchBaseQuery({
   },
 });
 
-let refreshPromise: Promise<string | null> | null = null;
-
-const refreshTokenRequest = async (): Promise<string | null> => {
-  try {
-    const res = await fetch(`${API_URL}/api/v1/auth/refresh`, {
-      method: "POST",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-    });
-    if (!res.ok) return null;
-    const data = await res.json();
-    if (data?.access_token) {
-      setAccessToken(data.access_token);
-      return data.access_token;
-    }
-    return null;
-  } catch {
-    return null;
-  }
-};
-
 export const baseQueryWithReauth: BaseQueryFn<
   string | FetchArgs,
   unknown,
@@ -103,18 +78,10 @@ export const baseQueryWithReauth: BaseQueryFn<
     urlStr.includes("/auth/register");
 
   if (result.error && result.error.status === 401 && !isAuthEndpoint) {
-    if (!refreshPromise) {
-      refreshPromise = refreshTokenRequest().finally(() => {
-        refreshPromise = null;
-      });
-    }
-
-    const newToken = await refreshPromise;
+    const newToken = await getSharedRefreshPromise();
 
     if (newToken) {
       result = await rawBaseQuery(args, api, extraOptions);
-    } else {
-      await clearTokensAndRedirect();
     }
   }
 

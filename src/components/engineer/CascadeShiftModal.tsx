@@ -3,7 +3,7 @@ import {
   CascadeShiftRequest,
   CascadeShiftResponse,
 } from "../../api/apiEngineer";
-import { useCascadeShiftMutation } from "../../api/rtkApi";
+import { useCascadeShiftMutation, extractApiError } from "../../api/rtkApi";
 import { ScheduleItem } from "../../pages/foreman/ForemanPage";
 
 import { ReactComponent as TrendingUpIcon } from "../../assets/images/Arrow_Up_Right_LG.svg";
@@ -87,9 +87,7 @@ export const CascadeShiftModal: React.FC<Props> = ({
 
       setResultData(res);
     } catch (err: any) {
-      setErrorText(
-        err?.data?.detail || err?.message || "Ошибка выполнения сдвига сроков",
-      );
+      setErrorText(extractApiError(err, "Ошибка выполнения сдвига сроков"));
     }
   };
 
@@ -173,8 +171,7 @@ export const CascadeShiftModal: React.FC<Props> = ({
             <div className="modal-footer">
               <button
                 type="button"
-                className="btn-gantt-success"
-                style={{ width: "100%", justifyContent: "center" }}
+                className="btn-gantt-success cascade-full-width-btn"
                 onClick={onClose}
               >
                 Вернуться к графику
@@ -200,7 +197,7 @@ export const CascadeShiftModal: React.FC<Props> = ({
 
             <div className="modal-body">
               {errorText && (
-                <div className="admin-error-message" style={{ margin: 0 }}>
+                <div className="admin-error-message cascade-error-no-margin">
                   {errorText}
                 </div>
               )}
@@ -328,8 +325,7 @@ export const CascadeShiftModal: React.FC<Props> = ({
               <div className="form-field">
                 <label>Официальное обоснование (reason_comment) *</label>
                 <textarea
-                  className="foreman-custom-input"
-                  style={{ height: "60px", minHeight: "50px" }}
+                  className="foreman-custom-input cascade-reason-textarea"
                   placeholder="Укажите технологическую причину (погодные условия, срыв поставок, допсоглашение)..."
                   value={reasonComment}
                   onChange={(e) => setReasonComment(e.target.value)}
@@ -379,7 +375,7 @@ export const CascadeShiftModal: React.FC<Props> = ({
                 className="btn-gantt-success"
                 disabled={isSubmitting}
               >
-                <CheckIcon className="btn-icon-svg btn-icon-white" />
+                <CheckIcon className="btn-icon-svg" />
                 <span>
                   {isSubmitting
                     ? "Выполняется расчёт..."

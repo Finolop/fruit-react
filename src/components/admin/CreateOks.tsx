@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import {
   useGetProjectTypesQuery,
   useCreateProjectMutation,
+  extractApiError,
 } from "../../api/rtkApi";
 
 interface CreateOksProps {
@@ -84,9 +85,7 @@ const CreateOks: React.FC<CreateOksProps> = ({ onSuccess }) => {
         onSuccess();
       }
     } catch (err: any) {
-      setErrorMessage(
-        err?.data?.detail || err?.message || "Не удалось создать ОКС",
-      );
+      setErrorMessage(extractApiError(err, "Не удалось создать ОКС"));
     }
   };
 
@@ -99,13 +98,12 @@ const CreateOks: React.FC<CreateOksProps> = ({ onSuccess }) => {
 
       <form className="admin-form" onSubmit={handleSubmit}>
         <div className="form-field">
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <div className="form-label-row">
             <label htmlFor="oks-name">Наименование объекта *</label>
             <span
-              style={{
-                fontSize: "11px",
-                color: name.length >= MAX_NAME_LENGTH ? "#dc2626" : "#64748b",
-              }}
+              className={`char-counter ${
+                name.length >= MAX_NAME_LENGTH ? "limit-reached" : ""
+              }`}
             >
               {name.length}/{MAX_NAME_LENGTH}
             </span>
@@ -123,14 +121,12 @@ const CreateOks: React.FC<CreateOksProps> = ({ onSuccess }) => {
         </div>
 
         <div className="form-field">
-          <div style={{ display: "flex", justifyContent: "space-between" }}>
+          <div className="form-label-row">
             <label htmlFor="oks-address">Адрес объекта *</label>
             <span
-              style={{
-                fontSize: "11px",
-                color:
-                  address.length >= MAX_ADDRESS_LENGTH ? "#dc2626" : "#64748b",
-              }}
+              className={`char-counter ${
+                address.length >= MAX_ADDRESS_LENGTH ? "limit-reached" : ""
+              }`}
             >
               {address.length}/{MAX_ADDRESS_LENGTH}
             </span>
