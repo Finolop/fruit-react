@@ -206,25 +206,6 @@ export const getLiveSummary = async (
   return response.json();
 };
 
-export const uploadCameraFrame = async (cameraId: string, file: File) => {
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const response = await fetchWithAuth(
-    `/api/v1/cameras/${cameraId}/frames/upload`,
-    {
-      method: "POST",
-      body: formData,
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error("Ошибка загрузки кадра на сервер");
-  }
-
-  return response.json();
-};
-
 export const getProjectFrames = async (
   projectId: string,
   limit = 50,

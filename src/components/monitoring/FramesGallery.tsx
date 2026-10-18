@@ -1,14 +1,6 @@
 import React, { useState } from "react";
-import {
-  useGetProjectFramesQuery,
-  useUploadCameraFrameMutation,
-  useMarkFrameAsEvidenceMutation,
-  useGetCamerasQuery,
-  extractApiError,
-} from "../../api/rtkApi";
+import { useGetProjectFramesQuery } from "../../api/rtkApi";
 import { FrameItemResponse } from "../../api/apiEngineer";
-import { ReactComponent as CameraIcon } from "../../assets/images/Camera.svg";
-import { ReactComponent as CheckIcon } from "../../assets/images/Circle_Check.svg";
 import { ReactComponent as CloseIcon } from "../../assets/images/Close_MD.svg";
 import "../../styles/FramesGallery.css";
 
@@ -43,75 +35,10 @@ export const FramesGallery: React.FC<FramesGalleryProps> = ({ projectId }) => {
     height: number;
   }>({ width: 1280, height: 720 });
 
-  const [message, setMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
-
   const { data: frames = [], isLoading } = useGetProjectFramesQuery(
     { projectId, limit: 30 },
     { pollingInterval: 4000 },
   );
-  const { data: cameras = [] } = useGetCamerasQuery(projectId);
-
-  const [uploadFrame, { isLoading: isUploading }] =
-    useUploadCameraFrameMutation();
-  const [markEvidence] = useMarkFrameAsEvidenceMutation();
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    if (cameras.length === 0) {
-      setMessage({
-        type: "error",
-        text: "Сначала подключите хотя бы одну камеру к объекту",
-      });
-      return;
-    }
-
-    try {
-      setMessage(null);
-      await uploadFrame({
-        cameraId: cameras[0].id,
-        projectId,
-        file,
-      }).unwrap();
-      setMessage({
-        type: "success",
-        text: "Снимок отправлен на распознавание",
-      });
-    } catch (err: any) {
-      setMessage({
-        type: "error",
-        text: extractApiError(err, "Ошибка загрузки снимка"),
-      });
-    }
-  };
-
-  const handleToggleEvidence = async (frame: FrameItemResponse) => {
-    const nextState = !frame.is_saved_for_report;
-    try {
-      await markEvidence({
-        frameId: frame.id,
-        projectId,
-        isSaved: nextState,
-      }).unwrap();
-
-      if (selectedFrame?.id === frame.id) {
-        setSelectedFrame({ ...selectedFrame, is_saved_for_report: nextState });
-      }
-      setMessage({
-        type: "success",
-        text: nextState ? "Кадр зафиксирован как улика" : "Статус улики снят",
-      });
-    } catch (err: any) {
-      setMessage({
-        type: "error",
-        text: extractApiError(err, "Ошибка изменения статуса улики"),
-      });
-    }
-  };
 
   const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
     const img = e.currentTarget;
@@ -166,31 +93,7 @@ export const FramesGallery: React.FC<FramesGalleryProps> = ({ projectId }) => {
         <span className="frames-gallery-count-title">
           Снимки видеофиксации ({frames.length})
         </span>
-
-        <label className="upload-frame-btn-label">
-          <CameraIcon className="btn-icon-svg btn-icon-white" />
-          <span>
-            {isUploading ? "Обработка..." : "Загрузить снимок вручную"}
-          </span>
-          <input
-            type="file"
-            accept="image/*"
-            className="upload-frame-input-hidden"
-            onChange={handleFileUpload}
-            disabled={isUploading}
-          />
-        </label>
       </div>
-
-      {message && (
-        <div
-          className={`gantt-msg-banner ${
-            message.type === "success" ? "msg-success" : "msg-error"
-          }`}
-        >
-          {message.text}
-        </div>
-      )}
 
       {isLoading ? (
         <p className="metric-subtext">Синхронизация галереи кадров...</p>
@@ -207,9 +110,7 @@ export const FramesGallery: React.FC<FramesGalleryProps> = ({ projectId }) => {
           {frames.map((frame) => (
             <div
               key={frame.id}
-              className={`frame-card ${
-                frame.is_saved_for_report ? "evidence-marked" : ""
-              }`}
+              className="frame-card"
               onClick={() => setSelectedFrame(frame)}
             >
               <div className="frame-img-box">
@@ -225,9 +126,6 @@ export const FramesGallery: React.FC<FramesGalleryProps> = ({ projectId }) => {
                     second: "2-digit",
                   })}
                 </span>
-                {frame.is_saved_for_report && (
-                  <span className="frame-evidence-pill">Улика</span>
-                )}
               </div>
 
               <div className="frame-card-info">
@@ -312,25 +210,6 @@ export const FramesGallery: React.FC<FramesGalleryProps> = ({ projectId }) => {
             </div>
 
             <div className="frame-modal-actions">
-              <button
-                type="button"
-                className={`btn-toggle-evidence ${
-                  selectedFrame.is_saved_for_report
-                    ? "is-evidence"
-                    : "not-evidence"
-                }`}
-                onClick={() => handleToggleEvidence(selectedFrame)}
-              >
-                {selectedFrame.is_saved_for_report ? (
-                  <span>Снять статус улики</span>
-                ) : (
-                  <>
-                    <CheckIcon className="btn-icon-svg" />
-                    <span>Зафиксировать как улику</span>
-                  </>
-                )}
-              </button>
-
               <button
                 type="button"
                 className="btn-cancel"

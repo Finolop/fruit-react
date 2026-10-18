@@ -109,9 +109,7 @@ export const EarlyCompleteModal: React.FC<EarlyCompleteModalProps> = ({
 
       onClose();
     } catch (err: any) {
-      setError(
-        err?.data?.detail || err?.message || "Не удалось закрыть этап",
-      );
+      setError(err?.data?.detail || err?.message || "Не удалось закрыть этап");
     }
   };
 
@@ -149,7 +147,7 @@ export const EarlyCompleteModal: React.FC<EarlyCompleteModalProps> = ({
               {nextStageName && (
                 <p className="early-complete-next-text">
                   Следующий запланированный этап «{nextStageName}» будет
-                  автоматически переведён в работу (IN_PROGRESS).
+                  автоматически переведён в работу (статус «В работе»).
                 </p>
               )}
             </div>

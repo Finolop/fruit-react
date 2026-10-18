@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { CameraItem } from "../../api/monitoringApi";
 import {
   useGetCamerasQuery,
+  useGetCameraSnapshotsQuery,
   useAddCameraMutation,
   useToggleCameraActiveMutation,
   useDeleteCameraMutation,
@@ -30,6 +31,11 @@ export const CameraManagerModal: React.FC<Props> = ({
   const [successText, setSuccessText] = useState("");
 
   const { data: cameras = [], isLoading } = useGetCamerasQuery(projectId);
+  const { data: snapshots = [] } = useGetCameraSnapshotsQuery(projectId, {
+    pollingInterval: 5000,
+    skipPollingIfUnfocused: true,
+  });
+
   const [addCamera, { isLoading: isAdding }] = useAddCameraMutation();
   const [toggleCameraActive] = useToggleCameraActiveMutation();
   const [deleteCamera] = useDeleteCameraMutation();
@@ -53,9 +59,7 @@ export const CameraManagerModal: React.FC<Props> = ({
       }).unwrap();
 
       setNewStreamUrl("");
-      setSuccessText(
-        "Камера успешно подключена и передана в контур видеоаналитики",
-      );
+      setSuccessText("Камера успешно подключена");
     } catch (err: any) {
       setErrorText(
         err?.data?.detail || err?.message || "Не удалось добавить камеру",
@@ -105,8 +109,9 @@ export const CameraManagerModal: React.FC<Props> = ({
   return (
     <div className="camera-modal-overlay" onClick={onClose}>
       <div
-        className="camera-modal-card"
-        style={{ maxWidth: activeTab === "GALLERY" ? "980px" : "680px" }}
+        className={`camera-modal-card ${
+          activeTab === "GALLERY" ? "tab-gallery" : "tab-cameras"
+        }`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="camera-modal-header">
@@ -114,7 +119,7 @@ export const CameraManagerModal: React.FC<Props> = ({
             <CameraIcon className="camera-modal-header-icon" />
             <div>
               <h3>Видеомониторинг стройплощадки</h3>
-              <p>Управление камерами и галерея детекции техники нейросетью</p>
+              <p>Управление камерами и галерея детекции техники</p>
             </div>
           </div>
           <button
@@ -127,53 +132,24 @@ export const CameraManagerModal: React.FC<Props> = ({
           </button>
         </div>
 
-        {/* Навигация по вкладкам */}
-        <div
-          style={{
-            display: "flex",
-            gap: "8px",
-            padding: "12px 24px 0",
-            borderBottom: "1px solid #e2e8f0",
-            background: "#f8fafc",
-          }}
-        >
+        <div className="camera-modal-tabs">
           <button
             type="button"
+            className={`camera-tab-button ${
+              activeTab === "CAMERAS" ? "active" : ""
+            }`}
             onClick={() => setActiveTab("CAMERAS")}
-            style={{
-              padding: "10px 18px",
-              fontSize: "13px",
-              fontWeight: 600,
-              border: "none",
-              borderBottom:
-                activeTab === "CAMERAS"
-                  ? "2px solid #e53935"
-                  : "2px solid transparent",
-              color: activeTab === "CAMERAS" ? "#e53935" : "#64748b",
-              background: "transparent",
-              cursor: "pointer",
-            }}
           >
             📹 Видеокамеры ({cameras.length})
           </button>
           <button
             type="button"
+            className={`camera-tab-button ${
+              activeTab === "GALLERY" ? "active" : ""
+            }`}
             onClick={() => setActiveTab("GALLERY")}
-            style={{
-              padding: "10px 18px",
-              fontSize: "13px",
-              fontWeight: 600,
-              border: "none",
-              borderBottom:
-                activeTab === "GALLERY"
-                  ? "2px solid #e53935"
-                  : "2px solid transparent",
-              color: activeTab === "GALLERY" ? "#e53935" : "#64748b",
-              background: "transparent",
-              cursor: "pointer",
-            }}
           >
-            🖼 Снимки детекции нейросети
+           Снимки детекции
           </button>
         </div>
 
@@ -183,8 +159,7 @@ export const CameraManagerModal: React.FC<Props> = ({
               <LockIcon className="btn-icon-svg" />
               <span>
                 <strong>Режим наблюдателя (Департамент):</strong> управление
-                видеокамерами и отметка улик доступны инженеру технадзора и
-                прорабу объекта.
+                видеокамерами доступно инженеру технадзора и прорабу объекта.
               </span>
             </div>
           )}
@@ -206,13 +181,13 @@ export const CameraManagerModal: React.FC<Props> = ({
                     htmlFor="camera-stream-input"
                     className="camera-add-card-label"
                   >
-                    Подключить новую видеокамеру к нейросети
+                    Подключить камеру
                   </label>
                   <div className="camera-input-row">
                     <input
                       id="camera-stream-input"
                       type="text"
-                      placeholder="rtsp://... или http://mock_camera:8081/frame.jpg"
+                      placeholder="rtsp://..."
                       value={newStreamUrl}
                       onChange={(e) => setNewStreamUrl(e.target.value)}
                       disabled={isAdding}
@@ -226,29 +201,6 @@ export const CameraManagerModal: React.FC<Props> = ({
                     >
                       {isAdding ? "Подключение..." : "+ Подключить"}
                     </button>
-                  </div>
-                  <div className="camera-hints-row">
-                    <span>Быстрый протокол:</span>
-                    <span
-                      className="camera-hint-chip"
-                      onClick={() =>
-                        setNewStreamUrl("http://mock_camera:8081/frame.jpg")
-                      }
-                    >
-                      Эмулятор (MockServer)
-                    </span>
-                    <span
-                      className="camera-hint-chip"
-                      onClick={() => setNewStreamUrl("rtsp://")}
-                    >
-                      rtsp://
-                    </span>
-                    <span
-                      className="camera-hint-chip"
-                      onClick={() => setNewStreamUrl("http://")}
-                    >
-                      http://
-                    </span>
                   </div>
                 </form>
               )}
@@ -275,57 +227,97 @@ export const CameraManagerModal: React.FC<Props> = ({
                     <small>
                       {isReadOnly
                         ? "Видеокамеры пока не подключены."
-                        : "Вставьте RTSP/HTTP ссылку выше для запуска детекции техники."}
+                        : "Вставьте RTSP/HTTP ссылку выше для запуска трансляции."}
                     </small>
                   </div>
                 ) : (
-                  cameras.map((cam, idx) => (
-                    <div
-                      key={cam.id}
-                      className={`camera-item-card ${cam.is_active ? "online" : "offline"}`}
-                    >
-                      <div className="camera-item-top">
-                        <div className="camera-status-group">
-                          <span className="camera-number-tag">
-                            Камера #{idx + 1}
-                          </span>
-                          <span
-                            className={`camera-badge-pill ${cam.is_active ? "on" : "off"}`}
-                          >
-                            {cam.is_active ? "В сети (ON)" : "Отключена"}
-                          </span>
+                  cameras.map((cam, idx) => {
+                    const snap = snapshots.find((s) => s.camera_id === cam.id);
+                    const imageSource = snap?.image_base64 || snap?.image_url;
+
+                    return (
+                      <div
+                        key={cam.id}
+                        className={`camera-item-card ${
+                          cam.is_active ? "online" : "offline"
+                        }`}
+                      >
+                        <div className="camera-item-top">
+                          <div className="camera-status-group">
+                            <span className="camera-number-tag">
+                              Камера #{idx + 1}
+                            </span>
+                            <span
+                              className={`camera-badge-pill ${
+                                cam.is_active ? "on" : "off"
+                              }`}
+                            >
+                              {cam.is_active ? "В сети (ON)" : "Отключена"}
+                            </span>
+                            {snap && snap.detection_count > 0 && (
+                              <span className="camera-detected-count-badge">
+                                Техники: {snap.detection_count} шт.
+                              </span>
+                            )}
+                          </div>
+                          {!isReadOnly && (
+                            <button
+                              type="button"
+                              className="camera-delete-btn"
+                              title="Удалить камеру"
+                              onClick={() => handleDeleteCamera(cam.id)}
+                            >
+                              <TrashIcon className="ui-icon-trash" />
+                            </button>
+                          )}
                         </div>
-                        {!isReadOnly && (
-                          <button
-                            type="button"
-                            className="camera-delete-btn"
-                            title="Удалить камеру"
-                            onClick={() => handleDeleteCamera(cam.id)}
+
+                        {imageSource ? (
+                          <div className="camera-snapshot-preview-box">
+                            <img
+                              src={imageSource}
+                              alt={`Снимок с камеры #${idx + 1}`}
+                              className="camera-snapshot-preview-img"
+                            />
+                          </div>
+                        ) : (
+                          <div
+                            className="camera-url-box"
+                            title={cam.stream_url}
                           >
-                            <TrashIcon className="ui-icon-trash" />
-                          </button>
+                            <code>{cam.stream_url}</code>
+                          </div>
                         )}
+
+                        <div className="camera-item-bottom">
+                          <span className="camera-date-text">
+                            {snap?.captured_at
+                              ? `Снимок: ${new Date(
+                                  snap.captured_at,
+                                ).toLocaleTimeString([], {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                  second: "2-digit",
+                                })}`
+                              : `Подключена: ${new Date(
+                                  cam.created_at,
+                                ).toLocaleDateString("ru-RU")}`}
+                          </span>
+                          {!isReadOnly && (
+                            <button
+                              type="button"
+                              className={`camera-toggle-btn ${
+                                cam.is_active ? "btn-stop" : "btn-start"
+                              }`}
+                              onClick={() => handleToggleActive(cam)}
+                            >
+                              {cam.is_active ? "Приостановить" : "Активировать"}
+                            </button>
+                          )}
+                        </div>
                       </div>
-                      <div className="camera-url-box" title={cam.stream_url}>
-                        <code>{cam.stream_url}</code>
-                      </div>
-                      <div className="camera-item-bottom">
-                        <span className="camera-date-text">
-                          Подключена:{" "}
-                          {new Date(cam.created_at).toLocaleDateString("ru-RU")}
-                        </span>
-                        {!isReadOnly && (
-                          <button
-                            type="button"
-                            className={`camera-toggle-btn ${cam.is_active ? "btn-stop" : "btn-start"}`}
-                            onClick={() => handleToggleActive(cam)}
-                          >
-                            {cam.is_active ? "Приостановить" : "Активировать"}
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </>
@@ -345,4 +337,3 @@ export const CameraManagerModal: React.FC<Props> = ({
     </div>
   );
 };
-  

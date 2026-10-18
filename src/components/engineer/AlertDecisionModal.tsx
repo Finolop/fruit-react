@@ -16,22 +16,22 @@ interface Props {
 type ScenarioType = "FALSE_ALARM" | "ORANGE_STATUS" | "PURPLE_STATUS";
 
 const TECH_NAMES: Record<string, string> = {
-  truck: "грузовик / длинномер",
+  backhoe_loader: "экскаватор-погрузчик",
+  skid_steer_loader: "мини-погрузчик",
   flatbed_truck: "бортовой грузовик",
   concrete_mixer: "автобетоносмеситель (миксер)",
   concrete_pump: "бетононасос",
-  dump_truck: "самосвал",
-  bulldozer: "бульдозер",
-  excavator: "экскаватор",
+  front_loader: "фронтальный погрузчик",
+  loader_crane: "кран-манипулятор",
   mobile_crane: "автокран",
   tower_crane: "башенный кран",
-  loader_crane: "кран-манипулятор",
-  road_roller: "дорожный каток",
-  front_loader: "фронтальный погрузчик",
-  skid_steer_loader: "мини-погрузчик",
-  backhoe_loader: "экскаватор-погрузчик",
   drilling_rig: "буровая установка",
+  dump_truck: "самосвал",
   pump_truck: "автобетононасос",
+  road_roller: "дорожный каток",
+  excavator: "экскаватор",
+  bulldozer: "бульдозер",
+  truck: "грузовик / длинномер",
 };
 
 const TRIGGER_TITLES: Record<string, string> = {
@@ -54,6 +54,13 @@ const TRIGGER_TITLES: Record<string, string> = {
   DELAYED: "Срыв директивного срока этапа",
 };
 
+const TECH_REGEX = new RegExp(
+  `['"]?\\b(${Object.keys(TECH_NAMES)
+    .sort((a, b) => b.length - a.length)
+    .join("|")})\\b['"]?`,
+  "gi",
+);
+
 export const formatAlertDetails = (alert: AlertResponse) => {
   const details = alert.details || {};
   const rawMsg = details.message || "";
@@ -71,11 +78,14 @@ export const formatAlertDetails = (alert: AlertResponse) => {
     title = "Дефицит строительной техники";
   }
 
-  let cleanMessage = rawMsg;
-  Object.entries(TECH_NAMES).forEach(([slug, ruName]) => {
-    const reg = new RegExp(`['"]?${slug}['"]?`, "gi");
-    cleanMessage = cleanMessage.replace(reg, `«${ruName}»`);
-  });
+  // Замена в один проход: регулярка находит токен, а replace подставляет русское наименование
+  const cleanMessage = rawMsg.replace(
+    TECH_REGEX,
+    (fullMatch: string, match: string) => {
+      const ruName = TECH_NAMES[match.toLowerCase()];
+      return ruName ? `«${ruName}»` : fullMatch;
+    },
+  );
 
   let escalateCountdown = "";
   if (alert.escalate_at && alert.severity === "YELLOW") {
@@ -187,8 +197,8 @@ export const AlertDecisionModal: React.FC<Props> = ({
               <div className="decision-header-text">
                 <h3>Решение по инциденту на объекте</h3>
                 <p>
-                  Фиксация процессуального постановления надзора в журнале Audit
-                  Trail
+                  Фиксация процессуального постановления надзора в журнале
+                  аудита объекта
                 </p>
               </div>
             </div>
@@ -218,8 +228,8 @@ export const AlertDecisionModal: React.FC<Props> = ({
                     }`}
                   />
                   {alert.severity === "RED"
-                    ? "КРАСНЫЙ АЛЕРТ: ТРЕБУЕТСЯ РЕШЕНИЕ"
-                    : "ЖЁЛТЫЙ АЛЕРТ: ВРЕМЯ НА УСТРАНЕНИЕ"}
+                    ? "Красный уровень: требуется решение"
+                    : "Предупреждение: время на устранение"}
                 </span>
 
                 <span className="incident-type-tag">{alertInfo.title}</span>
@@ -293,8 +303,9 @@ export const AlertDecisionModal: React.FC<Props> = ({
                     required
                   />
                   <small className="field-hint">
-                    Алерт аннулируется в базе. Светофор объекта возвращается в
-                    штатный зелёный режим. Штрафы не начисляются.
+                    Предупреждение аннулируется в системе. Светофор объекта
+                    возвращается в ш татный зелёный режим. Штрафы не
+                    начисляются.
                   </small>
                 </div>
               </div>

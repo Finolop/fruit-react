@@ -264,20 +264,6 @@ export const engineerApi = {
     );
   },
 
-  markFrameAsEvidence: async (
-    frameId: string,
-    isSaved = true,
-  ): Promise<{ message: string }> => {
-    const res = await fetchWithAuth(`/api/v1/frames/${frameId}/evidence`, {
-      method: "PATCH",
-      body: JSON.stringify({ is_saved_for_report: isSaved }),
-    });
-    return handleApiResponse<{ message: string }>(
-      res,
-      "Не удалось зафиксировать улику",
-    );
-  },
-
   getProjectSettings: async (
     projectId: string,
   ): Promise<ProjectSettingsResponse> => {

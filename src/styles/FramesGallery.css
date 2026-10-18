@@ -30,28 +30,6 @@
   gap: 10px;
 }
 
-.upload-frame-btn-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  color: #ffffff;
-  background: var(--color-primary, #2563eb);
-  border-radius: 6px;
-  transition: background-color 0.15s ease;
-  cursor: pointer;
-}
-
-.upload-frame-btn-label:hover {
-  background: #1d4ed8;
-}
-
-.upload-frame-input-hidden {
-  display: none;
-}
-
 /* Сетка снимков */
 .frames-grid {
   display: grid;
@@ -297,16 +275,4 @@
   font-size: 14px;
   font-weight: 600;
   color: #0f172a;
-}
-
-.upload-frame-btn-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.btn-toggle-evidence {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
 }

@@ -24,7 +24,7 @@ import {
   OrangeStatusReportResponse,
   FrameItemResponse,
 } from "./apiEngineer";
-import { CameraItem } from "./monitoringApi";
+import { CameraItem, CameraSnapshotResponse } from "./monitoringApi";
 import {
   ProjectData,
   ScheduleItem,
@@ -487,37 +487,11 @@ export const rtkApi = createApi({
       ],
     }),
 
-    uploadCameraFrame: builder.mutation<
-      FrameItemResponse,
-      { cameraId: string; projectId: string; file: File }
-    >({
-      query: ({ cameraId, file }) => {
-        const formData = new FormData();
-        formData.append("file", file);
-        return {
-          url: `/api/v1/cameras/${cameraId}/frames/upload`,
-          method: "POST",
-          body: formData,
-        };
-      },
-      invalidatesTags: (_res, _err, { projectId }) => [
-        { type: "Frames", id: projectId },
-        { type: "LiveSummary", id: projectId },
-        { type: "Alerts", id: projectId },
-      ],
-    }),
-
-    markFrameAsEvidence: builder.mutation<
-      { message: string },
-      { frameId: string; projectId: string; isSaved: boolean }
-    >({
-      query: ({ frameId, isSaved }) => ({
-        url: `/api/v1/frames/${frameId}/evidence`,
-        method: "PATCH",
-        body: { is_saved_for_report: isSaved },
-      }),
-      invalidatesTags: (_res, _err, { projectId }) => [
-        { type: "Frames", id: projectId },
+    getCameraSnapshots: builder.query<CameraSnapshotResponse[], string>({
+      query: (projectId) => `/api/v1/projects/${projectId}/cameras/snapshots`,
+      providesTags: (_res, _err, id) => [
+        { type: "Cameras", id },
+        { type: "Frames", id },
       ],
     }),
   }),
@@ -549,10 +523,9 @@ export const {
   useSubmitOrangeReportMutation,
   useCloseSpecialStatusWindowMutation,
   useGetCamerasQuery,
+  useGetCameraSnapshotsQuery,
   useAddCameraMutation,
   useToggleCameraActiveMutation,
   useDeleteCameraMutation,
   useGetProjectFramesQuery,
-  useUploadCameraFrameMutation,
-  useMarkFrameAsEvidenceMutation,
 } = rtkApi;

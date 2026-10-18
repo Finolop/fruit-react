@@ -16,6 +16,7 @@ import {
   useSubmitOrangeReportMutation,
   useCloseSpecialStatusWindowMutation,
   extractApiError,
+  useGetCamerasQuery,
 } from "../../api/rtkApi";
 import Header from "../../components/Header";
 import { ForemanObjectManager } from "../../components/foreman/ForemanObjectManager";
@@ -53,7 +54,9 @@ export const EngineerPage: React.FC = () => {
   const [isDecisionModalOpen, setIsDecisionModalOpen] = useState(false);
   const [isCascadeModalOpen, setIsCascadeModalOpen] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
-
+  const { data: engineerCameras = [] } = useGetCamerasQuery(
+    selectedProjectId ?? skipToken,
+  );
   const [isPlanCaughtUp, setIsPlanCaughtUp] = useState(false);
   const [timeLostHours, setTimeLostHours] = useState(8);
   const [responsibleParty, setResponsibleParty] = useState(
@@ -358,7 +361,7 @@ export const EngineerPage: React.FC = () => {
               title="Управление видеокамерами объекта"
             >
               <CameraIcon className="btn-icon-svg" />
-              <span>Видеокамеры ({project.camera_url ? "1+" : "0"})</span>
+              <span>Видеокамеры ({engineerCameras.length})</span>
             </button>
 
             <button
@@ -469,7 +472,7 @@ export const EngineerPage: React.FC = () => {
               </div>
             </div>
             <span className="kpi-sub-text">
-              Открытых алертов в очереди: <strong>{openAlertsCount}</strong>
+              Открытых инцидентов в очереди: <strong>{openAlertsCount}</strong>
             </span>
           </div>
         </div>
@@ -511,8 +514,8 @@ export const EngineerPage: React.FC = () => {
                       }`}
                     />
                     {activeAlert.severity === "RED"
-                      ? "КРАСНЫЙ АЛЕРТ: ТРЕБУЕТСЯ РЕШЕНИЕ"
-                      : "ЖЁЛТЫЙ АЛЕРТ: ВРЕМЯ НА УСТРАНЕНИЕ"}
+                      ? "Красный уровень: требуется решение"
+                      : "Предупреждение: время на устранение"}
                   </span>
 
                   {activeAlertParsed.isCriticalPath && (
@@ -559,7 +562,7 @@ export const EngineerPage: React.FC = () => {
             ) : (
               <p className="console-card-desc">
                 Критических нарушений на объекте не зафиксировано. В случае
-                простоя техники или дефицита система откроет инцидент.
+                простоя техники или дефицита система сформирует инцидент.
               </p>
             )}
           </div>

@@ -132,7 +132,7 @@ export const CascadeShiftModal: React.FC<Props> = ({
                   <div className="cascade-result-icon">✓</div>
                   <div>
                     <h4>Каскадный пересчет успешно зафиксирован</h4>
-                    <p>Запись внесена в журнал аудита объекта (Audit Trail)</p>
+                    <p>Запись внесена в журнал аудита объекта</p>
                   </div>
                 </div>
 
@@ -162,7 +162,7 @@ export const CascadeShiftModal: React.FC<Props> = ({
                 </div>
 
                 <div className="cascade-audit-pill">
-                  <span>Запись аудита:</span>
+                  <span>Номер протокола в журнале аудита:</span>
                   <code>{resultData.audit_trail_id}</code>
                 </div>
               </div>
@@ -293,7 +293,7 @@ export const CascadeShiftModal: React.FC<Props> = ({
               </div>
 
               <div className="form-field">
-                <label>Целевая шкала графика (target_timeline) *</label>
+                <label>Тип корректируемого графика *</label>
                 <select
                   value={targetTimeline}
                   onChange={(e) =>
@@ -301,18 +301,16 @@ export const CascadeShiftModal: React.FC<Props> = ({
                   }
                 >
                   <option value="PHANTOM">
-                    PHANTOM — Компенсационный / прогнозный график (по умолчанию)
+                    Прогнозный / компенсационный график
                   </option>
                   <option value="BASE">
-                    BASE — Директивный базовый график Департамента
+                    Директивный утверждённый график Департамента
                   </option>
                 </select>
               </div>
 
               <div className="form-field">
-                <label>
-                  Реквизиты распоряжения / Акта (document_reference) *
-                </label>
+                <label>Реквизиты распорядительного документа или акта *</label>
                 <input
                   type="text"
                   placeholder="Например: Распоряжение № 14-Р от 28.09.2026 или Акт технадзора"
@@ -323,7 +321,7 @@ export const CascadeShiftModal: React.FC<Props> = ({
               </div>
 
               <div className="form-field">
-                <label>Официальное обоснование (reason_comment) *</label>
+                <label>Официальное основание для изменения сроков *</label>
                 <textarea
                   className="foreman-custom-input cascade-reason-textarea"
                   placeholder="Укажите технологическую причину (погодные условия, срыв поставок, допсоглашение)..."

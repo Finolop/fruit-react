@@ -9,6 +9,7 @@ import {
   useBulkSyncSchedulesMutation,
   useConfirmScheduleMutation,
   extractApiError,
+  useGetCamerasQuery,
 } from "../../api/rtkApi";
 import { CameraManagerModal } from "./CameraManagerModal";
 import { EarlyCompleteModal } from "../engineer/EarlyCompleteModal";
@@ -123,7 +124,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     type: "success" | "error";
     text: string;
   } | null>(null);
-
+  const { data: projectCameras = [] } = useGetCamerasQuery(project.id);
   const [earlyCompleteTarget, setEarlyCompleteTarget] = useState<{
     id: string;
     name: string;
@@ -687,7 +688,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
               title="Управление видеопотоками площадки"
             >
               <CameraIcon className="btn-icon-svg" />
-              <span>Видеокамеры ({project.camera_url ? "1+" : "0"})</span>
+              <span>Видеокамеры ({projectCameras.length})</span>
             </button>
 
             {isLocked ? (
