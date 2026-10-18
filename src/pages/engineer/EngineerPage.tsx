@@ -27,7 +27,6 @@ import {
 } from "../../components/engineer/AlertDecisionModal";
 import { CascadeShiftModal } from "../../components/engineer/CascadeShiftModal";
 
-import { AlertResponse } from "../../api/apiEngineer";
 import { ProjectData } from "../foreman/ForemanPage";
 
 import { ReactComponent as CameraIcon } from "../../assets/images/Camera.svg";
@@ -104,7 +103,7 @@ export const EngineerPage: React.FC = () => {
       skipPollingIfUnfocused: true,
     });
 
-  const { data: alertsData = [], refetch: refetchAlertsList } =
+  const { data: _alertsData = [], refetch: refetchAlertsList } =
     useGetAlertsListQuery(
       selectedProjectId
         ? { projectId: selectedProjectId, limit: 50 }
