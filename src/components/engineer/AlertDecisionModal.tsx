@@ -1,46 +1,55 @@
 import React, { useState } from "react";
-import {
-  engineerApi,
-  AlertResponse,
-  AlertResolveRequest,
-} from "../../api/apiEngineer";
-import closeIcon from "../../assets/images/Close_MD.svg";
-import checkIcon from "../../assets/images/Circle_Check.svg";
-import alertTriangleIcon from "../../assets/images/Triangle_Warning.svg";
+import { AlertResponse, AlertResolveRequest } from "../../api/apiEngineer";
+import { useResolveAlertMutation } from "../../api/rtkApi";
+import { ReactComponent as CloseIcon } from "../../assets/images/Close_MD.svg";
+import { ReactComponent as CheckIcon } from "../../assets/images/Circle_Check.svg";
+import { ReactComponent as AlertTriangleIcon } from "../../assets/images/Triangle_Warning.svg";
 import "../../styles/EngineerConsole.css";
 
 interface Props {
   alert: AlertResponse;
   projectId: string;
   onClose: () => void;
-  onSuccess: () => Promise<void>;
+  onSuccess?: () => Promise<void> | void;
 }
 
-type ScenarioType =
-  | "FALSE_ALARM"
-  | "SPECIAL_STATUS_OPEN"
-  | "FORCE_MAJEURE_CASCADE";
+type ScenarioType = "FALSE_ALARM" | "ORANGE_STATUS" | "PURPLE_STATUS";
 
 const TECH_NAMES: Record<string, string> = {
-  truck: "бортовой грузовик",
+  backhoe_loader: "экскаватор-погрузчик",
+  skid_steer_loader: "мини-погрузчик",
+  flatbed_truck: "бортовой грузовик",
   concrete_mixer: "автобетоносмеситель (миксер)",
-  dump_truck: "самосвал",
-  bulldozer: "бульдозер",
-  excavator: "экскаватор",
+  concrete_pump: "бетононасос",
+  front_loader: "фронтальный погрузчик",
+  loader_crane: "кран-манипулятор",
   mobile_crane: "автокран",
-  road_roller: "каток",
+  tower_crane: "башенный кран",
   drilling_rig: "буровая установка",
+  dump_truck: "самосвал",
   pump_truck: "автобетононасос",
+  road_roller: "дорожный каток",
+  excavator: "экскаватор",
+  bulldozer: "бульдозер",
+  truck: "грузовик / длинномер",
 };
+
+const TECH_REGEX = new RegExp(
+  `['"]?\\b(${Object.keys(TECH_NAMES).sort((a, b) => b.length - a.length).join("|")})\\b['"]?`,
+  "gi",
+);
 
 const TRIGGER_TITLES: Record<string, string> = {
   EQUIPMENT_IDLE: "Простой строительной техники",
-  DEFICIT_TRUCK: "Дефицит бортовых грузовиков",
+  DEFICIT_TRUCK: "Дефицит грузовиков / длинномеров",
   DEFICIT_CONCRETE_MIXER: "Отсутствие автобетоносмесителей",
+  DEFICIT_CONCRETE_PUMP: "Отсутствие бетононасоса",
   DEFICIT_DUMP_TRUCK: "Нехватка самосвалов под вывоз",
   DEFICIT_BULLDOZER: "Отсутствие бульдозера на участке",
   DEFICIT_EXCAVATOR: "Отсутствие экскаватора на объекте",
   DEFICIT_MOBILE_CRANE: "Отсутствие монтажного автокрана",
+  DEFICIT_TOWER_CRANE: "Отсутствие башенного крана",
+  DEFICIT_ROAD_ROLLER: "Отсутствие дорожного катка",
   EQUIPMENT_DEFICIT: "Дефицит строительной техники",
   EQUIPMENT_MISMATCH: "Несогласованная машина на площадке",
   EQUIPMENT_SURPLUS: "Логистическая скученность техники",
@@ -52,35 +61,41 @@ const TRIGGER_TITLES: Record<string, string> = {
 
 export const formatAlertDetails = (alert: AlertResponse) => {
   const details = alert.details || {};
-  const rawMsg = details.message || "";
-  const isCriticalPath = Boolean(details.is_critical_path);
+  const violations = Array.isArray(details.violations) ? details.violations : [];
 
-  const title = TRIGGER_TITLES[alert.trigger_type] || alert.trigger_type;
+  const criticalViolation =
+    violations.find((v: any) => v.severity === "RED") || violations[0];
 
-  let cleanMessage = rawMsg;
-  Object.entries(TECH_NAMES).forEach(([slug, ruName]) => {
-    const reg = new RegExp(`['"]?${slug}['"]?`, "gi");
-    cleanMessage = cleanMessage.replace(reg, `«${ruName}»`);
-  });
-
-  const deficitMatch = cleanMessage.match(
-    /Нехватка:\s*нужно\s*(\d+)\s*(.+?),\s*обнаружено\s*(\d+)/i,
+  const rawMsg = criticalViolation?.message || details.message || "";
+  const isCriticalPath = Boolean(
+    criticalViolation?.is_critical_path || details.is_critical_path,
   );
-  if (deficitMatch) {
-    const [, need, tech, found] = deficitMatch;
-    cleanMessage = `По графику требуется ${need} ед. (${tech.trim()}), фактически зафиксировано: ${found} ед.`;
-  } else if (/Простой техники/i.test(cleanMessage)) {
-    cleanMessage = cleanMessage.replace(
-      /Простой техники \((\d+)\s*ед\.\)/i,
-      "Зафиксирован технологический простой $1 ед. техники в рабочей зоне",
-    );
+
+  const mainTriggerType = criticalViolation?.type || alert.trigger_type;
+  let title = TRIGGER_TITLES[mainTriggerType] || mainTriggerType;
+
+  if (mainTriggerType.startsWith("MISMATCH_")) {
+    title = "Лишняя техника вне регламента этапа";
+  } else if (mainTriggerType.startsWith("SURPLUS_")) {
+    title = "Избыток техники сверх норматива";
+  } else if (
+    mainTriggerType.startsWith("DEFICIT_") &&
+    !TRIGGER_TITLES[mainTriggerType]
+  ) {
+    title = "Дефицит строительной техники";
   }
 
+  const cleanMessage = rawMsg.replace(TECH_REGEX, (_: string, match: string) => {
+    const ruName = TECH_NAMES[match.toLowerCase()];
+    return ruName ? `«${ruName}»` : match;
+  });
+
   let escalateCountdown = "";
-  if (alert.escalate_at && alert.severity === "YELLOW") {
+  const targetEscalate = criticalViolation?.escalate_at || alert.escalate_at;
+  if (targetEscalate && alert.severity === "YELLOW") {
     try {
       const diffMins = Math.round(
-        (new Date(alert.escalate_at).getTime() - Date.now()) / (1000 * 60),
+        (new Date(targetEscalate).getTime() - Date.now()) / (1000 * 60),
       );
       if (diffMins > 0) {
         const hours = Math.floor(diffMins / 60);
@@ -102,18 +117,17 @@ export const formatAlertDetails = (alert: AlertResponse) => {
 
 export const AlertDecisionModal: React.FC<Props> = ({
   alert,
-  projectId: _projectId,
+  projectId,
   onClose,
-  onSuccess,
 }) => {
   const [scenario, setScenario] = useState<ScenarioType>("FALSE_ALARM");
   const [reason, setReason] = useState("");
   const [deadlineHours, setDeadlineHours] = useState<number>(24);
   const [responsibleParty, setResponsibleParty] = useState("");
   const [documentRef, setDocumentRef] = useState("");
-
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorText, setErrorText] = useState("");
+
+  const [resolveAlert, { isLoading: isSubmitting }] = useResolveAlertMutation();
 
   const alertInfo = formatAlertDetails(alert);
 
@@ -124,21 +138,23 @@ export const AlertDecisionModal: React.FC<Props> = ({
       return;
     }
 
-    setIsSubmitting(true);
     setErrorText("");
 
     try {
       let targetDeadline: string | undefined = undefined;
       let fullComment = reason.trim();
 
-      if (scenario === "SPECIAL_STATUS_OPEN") {
+      if (scenario === "ORANGE_STATUS") {
         targetDeadline = new Date(
           Date.now() + deadlineHours * 60 * 60 * 1000,
         ).toISOString();
         if (responsibleParty.trim()) {
           fullComment += ` (Ответственный подрядчик: ${responsibleParty.trim()})`;
         }
-      } else if (scenario === "FORCE_MAJEURE_CASCADE") {
+      } else if (scenario === "PURPLE_STATUS") {
+        targetDeadline = new Date(
+          Date.now() + deadlineHours * 60 * 60 * 1000,
+        ).toISOString();
         if (documentRef.trim()) {
           fullComment += ` [Акт/Документ: ${documentRef.trim()}]`;
         }
@@ -153,13 +169,20 @@ export const AlertDecisionModal: React.FC<Props> = ({
         target_deadline: targetDeadline,
       };
 
-      await engineerApi.resolveAlert(alert.id, payload);
-      await onSuccess();
+      await resolveAlert({
+        alertId: alert.id,
+        projectId,
+        payload,
+      }).unwrap();
+
       onClose();
     } catch (err: any) {
-      setErrorText(err.message || "Ошибка сохранения решения");
-    } finally {
-      setIsSubmitting(false);
+      setErrorText(
+        err?.data?.detail ||
+          err?.data?.error?.message ||
+          err?.message ||
+          "Ошибка сохранения решения",
+      );
     }
   };
 
@@ -170,21 +193,15 @@ export const AlertDecisionModal: React.FC<Props> = ({
         onClick={(e) => e.stopPropagation()}
       >
         <form onSubmit={handleSubmit} className="alert-decision-form">
-          {/* Шапка модального окна */}
           <div className="modal-header">
             <div className="decision-header-info">
               <div className="decision-icon-badge">
-                <img
-                  src={alertTriangleIcon}
-                  alt=""
-                  className="modal-icon-svg"
-                />
+                <AlertTriangleIcon className="modal-icon-svg" />
               </div>
               <div className="decision-header-text">
                 <h3>Решение по инциденту на объекте</h3>
                 <p>
-                  Фиксация процессуального постановления надзора в журнале Audit
-                  Trail
+                  Фиксация процессуального постановления надзора в журнале аудита объекта
                 </p>
               </div>
             </div>
@@ -194,7 +211,7 @@ export const AlertDecisionModal: React.FC<Props> = ({
               onClick={onClose}
               title="Закрыть"
             >
-              <img src={closeIcon} alt="✕" className="ui-icon-sm" />
+              <CloseIcon className="ui-icon-sm" />
             </button>
           </div>
 
@@ -203,18 +220,19 @@ export const AlertDecisionModal: React.FC<Props> = ({
               <div className="admin-error-message">{errorText}</div>
             )}
 
-            {/* Карточка инцидента */}
             <div className="incident-summary-card">
               <div className="incident-summary-top">
                 <span
                   className={`incident-severity-badge ${alert.severity.toLowerCase()}`}
                 >
                   <span
-                    className={`status-dot ${alert.severity.toLowerCase() === "red" ? "red" : "yellow"}`}
+                    className={`status-dot ${
+                      alert.severity.toLowerCase() === "red" ? "red" : "yellow"
+                    }`}
                   />
                   {alert.severity === "RED"
-                    ? "КРАСНЫЙ АЛЕРТ: ТРЕБУЕТСЯ РЕШЕНИЕ"
-                    : "ЖЁЛТЫЙ АЛЕРТ: ВРЕМЯ НА УСТРАНЕНИЕ"}
+                    ? "Красный уровень: требуется решение"
+                    : "Предупреждение: время на устранение"}
                 </span>
 
                 <span className="incident-type-tag">{alertInfo.title}</span>
@@ -238,13 +256,14 @@ export const AlertDecisionModal: React.FC<Props> = ({
               </div>
             </div>
 
-            {/* 3 кнопки выбора решения со статусными точками */}
             <div className="form-field">
               <label>Выберите регламентное решение *</label>
               <div className="decision-mode-selector">
                 <button
                   type="button"
-                  className={`mode-btn green ${scenario === "FALSE_ALARM" ? "active" : ""}`}
+                  className={`mode-btn green ${
+                    scenario === "FALSE_ALARM" ? "active" : ""
+                  }`}
                   onClick={() => setScenario("FALSE_ALARM")}
                 >
                   <span className="status-dot green" />
@@ -253,8 +272,10 @@ export const AlertDecisionModal: React.FC<Props> = ({
 
                 <button
                   type="button"
-                  className={`mode-btn orange ${scenario === "SPECIAL_STATUS_OPEN" ? "active" : ""}`}
-                  onClick={() => setScenario("SPECIAL_STATUS_OPEN")}
+                  className={`mode-btn orange ${
+                    scenario === "ORANGE_STATUS" ? "active" : ""
+                  }`}
+                  onClick={() => setScenario("ORANGE_STATUS")}
                 >
                   <span className="status-dot orange" />
                   <span>2. Штрафной коридор (Вина строителей)</span>
@@ -262,8 +283,10 @@ export const AlertDecisionModal: React.FC<Props> = ({
 
                 <button
                   type="button"
-                  className={`mode-btn purple ${scenario === "FORCE_MAJEURE_CASCADE" ? "active" : ""}`}
-                  onClick={() => setScenario("FORCE_MAJEURE_CASCADE")}
+                  className={`mode-btn purple ${
+                    scenario === "PURPLE_STATUS" ? "active" : ""
+                  }`}
+                  onClick={() => setScenario("PURPLE_STATUS")}
                 >
                   <span className="status-dot purple" />
                   <span>3. Форс-мажор</span>
@@ -271,11 +294,10 @@ export const AlertDecisionModal: React.FC<Props> = ({
               </div>
             </div>
 
-            {/* Сценарий 1: Зеленый сброс */}
             {scenario === "FALSE_ALARM" && (
               <div className="decision-tab-content green">
                 <div className="form-field">
-                  <label>Причина отмены алерта инспектором *</label>
+                  <label>Причина отмены предупреждения инспектором *</label>
                   <textarea
                     className="foreman-custom-input large-reason-area"
                     placeholder="Например: Технологический перерыв бетонирования по карте захватки / блик оптической линзы камеры / техника находилась в закрытом ангаре разгрузки..."
@@ -284,15 +306,14 @@ export const AlertDecisionModal: React.FC<Props> = ({
                     required
                   />
                   <small className="field-hint">
-                    Алерт аннулируется в базе. Светофор объекта возвращается в
-                    штатный зелёный режим. Штрафы не начисляются.
+                    Предупреждение аннулируется в системе. Светофор объекта
+                    возвращается в штатный зелёный режим. Штрафы не начисляются.
                   </small>
                 </div>
               </div>
             )}
 
-            {/* Сценарий 2: Оранжевый статус */}
-            {scenario === "SPECIAL_STATUS_OPEN" && (
+            {scenario === "ORANGE_STATUS" && (
               <div className="decision-tab-content orange">
                 <div className="form-field">
                   <label>
@@ -342,8 +363,7 @@ export const AlertDecisionModal: React.FC<Props> = ({
               </div>
             )}
 
-            {/* Сценарий 3: Фиолетовый статус */}
-            {scenario === "FORCE_MAJEURE_CASCADE" && (
+            {scenario === "PURPLE_STATUS" && (
               <div className="decision-tab-content purple">
                 <div className="form-field">
                   <label>Обоснование внешнего форс-мажора *</label>
@@ -356,16 +376,34 @@ export const AlertDecisionModal: React.FC<Props> = ({
                   />
                 </div>
 
-                <div className="form-field">
-                  <label>
-                    Реквизиты подтверждающего акта / справки ведомств
-                  </label>
-                  <input
-                    type="text"
-                    placeholder="Справка Росгидромета № 18-П / Письмо ЦОДД / Акт сетевой компании"
-                    value={documentRef}
-                    onChange={(e) => setDocumentRef(e.target.value)}
-                  />
+                <div className="form-row-2col">
+                  <div className="form-field">
+                    <label>Срок действия окна форс-мажора (часов) *</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="720"
+                      value={deadlineHours}
+                      onChange={(e) =>
+                        setDeadlineHours(
+                          Math.max(1, parseInt(e.target.value, 10) || 1),
+                        )
+                      }
+                      required
+                    />
+                  </div>
+
+                  <div className="form-field">
+                    <label>
+                      Реквизиты подтверждающего акта / справки ведомств
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Справка Росгидромета № 18-П / Письмо ЦОДД / Акт сетевой компании"
+                      value={documentRef}
+                      onChange={(e) => setDocumentRef(e.target.value)}
+                    />
+                  </div>
                 </div>
 
                 <small className="field-hint">
@@ -376,7 +414,6 @@ export const AlertDecisionModal: React.FC<Props> = ({
             )}
           </div>
 
-          {/* Фиксированный подвал */}
           <div className="modal-footer">
             <button
               type="button"
@@ -389,25 +426,21 @@ export const AlertDecisionModal: React.FC<Props> = ({
             <button
               type="submit"
               className={`btn-gantt-success ${
-                scenario === "SPECIAL_STATUS_OPEN"
+                scenario === "ORANGE_STATUS"
                   ? "btn-orange"
-                  : scenario === "FORCE_MAJEURE_CASCADE"
+                  : scenario === "PURPLE_STATUS"
                     ? "btn-purple"
                     : "btn-green"
               }`}
               disabled={isSubmitting}
             >
-              <img
-                src={checkIcon}
-                alt=""
-                className="btn-icon-svg btn-icon-white"
-              />
+              <CheckIcon className="btn-icon-svg btn-icon-white" />
               <span>
                 {isSubmitting
                   ? "Регистрация..."
                   : scenario === "FALSE_ALARM"
-                    ? "Отменить алерт (Зелёный режим)"
-                    : scenario === "SPECIAL_STATUS_OPEN"
+                    ? "Отменить предупреждение"
+                    : scenario === "ORANGE_STATUS"
                       ? "Утвердить штрафной коридор"
                       : "Зафиксировать форс-мажор"}
               </span>

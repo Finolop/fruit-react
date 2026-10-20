@@ -20,6 +20,18 @@ export interface ApplyTemplateResponse {
   message: string;
 }
 
+// Тип ответа снимка камеры с детекцией
+export interface CameraSnapshotResponse {
+  camera_id: string;
+  stream_url: string;
+  is_active: boolean;
+  captured_at: string | null;
+  raw_image_base64: string | null;
+  annotated_image_base64: string | null;
+  detection_count: number;
+  detected_classes_ru: string[];
+}
+
 const handleRes = async <T>(
   res: Response,
   defaultErrorMsg: string,
@@ -145,4 +157,19 @@ export const monitoringApi = {
 
     return handleRes<any>(res, "Не удалось запустить выполнение этапа");
   },
+
+  // 8. Получение актуальных снимков со всех камер объекта
+  getCameraSnapshots: async (
+    projectId: string
+  ): Promise<CameraSnapshotResponse[]> => {
+    const res = await fetchWithAuth(
+      `${API_URL}/api/v1/projects/${projectId}/cameras/snapshots`
+    );
+    return handleRes<CameraSnapshotResponse[]>(
+      res,
+      "Не удалось загрузить снимки камер"
+    );
+  },
 };
+
+

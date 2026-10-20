@@ -1,8 +1,7 @@
-import React, { useEffect, useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useAuthFetch } from "../../hooks/useAuthFetch";
-import { getProjects, ProjectListItem } from "../../api/apiAdmin";
-import closeIcon from "../../assets/images/Close_MD.svg";
+import { useGetProjectsQuery } from "../../api/rtkApi";
+import { ReactComponent as CloseIcon } from "../../assets/images/Close_MD.svg";
 
 export type SidebarViewFilter = "all" | "green" | "orange" | "purple";
 
@@ -17,44 +16,23 @@ const ITEMS_PER_PAGE = 6;
 
 const RegistryList: React.FC = () => {
   const navigate = useNavigate();
-  const authFetch = useAuthFetch();
 
-  const [projects, setProjects] = useState<ProjectListItem[]>([]);
   const [activeFilter, setActiveFilter] = useState<SidebarViewFilter>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string>("");
 
-  const loadData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError("");
+  const {
+    data: projects = [],
+    isLoading,
+    isError,
+  } = useGetProjectsQuery(
+    { limit: 100 },
+    {
+      pollingInterval: 10000,
+      skipPollingIfUnfocused: true,
+    },
+  );
 
-      const projectsData = await getProjects(authFetch, { limit: 100 });
-      setProjects(projectsData || []);
-    } catch (err: any) {
-      setError(err.message || "Ошибка загрузки реестра строек");
-    } finally {
-      setLoading(false);
-    }
-  }, [authFetch]);
-
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
-
-  // Фоновое автообновление реестра каждые 10 секунд
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      if (document.hidden) return;
-      loadData();
-    }, 10000);
-
-    return () => clearInterval(intervalId);
-  }, [loadData]);
-
-  // Сводные счетчики по статусам объектов
   const stats: DepartmentOverview = useMemo(() => {
     const total = projects.length;
     if (total === 0) {
@@ -211,7 +189,7 @@ const RegistryList: React.FC = () => {
                   setCurrentPage(1);
                 }}
               >
-                <img src={closeIcon} alt="" className="ui-icon-xs" />
+                <CloseIcon className="ui-icon-xs" />
                 <span>Сбросить фильтр (показать все ОКС)</span>
               </button>
             )}
@@ -222,10 +200,13 @@ const RegistryList: React.FC = () => {
           </div>
         </div>
 
-        {error && <div className="admin-error-message">{error}</div>}
+        {isError && (
+          <div className="admin-error-message">
+            Ошибка загрузки реестра строек
+          </div>
+        )}
 
         <div className="registry-table-wrapper">
-          {/* Поиск */}
           <div className="registry-search-container">
             <div className="registry-search-box">
               <input
@@ -248,7 +229,7 @@ const RegistryList: React.FC = () => {
                   }}
                   title="Очистить поиск"
                 >
-                  <img src={closeIcon} alt="✕" className="ui-icon-xs" />
+                  <CloseIcon className="ui-icon-xs" />
                 </button>
               )}
             </div>
@@ -266,7 +247,7 @@ const RegistryList: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {loading ? (
+              {isLoading ? (
                 <tr>
                   <td colSpan={6} className="registry-empty">
                     Загрузка реестра строек...
@@ -297,7 +278,11 @@ const RegistryList: React.FC = () => {
                       )}
                     </td>
                     <td className="table-stage">
-                      {project.current_stage_name || "—"}
+                      {project.current_stage_name
+                        ? project.current_stage_name
+                            .replace(/^\d+(\.\d+)*[-.\s]+/, "")
+                            .trim()
+                        : "—"}
                     </td>
                     <td className="table-progress">
                       {project.physical_progress_percent !== undefined
@@ -339,7 +324,7 @@ const RegistryList: React.FC = () => {
                 type="button"
                 className="pagination-button pagination-arrow"
                 onClick={() => handlePageChange(currentPage - 1)}
-                disabled={currentPage === 1 || loading}
+                disabled={currentPage === 1 || isLoading}
               >
                 Назад
               </button>
@@ -361,7 +346,7 @@ const RegistryList: React.FC = () => {
                 type="button"
                 className="pagination-button pagination-arrow"
                 onClick={() => handlePageChange(currentPage + 1)}
-                disabled={currentPage === totalPages || loading}
+                disabled={currentPage === totalPages || isLoading}
               >
                 Вперед
               </button>
@@ -370,7 +355,6 @@ const RegistryList: React.FC = () => {
         </div>
       </section>
 
-      {/* Сайдбар с 4 рабочими фильтрами */}
       <aside className="registry-sidebar">
         <div
           className={`stat-card stat-clickable ${activeFilter === "all" ? "active-all" : ""}`}

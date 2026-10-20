@@ -1,19 +1,23 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { RootState } from "../../store";
+import { skipToken } from "@reduxjs/toolkit/query";
 
-import { ForemanObjectManager } from "../../components/foreman/ForemanObjectManager";
+import { selectIsAdmin, selectIsForeman } from "../../features/auth/authSlice";
 import {
-  fetchWithAuth,
-  getLiveSummary,
-  LiveSummaryResponse,
-} from "../../api/api";
+  useGetProjectsQuery,
+  useGetProjectByIdQuery,
+  useGetSchedulesQuery,
+  useGetCamerasQuery,
+  useGetEquipmentTypesQuery,
+  useGetLiveSummaryQuery,
+} from "../../api/rtkApi";
+import { ForemanObjectManager } from "../../components/foreman/ForemanObjectManager";
 import Header from "../../components/Header";
 
-import arrowLeftIcon from "../../assets/images/Arrow_Left_MD.svg";
-import arrowRightIcon from "../../assets/images/Arrow_Right_MD.svg";
-import lockIcon from "../../assets/images/Lock.svg";
+import { ReactComponent as ArrowLeftIcon } from "../../assets/images/Arrow_Left_MD.svg";
+import { ReactComponent as ArrowRightIcon } from "../../assets/images/Arrow_Right_MD.svg";
+import { ReactComponent as LockIcon } from "../../assets/images/Lock.svg";
 
 import "../../styles/ForemanPage.css";
 
@@ -46,6 +50,9 @@ export interface ScheduleItem {
   actual_start_date?: string;
   actual_end_date?: string;
   status: string;
+  is_critical_path?: boolean;
+  allowed_equipment?: string[];
+  alerts_and_risks?: string | null;
   equipment_requirements: {
     equipment_type?: string;
     equipment_type_id?: string;
@@ -55,41 +62,17 @@ export interface ScheduleItem {
   }[];
 }
 
-const parseJsonResponse = async (res: Response, fallback: any = null) => {
-  if (!res.ok) return fallback;
-  const contentType = res.headers.get("content-type");
-  if (contentType && contentType.includes("application/json")) {
-    try {
-      return await res.json();
-    } catch {
-      return fallback;
-    }
-  }
-  return fallback;
-};
-
 export const ForemanPage: React.FC = () => {
   const { projectId: urlProjectId } = useParams<{ projectId?: string }>();
   const navigate = useNavigate();
 
-  const currentUser = useSelector((state: RootState) => state.auth.user);
-  const isAdmin = Boolean(currentUser?.roles?.includes("admin"));
-  const isForeman = Boolean(currentUser?.roles?.includes("foreman"));
+  const isAdmin = useSelector(selectIsAdmin);
+  const isForeman = useSelector(selectIsForeman);
   const isReadOnly = isAdmin && !isForeman;
 
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     urlProjectId || null,
   );
-  const [availableProjects, setAvailableProjects] = useState<ProjectData[]>([]);
-  const [project, setProject] = useState<ProjectData | null>(null);
-  const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
-  const [equipmentTypes, setEquipmentTypes] = useState<EquipmentType[]>([]);
-  const [liveSummary, setLiveSummary] = useState<LiveSummaryResponse | null>(
-    null,
-  );
-
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string>("");
   const [idleResolvedText, setIdleResolvedText] = useState<string>("");
 
   useEffect(() => {
@@ -98,112 +81,65 @@ export const ForemanPage: React.FC = () => {
     }
   }, [urlProjectId]);
 
-  // Загрузка паспорта ОКС, графиков и справочников при смене объекта или после сохранения
-  const loadProjectDetails = useCallback(async () => {
-    if (!selectedProjectId) {
-      setProject(null);
-      setSchedules([]);
-      setLiveSummary(null);
-      return;
-    }
+  const {
+    data: availableProjects = [],
+    isLoading: isLoadingProjects,
+    isError: isProjectsError,
+  } = useGetProjectsQuery();
 
-    try {
-      const [projRes, schedRes, camerasRes, eqRes, summaryData] =
-        await Promise.all([
-          fetchWithAuth(`/api/v1/projects/${selectedProjectId}`),
-          fetchWithAuth(`/api/v1/projects/${selectedProjectId}/schedules`),
-          fetchWithAuth(`/api/v1/projects/${selectedProjectId}/cameras`),
-          fetchWithAuth(`/api/v1/dictionaries/equipment-types`),
-          getLiveSummary(selectedProjectId).catch(() => null),
-        ]);
+  const { data: rawProject, refetch: refetchProject } = useGetProjectByIdQuery(
+    selectedProjectId ?? skipToken,
+  );
 
-      const projData = await parseJsonResponse(projRes, null);
-      const schedData = await parseJsonResponse(schedRes, []);
-      const camerasData = await parseJsonResponse(camerasRes, []);
-      const eqData = await parseJsonResponse(eqRes, []);
+  const { data: schedules = [], refetch: refetchSchedules } =
+    useGetSchedulesQuery(selectedProjectId ?? skipToken);
 
-      if (projData) {
-        setProject({
-          id: projData.id,
-          name: projData.name || "Объект капитального строительства",
-          address: projData.address || "Адрес не указан",
-          type_id: projData.type_id || undefined,
-          status: projData.schedule_status || projData.status || "DRAFT",
-          schedule_status:
-            projData.schedule_status || projData.status || "DRAFT",
-          camera_url:
-            Array.isArray(camerasData) && camerasData.length > 0
-              ? camerasData[0].stream_url
-              : "",
-        });
-      }
+  const { data: cameras = [], refetch: refetchCameras } = useGetCamerasQuery(
+    selectedProjectId ?? skipToken,
+  );
 
-      setSchedules(Array.isArray(schedData) ? schedData : []);
-      setEquipmentTypes(Array.isArray(eqData) ? eqData : []);
-      setLiveSummary(summaryData);
-    } catch (err: any) {
-      console.error("Ошибка обновления данных ОКС:", err);
-    }
-  }, [selectedProjectId]);
+  const { data: equipmentTypes = [] } = useGetEquipmentTypesQuery();
 
-  useEffect(() => {
-    let isMounted = true;
+  const { data: liveSummary = null, refetch: refetchSummary } =
+    useGetLiveSummaryQuery(selectedProjectId ?? skipToken, {
+      pollingInterval: 5000,
+      skipPollingIfUnfocused: true,
+    });
 
-    const fetchProjects = async () => {
-      setIsLoading(true);
-      setErrorMessage("");
+  const project: ProjectData | null = useMemo(() => {
+    const fallback = availableProjects.find((p) => p.id === selectedProjectId);
+    const source = rawProject || fallback;
+    if (!source) return null;
 
-      try {
-        const res = await fetchWithAuth(`/api/v1/projects`);
-        const list = await parseJsonResponse(res, null);
-
-        if (!list || !Array.isArray(list)) {
-          throw new Error("Не удалось получить список объектов");
-        }
-
-        if (isMounted) {
-          setAvailableProjects(list);
-        }
-      } catch (err: any) {
-        if (isMounted) {
-          setErrorMessage(err.message || "Ошибка подключения к реестру");
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
+    return {
+      id: source.id,
+      name: source.name || "Объект капитального строительства",
+      address: source.address || "Адрес не указан",
+      type_id: source.type_id || undefined,
+      status: source.schedule_status || source.status || "DRAFT",
+      schedule_status: source.schedule_status || source.status || "DRAFT",
+      camera_url:
+        Array.isArray(cameras) && cameras.length > 0
+          ? cameras[0].stream_url
+          : "",
     };
+  }, [rawProject, availableProjects, selectedProjectId, cameras]);
 
-    fetchProjects();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    loadProjectDetails();
-  }, [loadProjectDetails]);
-
-  // ФОНОВЫЙ ТАЙМЕР: обновляет ТОЛЬКО live-summary (светофор, готовность, технику онлайн)
-  useEffect(() => {
+  const reloadSchedules = useCallback(async () => {
     if (!selectedProjectId) return;
-
-    const intervalId = setInterval(async () => {
-      if (document.hidden) return;
-      try {
-        const summary = await getLiveSummary(selectedProjectId);
-        if (summary) {
-          setLiveSummary(summary);
-        }
-      } catch {
-        // Фоновые ошибки сети игнорируются
-      }
-    }, 5000);
-
-    return () => clearInterval(intervalId);
-  }, [selectedProjectId]);
+    await Promise.all([
+      refetchProject(),
+      refetchSchedules(),
+      refetchCameras(),
+      refetchSummary(),
+    ]);
+  }, [
+    selectedProjectId,
+    refetchProject,
+    refetchSchedules,
+    refetchCameras,
+    refetchSummary,
+  ]);
 
   const handleSelectProject = (projId: string) => {
     setSelectedProjectId(projId);
@@ -216,13 +152,10 @@ export const ForemanPage: React.FC = () => {
       return;
     }
     setSelectedProjectId(null);
-    setProject(null);
-    setSchedules([]);
-    setLiveSummary(null);
     navigate("/foreman");
   };
 
-  if (isLoading) {
+  if (isLoadingProjects) {
     return (
       <div className="foreman-page">
         <Header />
@@ -248,7 +181,7 @@ export const ForemanPage: React.FC = () => {
               <h2>Выберите объект строительства</h2>
               <p>
                 Доступных объектов: {availableProjects.length}. Нажмите на
-                нужную стройплощадку для перехода к графику Ганта:
+                нужную стройплощадку для перехода к редактированию графика:
               </p>
             </div>
 
@@ -269,7 +202,7 @@ export const ForemanPage: React.FC = () => {
                     <span className="project-selector-badge">
                       {p.status || "DRAFT"}
                     </span>
-                    <img src={arrowRightIcon} alt="" className="btn-icon-svg" />
+                    <ArrowRightIcon className="btn-icon-svg" />
                   </div>
                 </div>
               ))}
@@ -287,7 +220,11 @@ export const ForemanPage: React.FC = () => {
         <div className="foreman-content">
           <div className="empty-state-container">
             <h2 className="empty-state-title">Ошибка загрузки ОКС</h2>
-            <p className="empty-state-description">{errorMessage}</p>
+            <p className="empty-state-description">
+              {isProjectsError
+                ? "Ошибка подключения к реестру"
+                : "Объект не найден или нет доступа"}
+            </p>
             <button
               type="button"
               className="foreman-primary-button"
@@ -310,7 +247,7 @@ export const ForemanPage: React.FC = () => {
       {isReadOnly && (
         <div className="foreman-readonly-banner-wrap">
           <div className="foreman-readonly-banner">
-            <img src={lockIcon} alt="" className="readonly-banner-icon" />
+            <LockIcon className="readonly-banner-icon" />
             <div className="readonly-banner-text">
               <strong>
                 Режим наблюдателя (Департамент градостроительной политики)
@@ -327,9 +264,7 @@ export const ForemanPage: React.FC = () => {
 
       <div className="foreman-toolbar-switch">
         <div className="foreman-project-selector-group">
-          <span className="kpi-caption" style={{ marginBottom: 0 }}>
-            Стройплощадка:
-          </span>
+          <span className="kpi-caption kpi-caption-inline">Стройплощадка:</span>
           <select
             className="foreman-project-dropdown"
             value={selectedProjectId}
@@ -348,7 +283,7 @@ export const ForemanPage: React.FC = () => {
           className="btn-switch-project"
           onClick={handleBackToSelection}
         >
-          <img src={arrowLeftIcon} alt="" className="btn-icon-svg" />
+          <ArrowLeftIcon className="btn-icon-svg" />
           <span>
             {isAdmin
               ? "Вернуться в реестр строек"
@@ -363,7 +298,9 @@ export const ForemanPage: React.FC = () => {
             <span className="kpi-caption">Объект и текущий этап</span>
             <h2 className="kpi-title-strong">{project.name}</h2>
             <span className="kpi-sub-text">
-              {liveSummary?.current_stage?.name || "Подготовительный этап"}
+              {(liveSummary?.current_stage?.name || "Подготовительный этап")
+                .replace(/^\d+(\.\d+)*[-.\s]+/, "")
+                .trim()}
             </span>
           </div>
 
@@ -457,7 +394,7 @@ export const ForemanPage: React.FC = () => {
         )}
 
         {idleResolvedText && (
-          <div className="gantt-msg-banner msg-success" style={{ margin: 0 }}>
+          <div className="gantt-msg-banner msg-success gantt-msg-no-margin">
             {idleResolvedText}
           </div>
         )}
@@ -467,7 +404,7 @@ export const ForemanPage: React.FC = () => {
         project={project}
         schedules={schedules}
         equipmentTypes={equipmentTypes}
-        reloadSchedules={loadProjectDetails}
+        reloadSchedules={reloadSchedules}
         isReadOnly={isReadOnly}
       />
     </div>

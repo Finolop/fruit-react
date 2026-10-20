@@ -1,4 +1,3 @@
-
 .camera-modal-overlay {
   position: fixed;
   z-index: 2500;
@@ -17,17 +16,18 @@
 .camera-modal-card {
   display: flex;
   flex-direction: column;
-  width: 100%;
-  max-width: 680px;
-  max-height: 88vh;
+  width: 95%;
+  max-width: 1200px;
+  height: 92vh;
+  max-height: 92vh;
   box-sizing: border-box;
   overflow: hidden;
   background-color: var(--color-surface, #ffffff);
   border: 1px solid var(--color-border, #e2e8f0);
   border-radius: var(--radius-md, 10px);
   box-shadow:
-    0 20px 25px -5px rgba(0, 0, 0, 0.15),
-    0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    0 25px 50px -12px rgba(0, 0, 0, 0.25),
+    0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
 
 .camera-modal-header {
@@ -63,6 +63,73 @@
   color: var(--color-text-secondary, #64748b);
 }
 
+/* Правая часть шапки */
+.camera-header-right-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+/* Контрол свитча-тумблера в шапке */
+.camera-switch-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.camera-switch-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.camera-switch-track {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+}
+
+.camera-switch-track input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.camera-switch-slider {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #cbd5e1;
+  border-radius: 22px;
+  transition: background-color 0.2s ease;
+}
+
+.camera-switch-slider::before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 3px;
+  bottom: 3px;
+  background-color: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease;
+}
+
+.camera-switch-track input:checked + .camera-switch-slider {
+  background-color: var(--color-primary, #e53935);
+}
+
+.camera-switch-track input:checked + .camera-switch-slider::before {
+  transform: translateX(18px);
+}
+
 .camera-modal-close-btn {
   padding: 4px 8px;
   font-size: 18px;
@@ -83,9 +150,10 @@
 .camera-modal-body {
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  max-height: calc(88vh - 140px);
-  padding: 20px 24px;
+  gap: 20px;
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 24px;
   overflow-y: auto;
 }
 
@@ -189,37 +257,11 @@
   cursor: not-allowed;
 }
 
-.camera-hints-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: var(--color-text-secondary, #64748b);
-}
-
-.camera-hint-chip {
-  padding: 2px 7px;
-  font-family: monospace;
-  color: #334155;
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
-  border-radius: 4px;
-  transition: all 0.15s ease;
-  cursor: pointer;
-}
-
-.camera-hint-chip:hover {
-  color: #0f172a;
-  background: #f1f5f9;
-  border-color: #64748b;
-}
-
 /* Секция списка подключенных камер */
 .camera-list-section {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 14px;
 }
 
 .camera-list-header {
@@ -244,12 +286,19 @@
   border-radius: 6px;
 }
 
+/* Сетка карточек камер */
+.camera-list-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(500px, 1fr));
+  gap: 16px;
+}
+
 /* Карточка отдельной камеры */
 .camera-item-card {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px 16px;
+  gap: 12px;
+  padding: 16px;
   background: #ffffff;
   border: 1px solid var(--color-border, #e2e8f0);
   border-radius: var(--radius-md, 8px);
@@ -259,7 +308,7 @@
 }
 
 .camera-item-card:hover {
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
 }
 
 .camera-item-card.online {
@@ -308,6 +357,16 @@
   border: 1px solid #cbd5e1;
 }
 
+.camera-detected-count-badge {
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #1e40af;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 4px;
+}
+
 .camera-delete-btn {
   padding: 4px 6px;
   font-size: 15px;
@@ -338,6 +397,95 @@
   font-size: 12px;
   color: #334155;
   word-break: break-all;
+}
+
+.camera-snapshot-preview-box {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  height: 300px;
+  background: #090d16;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid var(--color-border, #e2e8f0);
+  cursor: zoom-in;
+  transition: border-color 0.15s ease;
+}
+
+.camera-snapshot-preview-box:hover {
+  border-color: var(--color-primary, #e53935);
+}
+
+.camera-expand-indicator {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #ffffff;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  opacity: 0;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease;
+  pointer-events: none;
+}
+
+.camera-snapshot-preview-box:hover .camera-expand-indicator {
+  opacity: 1;
+}
+
+.camera-expand-icon {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+
+.camera-snapshot-preview-img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
+  height: auto;
+  object-fit: contain;
+}
+
+.camera-no-signal-placeholder {
+  font-size: 13px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.camera-detected-list-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.detected-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text-secondary, #64748b);
+}
+
+.detected-class-chip {
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #166534;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 4px;
 }
 
 .camera-item-bottom {
@@ -393,10 +541,10 @@
   border-radius: var(--radius-md, 8px);
 }
 
-.camera-empty-icon {
+.camera-empty-icon-svg {
   display: block;
   font-size: 34px;
-  margin-bottom: 8px;
+  margin: 0 auto 8px;
 }
 
 .camera-empty-box p {
@@ -410,7 +558,7 @@
   font-size: 12px;
 }
 
-/* Футер */
+/* Футер модалки */
 .camera-modal-footer {
   display: flex;
   justify-content: flex-end;
@@ -453,4 +601,188 @@
 
 .camera-modal-readonly-note strong {
   color: #1e3a8a;
+}
+
+/*
+   ПОЛНОЭКРАННЫЙ ПРОСМОТРЩИК
+*/
+
+.camera-fullscreen-overlay {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 9999;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 0;
+  margin: 0;
+  background: rgba(0, 0, 0, 0.95);
+  backdrop-filter: blur(4px);
+  cursor: zoom-out;
+  animation: fadeInLightbox 0.18s ease-out;
+}
+
+@keyframes fadeInLightbox {
+  from {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.camera-fullscreen-top-bar {
+  position: absolute;
+  top: 16px;
+  left: 20px;
+  right: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  z-index: 10000;
+  pointer-events: none;
+}
+
+.camera-fullscreen-caption {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 14px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  color: #ffffff;
+  backdrop-filter: blur(4px);
+  pointer-events: auto;
+}
+
+.camera-fullscreen-caption h4 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.camera-fullscreen-caption span {
+  font-family: monospace;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+.camera-fullscreen-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: auto;
+}
+
+.camera-fullscreen-download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 38px;
+  padding: 0 14px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.camera-fullscreen-download-btn:hover {
+  background: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+.camera-fullscreen-download-icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+.camera-fullscreen-close-btn {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 38px;
+  height: 38px;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.camera-fullscreen-close-btn:hover {
+  background: rgba(239, 68, 68, 0.8);
+  border-color: #ef4444;
+}
+
+.camera-fullscreen-content {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100vw;
+  height: 100vh;
+  cursor: default;
+}
+
+.camera-fullscreen-img {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  max-width: 100vw;
+  max-height: 100vh;
+  object-fit: contain;
+}
+
+.camera-fullscreen-footer {
+  position: absolute;
+  bottom: 20px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  backdrop-filter: blur(4px);
+  z-index: 10000;
+}
+
+.fullscreen-detected-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.fullscreen-class-chip {
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #4ade80;
+  background: rgba(22, 101, 52, 0.3);
+  border: 1px solid #22c55e;
+  border-radius: 4px;
+}
+
+/* Адаптивность для экранов ноутбуков */
+@media (max-width: 1100px) {
+  .camera-list-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .camera-snapshot-preview-box {
+    height: 260px;
+  }
 }

@@ -1,15 +1,15 @@
 import React, { useState } from "react";
 import {
-  engineerApi,
   CascadeShiftRequest,
   CascadeShiftResponse,
 } from "../../api/apiEngineer";
+import { useCascadeShiftMutation, extractApiError } from "../../api/rtkApi";
 import { ScheduleItem } from "../../pages/foreman/ForemanPage";
 
-import trendingUpIcon from "../../assets/images/Arrow_Up_Right_LG.svg";
-import trendingDownIcon from "../../assets/images/Arrow_Down_Right_LG.svg";
-import closeIcon from "../../assets/images/Close_MD.svg";
-import checkIcon from "../../assets/images/Circle_Check.svg";
+import { ReactComponent as TrendingUpIcon } from "../../assets/images/Arrow_Up_Right_LG.svg";
+import { ReactComponent as TrendingDownIcon } from "../../assets/images/Arrow_Down_Right_LG.svg";
+import { ReactComponent as CloseIcon } from "../../assets/images/Close_MD.svg";
+import { ReactComponent as CheckIcon } from "../../assets/images/Circle_Check.svg";
 
 import "../../styles/EngineerPage.css";
 
@@ -17,7 +17,7 @@ interface Props {
   projectId: string;
   schedules: ScheduleItem[];
   onClose: () => void;
-  onSuccess: () => Promise<void>;
+  onSuccess?: () => Promise<void> | void;
 }
 
 const PRESET_DAYS = [1, 3, 5, 7, 14, 30];
@@ -26,7 +26,6 @@ export const CascadeShiftModal: React.FC<Props> = ({
   projectId,
   schedules,
   onClose,
-  onSuccess,
 }) => {
   const [fromScheduleId, setFromScheduleId] = useState<string>(
     schedules[0]?.id || "",
@@ -42,11 +41,12 @@ export const CascadeShiftModal: React.FC<Props> = ({
   const [documentRef, setDocumentRef] = useState("");
   const [closeSpecialStatus, setCloseSpecialStatus] = useState(true);
 
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorText, setErrorText] = useState("");
   const [resultData, setResultData] = useState<CascadeShiftResponse | null>(
     null,
   );
+
+  const [cascadeShift, { isLoading: isSubmitting }] = useCascadeShiftMutation();
 
   const finalShiftDays =
     shiftDirection === "DELAY"
@@ -56,7 +56,7 @@ export const CascadeShiftModal: React.FC<Props> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fromScheduleId) {
-      setErrorText("Выберите этап, с которого начинается каскадный перенос");
+      setErrorText("Выберите этап, с которого начинается перенос");
       return;
     }
     if (!reasonComment.trim()) {
@@ -68,7 +68,6 @@ export const CascadeShiftModal: React.FC<Props> = ({
       return;
     }
 
-    setIsSubmitting(true);
     setErrorText("");
 
     try {
@@ -81,13 +80,14 @@ export const CascadeShiftModal: React.FC<Props> = ({
         close_special_status: closeSpecialStatus,
       };
 
-      const res = await engineerApi.cascadeShift(projectId, payload);
+      const res = await cascadeShift({
+        projectId,
+        payload,
+      }).unwrap();
+
       setResultData(res);
-      await onSuccess();
     } catch (err: any) {
-      setErrorText(err.message || "Ошибка выполнения сдвига сроков");
-    } finally {
-      setIsSubmitting(false);
+      setErrorText(extractApiError(err, "Ошибка выполнения сдвига сроков"));
     }
   };
 
@@ -122,7 +122,7 @@ export const CascadeShiftModal: React.FC<Props> = ({
                 onClick={onClose}
                 title="Закрыть"
               >
-                <img src={closeIcon} alt="✕" className="ui-icon-sm" />
+                <CloseIcon className="ui-icon-sm" />
               </button>
             </div>
 
@@ -132,7 +132,7 @@ export const CascadeShiftModal: React.FC<Props> = ({
                   <div className="cascade-result-icon">✓</div>
                   <div>
                     <h4>Каскадный пересчет успешно зафиксирован</h4>
-                    <p>Запись внесена в журнал аудита объекта (Audit Trail)</p>
+                    <p>Запись внесена в журнал аудита объекта</p>
                   </div>
                 </div>
 
@@ -162,7 +162,7 @@ export const CascadeShiftModal: React.FC<Props> = ({
                 </div>
 
                 <div className="cascade-audit-pill">
-                  <span>Запись аудита:</span>
+                  <span>Номер записи аудита:</span>
                   <code>{resultData.audit_trail_id}</code>
                 </div>
               </div>
@@ -171,8 +171,7 @@ export const CascadeShiftModal: React.FC<Props> = ({
             <div className="modal-footer">
               <button
                 type="button"
-                className="btn-gantt-success"
-                style={{ width: "100%", justifyContent: "center" }}
+                className="btn-gantt-success cascade-full-width-btn"
                 onClick={onClose}
               >
                 Вернуться к графику
@@ -192,18 +191,17 @@ export const CascadeShiftModal: React.FC<Props> = ({
                 onClick={onClose}
                 title="Закрыть"
               >
-                <img src={closeIcon} alt="✕" className="ui-icon-sm" />
+                <CloseIcon className="ui-icon-sm" />
               </button>
             </div>
 
             <div className="modal-body">
               {errorText && (
-                <div className="admin-error-message" style={{ margin: 0 }}>
+                <div className="admin-error-message cascade-error-no-margin">
                   {errorText}
                 </div>
               )}
 
-              {/* 1. Направление сдвига */}
               <div className="form-field">
                 <label>Характер корректировки сроков *</label>
                 <div className="shift-direction-toggle">
@@ -215,11 +213,7 @@ export const CascadeShiftModal: React.FC<Props> = ({
                     onClick={() => setShiftDirection("DELAY")}
                   >
                     <div className="shift-dir-header">
-                      <img
-                        src={trendingUpIcon}
-                        alt=""
-                        className="btn-icon-svg"
-                      />
+                      <TrendingUpIcon className="btn-icon-svg" />
                       <span>Перенос вправо (Задержка)</span>
                     </div>
                     <span className="shift-sign-badge">+{daysCount} дн.</span>
@@ -233,11 +227,7 @@ export const CascadeShiftModal: React.FC<Props> = ({
                     onClick={() => setShiftDirection("CATCHUP")}
                   >
                     <div className="shift-dir-header">
-                      <img
-                        src={trendingDownIcon}
-                        alt=""
-                        className="btn-icon-svg"
-                      />
+                      <TrendingDownIcon className="btn-icon-svg" />
                       <span>Сдвиг влево (Опережение)</span>
                     </div>
                     <span className="shift-sign-badge">-{daysCount} дн.</span>
@@ -245,7 +235,6 @@ export const CascadeShiftModal: React.FC<Props> = ({
                 </div>
               </div>
 
-              {/* 2. Выбор этапа-триггера */}
               <div className="form-field">
                 <label>Начиная с какого этапа сдвигать цепочку *</label>
                 <select
@@ -262,7 +251,6 @@ export const CascadeShiftModal: React.FC<Props> = ({
                 </select>
               </div>
 
-              {/* 3. Количество дней и быстрые пресеты */}
               <div className="form-field">
                 <div className="days-label-row">
                   <label>
@@ -304,9 +292,8 @@ export const CascadeShiftModal: React.FC<Props> = ({
                 </div>
               </div>
 
-              {/* 4. Целевая шкала */}
               <div className="form-field">
-                <label>Целевая шкала графика (target_timeline) *</label>
+                <label>Тип корректируемого графика *</label>
                 <select
                   value={targetTimeline}
                   onChange={(e) =>
@@ -314,19 +301,16 @@ export const CascadeShiftModal: React.FC<Props> = ({
                   }
                 >
                   <option value="PHANTOM">
-                    PHANTOM — Компенсационный / прогнозный график (по умолчанию)
+                    Прогнозный / компенсационный график
                   </option>
                   <option value="BASE">
-                    BASE — Директивный базовый график Департамента
+                    Директивный утверждённый график Департамента
                   </option>
                 </select>
               </div>
 
-              {/* 5. Документ-основание */}
               <div className="form-field">
-                <label>
-                  Реквизиты распоряжения / Акта (document_reference) *
-                </label>
+                <label>Реквизиты распорядительного документа или акта *</label>
                 <input
                   type="text"
                   placeholder="Например: Распоряжение № 14-Р от 28.09.2026 или Акт технадзора"
@@ -336,12 +320,10 @@ export const CascadeShiftModal: React.FC<Props> = ({
                 />
               </div>
 
-              {/* 6. Обоснование */}
               <div className="form-field">
-                <label>Официальное обоснование (reason_comment) *</label>
+                <label>Официальное основание для изменения сроков *</label>
                 <textarea
-                  className="foreman-custom-input"
-                  style={{ height: "60px", minHeight: "50px" }}
+                  className="foreman-custom-input cascade-reason-textarea"
                   placeholder="Укажите технологическую причину (погодные условия, срыв поставок, допсоглашение)..."
                   value={reasonComment}
                   onChange={(e) => setReasonComment(e.target.value)}
@@ -349,7 +331,6 @@ export const CascadeShiftModal: React.FC<Props> = ({
                 />
               </div>
 
-              {/* 7. Компактный Toggle Switch */}
               <div
                 className={`cascade-toggle-card ${
                   closeSpecialStatus ? "active" : ""
@@ -378,7 +359,6 @@ export const CascadeShiftModal: React.FC<Props> = ({
               </div>
             </div>
 
-            {/* Зафиксированный подвал (всегда видим на экране) */}
             <div className="modal-footer">
               <button
                 type="button"
@@ -393,11 +373,7 @@ export const CascadeShiftModal: React.FC<Props> = ({
                 className="btn-gantt-success"
                 disabled={isSubmitting}
               >
-                <img
-                  src={checkIcon}
-                  alt=""
-                  className="btn-icon-svg btn-icon-white"
-                />
+                <CheckIcon className="btn-icon-svg" />
                 <span>
                   {isSubmitting
                     ? "Выполняется расчёт..."

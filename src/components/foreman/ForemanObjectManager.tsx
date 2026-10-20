@@ -4,17 +4,23 @@ import {
   EquipmentType,
   ScheduleItem,
 } from "../../pages/foreman/ForemanPage";
-import { foremanApi } from "../../api/apiForeman";
+import {
+  useApplyTemplateMutation,
+  useBulkSyncSchedulesMutation,
+  useConfirmScheduleMutation,
+  extractApiError,
+  useGetCamerasQuery,
+} from "../../api/rtkApi";
 import { CameraManagerModal } from "./CameraManagerModal";
 import { EarlyCompleteModal } from "../engineer/EarlyCompleteModal";
 
-import cameraIcon from "../../assets/images/Camera.svg";
-import lockIcon from "../../assets/images/Lock.svg";
-import clipboardIcon from "../../assets/images/File_Add.svg";
-import saveIcon from "../../assets/images/Save.svg";
-import checkIcon from "../../assets/images/Circle_Check.svg";
-import chevronDownIcon from "../../assets/images/Caret_Down_MD.svg";
-import chevronRightIcon from "../../assets/images/Caret_Up_MD.svg";
+import { ReactComponent as CameraIcon } from "../../assets/images/Camera.svg";
+import { ReactComponent as LockIcon } from "../../assets/images/Lock.svg";
+import { ReactComponent as ClipboardIcon } from "../../assets/images/File_Add.svg";
+import { ReactComponent as SaveIcon } from "../../assets/images/Save.svg";
+import { ReactComponent as CheckIcon } from "../../assets/images/Circle_Check.svg";
+import { ReactComponent as ChevronDownIcon } from "../../assets/images/Caret_Down_MD.svg";
+import { ReactComponent as ChevronRightIcon } from "../../assets/images/Caret_Up_MD.svg";
 
 import "../../styles/ForemanGantt.css";
 
@@ -23,9 +29,15 @@ const FALLBACK_EQUIPMENT_NAMES: Record<string, string> = {
   dump_truck: "Самосвал",
   excavator: "Экскаватор",
   mobile_crane: "Автокран",
-  truck: "Бортовой грузовик",
+  tower_crane: "Башенный кран",
+  loader_crane: "Кран-манипулятор",
+  truck: "Грузовик / длинномер",
   concrete_mixer: "Автобетоносмеситель",
-  road_roller: "Каток",
+  concrete_pump: "Бетононасос",
+  road_roller: "Дорожный каток",
+  front_loader: "Фронтальный погрузчик",
+  skid_steer_loader: "Мини-погрузчик",
+  backhoe_loader: "Экскаватор-погрузчик",
   drilling_rig: "Буровая установка",
   pump_truck: "Автобетононасос",
 };
@@ -34,7 +46,7 @@ interface ForemanObjectManagerProps {
   project: ProjectData;
   schedules: ScheduleItem[];
   equipmentTypes: EquipmentType[];
-  reloadSchedules: () => Promise<void>;
+  reloadSchedules?: () => Promise<void> | void;
   hideTopBar?: boolean;
   isEngineer?: boolean;
   isReadOnly?: boolean;
@@ -78,6 +90,12 @@ const safeParseDate = (dateStr?: string, fallback: Date = new Date()): Date => {
   return isNaN(d.getTime()) ? fallback : d;
 };
 
+const addDaysSafe = (baseDate: Date, days: number): Date => {
+  const result = new Date(baseDate.getTime());
+  result.setUTCDate(result.getUTCDate() + days);
+  return result;
+};
+
 const formatDateRu = (date: Date): string => {
   if (!date || isNaN(date.getTime())) return "—";
   return date.toLocaleDateString("ru-RU", {
@@ -87,48 +105,6 @@ const formatDateRu = (date: Date): string => {
   });
 };
 
-const getStorageKey = (projectId: string) => `argus_eq_req_${projectId}`;
-const getCriticalStorageKey = (projectId: string) =>
-  `argus_critical_path_${projectId}`;
-
-const loadLocalRequirementMap = (
-  projectId: string,
-): Record<string, boolean> => {
-  try {
-    const raw = localStorage.getItem(getStorageKey(projectId));
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-};
-
-const saveLocalRequirementMap = (
-  projectId: string,
-  map: Record<string, boolean>,
-) => {
-  try {
-    localStorage.setItem(getStorageKey(projectId), JSON.stringify(map));
-  } catch {}
-};
-
-const loadLocalCriticalMap = (projectId: string): Record<string, boolean> => {
-  try {
-    const raw = localStorage.getItem(getCriticalStorageKey(projectId));
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-};
-
-const saveLocalCriticalMap = (
-  projectId: string,
-  map: Record<string, boolean>,
-) => {
-  try {
-    localStorage.setItem(getCriticalStorageKey(projectId), JSON.stringify(map));
-  } catch {}
-};
-
 const cleanTitle = (val: string): string =>
   (val || "").replace(/^\d+(\.\d+)*[-.\s]+/, "").trim();
 
@@ -136,21 +112,19 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
   project,
   schedules,
   equipmentTypes,
-  reloadSchedules,
   hideTopBar = false,
   isEngineer = false,
   isReadOnly = false,
 }) => {
   const [stages, setStages] = useState<GanttMajorStage[]>([]);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
-  const [isProcessing, setIsProcessing] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [isLocallyConfirmed, setIsLocallyConfirmed] = useState(false);
   const [statusMessage, setStatusMessage] = useState<{
     type: "success" | "error";
     text: string;
   } | null>(null);
-
+  const { data: projectCameras = [] } = useGetCamerasQuery(project.id);
   const [earlyCompleteTarget, setEarlyCompleteTarget] = useState<{
     id: string;
     name: string;
@@ -158,6 +132,15 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     nextStageId?: string;
     nextStageName?: string;
   } | null>(null);
+
+  const [applyTemplate, { isLoading: isApplyingTemplate }] =
+    useApplyTemplateMutation();
+  const [bulkSyncSchedules, { isLoading: isSyncing }] =
+    useBulkSyncSchedulesMutation();
+  const [confirmSchedule, { isLoading: isConfirming }] =
+    useConfirmScheduleMutation();
+
+  const isProcessing = isApplyingTemplate || isSyncing || isConfirming;
 
   const isLocked =
     isReadOnly ||
@@ -172,9 +155,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
       setStages([]);
       return;
     }
-
-    const reqMap = loadLocalRequirementMap(project.id);
-    const criticalMap = loadLocalCriticalMap(project.id);
 
     const stageMap = new Map<string, ScheduleItem[]>();
     rawList.forEach((item) => {
@@ -213,10 +193,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
         }
 
         const sDate = safeParseDate(effectiveStartStr);
-        const eDate = safeParseDate(
-          effectiveEndStr,
-          new Date(sDate.getTime() + 7 * 86400000),
-        );
+        const eDate = safeParseDate(effectiveEndStr, addDaysSafe(sDate, 7));
 
         let days = Math.round(
           (eDate.getTime() - sDate.getTime()) / (1000 * 60 * 60 * 24),
@@ -236,7 +213,8 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
               (rawCode && et.code && et.code.toLowerCase() === rawCode),
           );
 
-          const finalId = matched?.id || eq.equipment_type_id || rawId;
+          const finalId =
+            matched?.id || eq.equipment_type_id || rawCode || rawId;
           const finalCode = (
             matched?.code ||
             rawCode ||
@@ -247,26 +225,18 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
             FALLBACK_EQUIPMENT_NAMES[finalCode] ||
             "Строительная техника";
 
-          let backendRequired: boolean | null = null;
+          let finalIsRequired = true;
           if (eq.is_required !== undefined && eq.is_required !== null) {
-            backendRequired =
+            finalIsRequired =
               eq.is_required === true ||
               eq.is_required === 1 ||
               eq.is_required === "true";
           } else if (eq.required !== undefined && eq.required !== null) {
-            backendRequired =
+            finalIsRequired =
               eq.required === true ||
               eq.required === 1 ||
               eq.required === "true";
           }
-
-          const cacheKey = `${subStageName}_${finalCode}`;
-          const finalIsRequired =
-            backendRequired !== null
-              ? backendRequired
-              : reqMap[cacheKey] !== undefined
-                ? reqMap[cacheKey]
-                : true;
 
           eqList.push({
             typeId: finalId,
@@ -277,11 +247,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
           });
         });
 
-        const cachedChoice = criticalMap[sub.id] ?? criticalMap[subStageName];
-        const isCritical =
-          cachedChoice !== undefined
-            ? cachedChoice
-            : Boolean(sub.is_critical ?? sub.is_critical_path);
+        const isCritical = Boolean(sub.is_critical_path ?? sub.is_critical);
 
         return {
           id: sub.id,
@@ -360,45 +326,90 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     setCollapsed((prev) => ({ ...prev, [stageId]: !prev[stageId] }));
   };
 
-  const handleDurationChange = (
+  const handleCriticalPathChange = (
     stageId: string,
+    subId: string,
+    isCritical: boolean,
+  ) => {
+    if (isLocked) return;
+    setStages((prev) =>
+      prev.map((maj) => {
+        if (maj.id !== stageId) return maj;
+        return {
+          ...maj,
+          subStages: maj.subStages.map((sub) =>
+            sub.id === subId ? { ...sub, isCriticalPath: isCritical } : sub,
+          ),
+        };
+      }),
+    );
+  };
+
+  // Исправлено: при изменении длительности этапа даты последующих этапов
+  // последовательно пересчитываются без нахлёста
+  const handleDurationChange = (
+    _stageId: string,
     subId: string,
     days: number,
   ) => {
     if (isLocked) return;
     const val = Math.max(1, days || 1);
 
-    setStages((prev) =>
-      prev.map((maj) => {
-        if (maj.id !== stageId) return maj;
+    setStages((prev) => {
+      let foundTarget = false;
+      let lastEnd: Date | null = null;
 
-        const updatedSubStages = maj.subStages.map((s) => {
-          if (s.id !== subId) return s;
-          const newEnd = new Date(
-            s.startDate.getTime() + val * 24 * 60 * 60 * 1000,
-          );
-          return {
-            ...s,
-            durationDays: val,
-            endDate: newEnd,
-          };
+      return prev.map((maj) => {
+        const updatedSubs = maj.subStages.map((sub) => {
+          if (sub.id === subId) {
+            foundTarget = true;
+            const newEnd = addDaysSafe(sub.startDate, val);
+            lastEnd = newEnd;
+            return {
+              ...sub,
+              durationDays: val,
+              endDate: newEnd,
+            };
+          }
+
+          if (foundTarget && lastEnd) {
+            const nextStart = new Date(lastEnd.getTime());
+            const nextEnd = addDaysSafe(nextStart, sub.durationDays);
+            lastEnd = nextEnd;
+            return {
+              ...sub,
+              startDate: nextStart,
+              endDate: nextEnd,
+            };
+          }
+
+          return sub;
         });
 
-        const allEndTimes = updatedSubStages.map((s) => s.endDate.getTime());
-        const newMaxEnd = new Date(Math.max(...allEndTimes));
-        const newTotalDays = updatedSubStages.reduce(
+        const allStartTimes = updatedSubs.map((s) => s.startDate.getTime());
+        const allEndTimes = updatedSubs.map((s) => s.endDate.getTime());
+        const newMinStart =
+          allStartTimes.length > 0
+            ? new Date(Math.min(...allStartTimes))
+            : new Date();
+        const newMaxEnd =
+          allEndTimes.length > 0
+            ? new Date(Math.max(...allEndTimes))
+            : new Date();
+        const newTotalDays = updatedSubs.reduce(
           (acc, s) => acc + s.durationDays,
           0,
         );
 
         return {
           ...maj,
-          subStages: updatedSubStages,
+          subStages: updatedSubs,
+          startDate: newMinStart,
           endDate: newMaxEnd,
           totalDurationDays: newTotalDays,
         };
-      }),
-    );
+      });
+    });
   };
 
   const handleEquipmentCountChange = (
@@ -447,16 +458,9 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
           ...maj,
           subStages: maj.subStages.map((sub) => {
             if (sub.id !== subId) return sub;
-            const updated = sub.equipment.map((eq) => {
-              if (eq.typeId === typeId) {
-                const nextIsRequired = !eq.isRequired;
-                const reqMap = loadLocalRequirementMap(project.id);
-                reqMap[`${sub.name}_${eq.typeCode}`] = nextIsRequired;
-                saveLocalRequirementMap(project.id, reqMap);
-                return { ...eq, isRequired: nextIsRequired };
-              }
-              return eq;
-            });
+            const updated = sub.equipment.map((eq) =>
+              eq.typeId === typeId ? { ...eq, isRequired: !eq.isRequired } : eq,
+            );
             return { ...sub, equipment: updated };
           }),
         };
@@ -512,13 +516,15 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
           ...maj,
           subStages: maj.subStages.map((sub) => {
             if (sub.id !== subId) return sub;
-            if (sub.equipment.some((e) => e.typeId === eqTypeId)) {
+            if (
+              sub.equipment.some(
+                (e) =>
+                  e.typeId.toLowerCase() === eqTypeId.toLowerCase() ||
+                  e.typeCode.toLowerCase() === typeCode,
+              )
+            ) {
               return sub;
             }
-
-            const reqMap = loadLocalRequirementMap(project.id);
-            reqMap[`${sub.name}_${typeCode}`] = isRequired;
-            saveLocalRequirementMap(project.id, reqMap);
 
             return {
               ...sub,
@@ -539,13 +545,70 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     );
   };
 
+  const buildStagesPayload = () => {
+    const flatList: any[] = [];
+    let seq = 1;
+
+    stages.forEach((maj) => {
+      maj.subStages.forEach((sub) => {
+        const eqReqs = sub.equipment.map((e) => {
+          const matched = equipmentTypes.find(
+            (et) =>
+              et.id.toLowerCase() === e.typeId.toLowerCase() ||
+              (et.code && et.code.toLowerCase() === e.typeCode.toLowerCase()),
+          );
+          const code = (
+            matched?.code ||
+            e.typeCode ||
+            "excavator"
+          ).toLowerCase();
+
+          return {
+            equipment_type: code,
+            required_count: Number(e.count) || 1,
+            is_required: e.isRequired,
+          };
+        });
+
+        const allowedTypes = eqReqs
+          .filter((eq) => !eq.is_required)
+          .map((eq) =>
+            eq.required_count > 1
+              ? `${eq.equipment_type}:${eq.required_count}`
+              : eq.equipment_type,
+          );
+
+        const itemPayload: any = {
+          stage_name: `${maj.stageNumber}. ${maj.name}`,
+          substage_name: `${sub.subNumber}. ${sub.name}`,
+          sequence_order: seq++,
+          base_start_date: sub.startDate.toISOString(),
+          base_end_date: sub.endDate.toISOString(),
+          is_critical_path: sub.isCriticalPath,
+          allowed_equipment: allowedTypes,
+          equipment_requirements: eqReqs,
+        };
+
+        if (
+          sub.id &&
+          !sub.id.startsWith("sub-") &&
+          !sub.id.startsWith("major-")
+        ) {
+          itemPayload.id = sub.id;
+        }
+
+        flatList.push(itemPayload);
+      });
+    });
+
+    return flatList;
+  };
+
   const handleApplyTemplate = async () => {
     if (isLocked) return;
-    setIsProcessing(true);
     setStatusMessage(null);
     try {
-      const res = await foremanApi.applyTemplate(project.id);
-      await reloadSchedules();
+      const res = await applyTemplate({ projectId: project.id }).unwrap();
       setStatusMessage({
         type: "success",
         text: `График сгенерирован по нормам ТЗ (создано этапов: ${res.created_stages_count})`,
@@ -553,104 +616,46 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     } catch (err: any) {
       setStatusMessage({
         type: "error",
-        text: err.message || "Ошибка генерации шаблона",
+        text: extractApiError(err, "Ошибка генерации шаблона"),
       });
-    } finally {
-      setIsProcessing(false);
     }
   };
 
   const handleSaveBulkSync = async () => {
     if (isLocked) return;
-    setIsProcessing(true);
     setStatusMessage(null);
 
     try {
-      const flatList: any[] = [];
-      const reqMap = loadLocalRequirementMap(project.id);
-      const criticalMap = loadLocalCriticalMap(project.id);
-      let seq = 1;
-
-      stages.forEach((maj) => {
-        maj.subStages.forEach((sub) => {
-          const eqReqs = sub.equipment.map((e) => {
-            const matched = equipmentTypes.find(
-              (et) =>
-                et.id.toLowerCase() === e.typeId.toLowerCase() ||
-                (et.code && et.code.toLowerCase() === e.typeCode.toLowerCase()),
-            );
-            const code = (
-              matched?.code ||
-              e.typeCode ||
-              "excavator"
-            ).toLowerCase();
-
-            reqMap[`${sub.name}_${code}`] = e.isRequired;
-
-            return {
-              equipment_type: code,
-              equipment_type_id: e.typeId,
-              required_count: Number(e.count) || 1,
-              is_required: e.isRequired,
-            };
-          });
-
-          criticalMap[sub.id] = sub.isCriticalPath;
-          criticalMap[sub.name] = sub.isCriticalPath;
-
-          const itemPayload: any = {
-            stage_name: maj.name,
-            substage_name: sub.name,
-            sequence_order: seq++,
-            base_start_date: sub.startDate.toISOString(),
-            base_end_date: sub.endDate.toISOString(),
-            is_critical: sub.isCriticalPath,
-            is_critical_path: sub.isCriticalPath,
-            equipment_requirements: eqReqs,
-          };
-
-          if (
-            sub.id &&
-            !sub.id.startsWith("sub-") &&
-            !sub.id.startsWith("major-")
-          ) {
-            itemPayload.id = sub.id;
-          }
-
-          flatList.push(itemPayload);
-        });
-      });
-
-      saveLocalRequirementMap(project.id, reqMap);
-      saveLocalCriticalMap(project.id, criticalMap);
-
-      await foremanApi.bulkSync(project.id, flatList);
-      await reloadSchedules();
+      const flatList = buildStagesPayload();
+      await bulkSyncSchedules({
+        projectId: project.id,
+        stages: flatList,
+      }).unwrap();
 
       setStatusMessage({
         type: "success",
-        text: "График и параметры техники успешно сохранены в системе",
+        text: "График, критический путь и параметры техники успешно сохранены",
       });
     } catch (e: any) {
       setStatusMessage({
         type: "error",
-        text: `Не удалось сохранить график: ${e.message}`,
+        text: `Не удалось сохранить график: ${extractApiError(e, "Ошибка")}`,
       });
-    } finally {
-      setIsProcessing(false);
     }
   };
 
   const handleConfirmSchedule = async () => {
     if (isLocked) return;
-    setIsProcessing(true);
     setStatusMessage(null);
     try {
-      await handleSaveBulkSync();
-      await foremanApi.confirmSchedule(project.id);
+      const flatList = buildStagesPayload();
+      await bulkSyncSchedules({
+        projectId: project.id,
+        stages: flatList,
+      }).unwrap();
 
+      await confirmSchedule(project.id).unwrap();
       setIsLocallyConfirmed(true);
-      await reloadSchedules();
 
       setStatusMessage({
         type: "success",
@@ -659,10 +664,8 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
     } catch (e: any) {
       setStatusMessage({
         type: "error",
-        text: `Ошибка утверждения: ${e.message}`,
+        text: `Ошибка утверждения: ${extractApiError(e, "Ошибка")}`,
       });
-    } finally {
-      setIsProcessing(false);
     }
   };
 
@@ -684,13 +687,13 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
               onClick={() => setIsCameraModalOpen(true)}
               title="Управление видеопотоками площадки"
             >
-              <img src={cameraIcon} alt="" className="btn-icon-svg" />
-              <span>Видеокамеры ({project.camera_url ? "1+" : "0"})</span>
+              <CameraIcon className="btn-icon-svg" />
+              <span>Видеокамеры ({projectCameras.length})</span>
             </button>
 
             {isLocked ? (
               <div className="schedule-locked-badge">
-                <img src={lockIcon} alt="" className="badge-icon-svg" />
+                <LockIcon className="badge-icon-svg" />
                 <div className="locked-text-wrap">
                   <span className="locked-badge-title">
                     {isReadOnly
@@ -713,7 +716,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                   disabled={isProcessing}
                   title="Заполнить типовыми этапами из ТЗ"
                 >
-                  <img src={clipboardIcon} alt="" className="btn-icon-svg" />
+                  <ClipboardIcon className="btn-icon-svg" />
                   <span>Шаблон ТЗ</span>
                 </button>
 
@@ -722,11 +725,11 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                   className="btn-gantt-action-tool"
                   onClick={handleSaveBulkSync}
                   disabled={isProcessing}
-                  title="Сохранить текущие сроки и технику"
+                  title="Сохранить текущие сроки, критический путь и технику"
                 >
-                  <img src={saveIcon} alt="" className="btn-icon-svg" />
+                  <SaveIcon className="btn-icon-svg" />
                   <span>
-                    {isProcessing ? "Сохранение..." : "Сохранить правки"}
+                    {isSyncing ? "Сохранение..." : "Сохранить правки"}
                   </span>
                 </button>
 
@@ -737,13 +740,9 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                   disabled={isProcessing}
                   title="Утвердить график и запустить фиксацию"
                 >
-                  <img
-                    src={checkIcon}
-                    alt=""
-                    className="btn-icon-svg btn-icon-white"
-                  />
+                  <CheckIcon className="btn-icon-svg" />
                   <span>
-                    {isProcessing ? "Утверждение..." : "Утвердить график"}
+                    {isConfirming ? "Утверждение..." : "Утвердить график"}
                   </span>
                 </button>
               </div>
@@ -777,13 +776,9 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
               onClick={handleApplyTemplate}
               disabled={isProcessing}
             >
-              <img
-                src={clipboardIcon}
-                alt=""
-                className="btn-icon-svg btn-icon-white"
-              />
+              <ClipboardIcon className="btn-icon-svg" />
               <span>
-                {isProcessing
+                {isApplyingTemplate
                   ? "Генерация..."
                   : "Сгенерировать график из шаблона ТЗ"}
               </span>
@@ -811,11 +806,11 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                     onClick={() => toggleCollapse(maj.id)}
                   >
                     <div className="gantt-parent-name">
-                      <img
-                        src={isCollapsed ? chevronRightIcon : chevronDownIcon}
-                        alt=""
-                        className="icon-chevron"
-                      />
+                      {isCollapsed ? (
+                        <ChevronRightIcon className="icon-chevron" />
+                      ) : (
+                        <ChevronDownIcon className="icon-chevron" />
+                      )}
                       <span>
                         {maj.stageNumber}. {maj.name}
                       </span>
@@ -866,7 +861,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                         (s) => s.id === sub.id,
                       );
 
-                      // Предшествующие незавершенные подэтапы
                       const previousIncompleteStages =
                         currentSubIdx > 0
                           ? flatSubStages
@@ -875,7 +869,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                               .map((s) => s.id)
                           : [];
 
-                      // Следующий этап ТОЛЬКО со статусом PLANNED
                       const directNextStage =
                         currentSubIdx !== -1 &&
                         currentSubIdx + 1 < flatSubStages.length
@@ -899,13 +892,39 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                               {sub.subNumber}. {sub.name}
                             </span>
 
-                            {sub.isCriticalPath && (
-                              <span
-                                className="critical-path-pill"
-                                title="Критический путь: задержка этапа сдвигает дату сдачи объекта"
-                              >
-                                Крит. путь
-                              </span>
+                            {!isLocked ? (
+                              <div className="critical-select-wrap">
+                                <select
+                                  className={`critical-path-select ${
+                                    sub.isCriticalPath
+                                      ? "is-critical"
+                                      : "not-critical"
+                                  }`}
+                                  value={
+                                    sub.isCriticalPath ? "CRITICAL" : "NORMAL"
+                                  }
+                                  onChange={(e) =>
+                                    handleCriticalPathChange(
+                                      maj.id,
+                                      sub.id,
+                                      e.target.value === "CRITICAL",
+                                    )
+                                  }
+                                  title="Изменить статус критического пути для подэтапа"
+                                >
+                                  <option value="CRITICAL">Крит. путь</option>
+                                  <option value="NORMAL">Обычный</option>
+                                </select>
+                              </div>
+                            ) : (
+                              sub.isCriticalPath && (
+                                <span
+                                  className="critical-path-pill"
+                                  title="Критический путь: задержка этапа сдвигает дату сдачи объекта"
+                                >
+                                  Крит. путь
+                                </span>
+                              )
                             )}
                           </div>
 
@@ -923,7 +942,9 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                                 ? "Выполнен"
                                 : sub.status === "IN_PROGRESS"
                                   ? "В работе"
-                                  : "Запланирован"}
+                                  : sub.status === "DELAYED"
+                                    ? "Просрочен"
+                                    : "Запланирован"}
                             </span>
 
                             {canCompleteEarly && sub.status !== "COMPLETED" && (
@@ -945,11 +966,7 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                                 }}
                                 title="Досрочная приемка этапа по акту АОСР"
                               >
-                                <img
-                                  src={checkIcon}
-                                  alt=""
-                                  className="ui-icon-xs"
-                                />
+                                <CheckIcon className="ui-icon-xs" />
                                 <span>Завершить досрочно</span>
                               </button>
                             )}
@@ -1124,7 +1141,9 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                                             !sub.equipment.some(
                                               (e) =>
                                                 e.typeId.toLowerCase() ===
-                                                et.id.toLowerCase(),
+                                                  et.id.toLowerCase() ||
+                                                e.typeCode.toLowerCase() ===
+                                                  et.code.toLowerCase(),
                                             ),
                                         )
                                         .map((et) => (
@@ -1143,7 +1162,9 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
                                             !sub.equipment.some(
                                               (e) =>
                                                 e.typeId.toLowerCase() ===
-                                                et.id.toLowerCase(),
+                                                  et.id.toLowerCase() ||
+                                                e.typeCode.toLowerCase() ===
+                                                  et.code.toLowerCase(),
                                             ),
                                         )
                                         .map((et) => (
@@ -1208,7 +1229,6 @@ export const ForemanObjectManager: React.FC<ForemanObjectManagerProps> = ({
           nextStageId={earlyCompleteTarget.nextStageId}
           nextStageName={earlyCompleteTarget.nextStageName}
           onClose={() => setEarlyCompleteTarget(null)}
-          onSuccess={reloadSchedules}
         />
       )}
     </div>

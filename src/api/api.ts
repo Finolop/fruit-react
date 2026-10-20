@@ -1,6 +1,5 @@
 const API_URL = process.env.REACT_APP_API_URL || "";
 
-
 // Типы Live Summary
 
 export interface LiveSummaryStage {
@@ -29,7 +28,6 @@ export interface LiveSummaryResponse {
   equipment_realtime: LiveSummaryEquipment;
 }
 
-
 // Утилиты работы с токенами
 
 export const getAccessToken = (): string | null => {
@@ -53,7 +51,9 @@ export const clearTokensAndRedirect = async (): Promise<void> => {
     localStorage.removeItem("access_token");
     localStorage.removeItem("token");
     localStorage.removeItem("userRole");
-    window.location.href = "/login";
+    if (window.location.pathname !== "/login") {
+      window.location.href = "/login";
+    }
   }
 };
 
@@ -68,18 +68,17 @@ export const getAuthHeaders = (): Record<string, string> => {
   return headers;
 };
 
-
 // Очередь запросов при ротации токена
 
 let isRefreshing = false;
-let refreshSubscribers: ((newToken: string) => void)[] = [];
+let refreshSubscribers: ((newToken: string | null) => void)[] = [];
 
-const onTokenRefreshed = (newToken: string) => {
+const notifyRefreshSubscribers = (newToken: string | null) => {
   refreshSubscribers.forEach((callback) => callback(newToken));
   refreshSubscribers = [];
 };
 
-const addRefreshSubscriber = (callback: (newToken: string) => void) => {
+const addRefreshSubscriber = (callback: (newToken: string | null) => void) => {
   refreshSubscribers.push(callback);
 };
 
@@ -154,7 +153,7 @@ export const fetchWithAuth = async (
       isRefreshing = false;
 
       if (newToken) {
-        onTokenRefreshed(newToken);
+        notifyRefreshSubscribers(newToken);
         headers.set("Authorization", `Bearer ${newToken}`);
         return fetch(url, {
           ...init,
@@ -162,14 +161,19 @@ export const fetchWithAuth = async (
           credentials: "include",
         });
       } else {
-        refreshSubscribers = [];
+        // Оповещаем все ожидающие промисы об отказе, чтобы они не зависли
+        notifyRefreshSubscribers(null);
         await clearTokensAndRedirect();
         return response;
       }
     }
 
     return new Promise<Response>((resolve) => {
-      addRefreshSubscriber(async (newToken: string) => {
+      addRefreshSubscriber(async (newToken: string | null) => {
+        if (!newToken) {
+          resolve(response);
+          return;
+        }
         headers.set("Authorization", `Bearer ${newToken}`);
         const retryRes = await fetch(url, {
           ...init,
@@ -184,38 +188,19 @@ export const fetchWithAuth = async (
   return response;
 };
 
-
 // Запросы мониторинга и файлов
 
 export const getLiveSummary = async (
   projectId: string,
+  signal?: AbortSignal,
 ): Promise<LiveSummaryResponse> => {
   const response = await fetchWithAuth(
     `/api/v1/projects/${projectId}/live-summary`,
-    { method: "GET" },
+    { method: "GET", signal },
   );
 
   if (!response.ok) {
     throw new Error("Ошибка получения Live Summary");
-  }
-
-  return response.json();
-};
-
-export const uploadCameraFrame = async (cameraId: string, file: File) => {
-  const formData = new FormData();
-  formData.append("file", file);
-
-  const response = await fetchWithAuth(
-    `/api/v1/cameras/${cameraId}/frames/upload`,
-    {
-      method: "POST",
-      body: formData,
-    },
-  );
-
-  if (!response.ok) {
-    throw new Error("Ошибка загрузки кадра на сервер");
   }
 
   return response.json();

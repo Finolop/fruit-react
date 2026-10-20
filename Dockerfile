@@ -1,21 +1,26 @@
-# Используем легковесный образ Node.js
-FROM node:18-alpine
+# ЭТАП 1: Сборка продакшен-бандла (Node.js)
+FROM node:20-alpine AS builder
 
-# Задаем рабочую папку внутри контейнера
 WORKDIR /app
 
-# Копируем только файлы с зависимостями
 COPY package*.json ./
 
-# Устанавливаем зависимости
 RUN npm install
 
-# Копируем остальной код проекта
 COPY . .
 
-# Открываем порт
+# Собираем оптимизированный продакшен-бандл (Rollup сожмет все файлы в 1-2 штуки)
+RUN npm run build
+
+# ЭТАП 2: Раздача готовой статики через Nginx
+FROM nginx:alpine
+
+# Копируем конфиг веб-сервера
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+
+# Копируем скомпилированные файлы из первого этапа
+COPY --from=builder /app/build /usr/share/nginx/html
+
 EXPOSE 3000
 
-# Запускаем сервер для разработки
-
-CMD ["npm", "start"]
+CMD ["nginx", "-g", "daemon off;"]

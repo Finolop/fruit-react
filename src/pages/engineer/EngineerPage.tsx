@@ -1,8 +1,23 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useSelector } from "react-redux";
-import { RootState } from "../../store";
+import { skipToken } from "@reduxjs/toolkit/query";
 
+import { selectIsAdmin, selectIsEngineer } from "../../features/auth/authSlice";
+import {
+  useGetProjectsQuery,
+  useGetProjectByIdQuery,
+  useGetSchedulesQuery,
+  useGetEquipmentTypesQuery,
+  useGetLiveSummaryQuery,
+  useGetActiveAlertQuery,
+  useGetAlertsListQuery,
+  useGetCurrentSpecialStatusQuery,
+  useSubmitOrangeReportMutation,
+  useCloseSpecialStatusWindowMutation,
+  extractApiError,
+  useGetCamerasQuery,
+} from "../../api/rtkApi";
 import Header from "../../components/Header";
 import { ForemanObjectManager } from "../../components/foreman/ForemanObjectManager";
 import { CameraManagerModal } from "../../components/foreman/CameraManagerModal";
@@ -12,79 +27,41 @@ import {
 } from "../../components/engineer/AlertDecisionModal";
 import { CascadeShiftModal } from "../../components/engineer/CascadeShiftModal";
 
-import {
-  engineerApi,
-  LiveSummaryResponse,
-  AlertResponse,
-  SpecialStatusResponse,
-} from "../../api/apiEngineer";
-import {
-  ProjectData,
-  EquipmentType,
-  ScheduleItem,
-} from "../foreman/ForemanPage";
-import { fetchWithAuth } from "../../api/api";
+import { ProjectData } from "../foreman/ForemanPage";
 
-import cameraIcon from "../../assets/images/Camera.svg";
-import arrowLeftIcon from "../../assets/images/Arrow_Left_MD.svg";
-import arrowRightIcon from "../../assets/images/Arrow_Right_MD.svg";
-import checkIcon from "../../assets/images/Circle_Check.svg";
-import lockIcon from "../../assets/images/Lock.svg";
+import { ReactComponent as CameraIcon } from "../../assets/images/Camera.svg";
+import { ReactComponent as ArrowLeftIcon } from "../../assets/images/Arrow_Left_MD.svg";
+import { ReactComponent as ArrowRightIcon } from "../../assets/images/Arrow_Right_MD.svg";
+import { ReactComponent as CheckIcon } from "../../assets/images/Circle_Check.svg";
+import { ReactComponent as LockIcon } from "../../assets/images/Lock.svg";
 
 import "../../styles/EngineerConsole.css";
 import "../../styles/ForemanPage.css";
-
-const parseJsonResponse = async (res: Response, fallback: any = null) => {
-  if (!res.ok) return fallback;
-  const contentType = res.headers.get("content-type");
-  if (contentType && contentType.includes("application/json")) {
-    try {
-      return await res.json();
-    } catch {
-      return fallback;
-    }
-  }
-  return fallback;
-};
 
 export const EngineerPage: React.FC = () => {
   const { projectId: urlProjectId } = useParams<{ projectId?: string }>();
   const navigate = useNavigate();
 
-  const currentUser = useSelector((state: RootState) => state.auth.user);
-  const isAdmin = Boolean(currentUser?.roles?.includes("admin"));
-  const isEngineer = Boolean(currentUser?.roles?.includes("engineer"));
+  const isAdmin = useSelector(selectIsAdmin);
+  const isEngineer = useSelector(selectIsEngineer);
   const isReadOnly = isAdmin && !isEngineer;
 
-  const [availableProjects, setAvailableProjects] = useState<ProjectData[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(
     urlProjectId || null,
   );
-  const [project, setProject] = useState<ProjectData | null>(null);
-  const [schedules, setSchedules] = useState<ScheduleItem[]>([]);
-  const [equipmentTypes, setEquipmentTypes] = useState<EquipmentType[]>([]);
-
-  const [liveSummary, setLiveSummary] = useState<LiveSummaryResponse | null>(
-    null,
-  );
-  const [activeAlert, setActiveAlert] = useState<AlertResponse | null>(null);
-  const [allOpenAlerts, setAllOpenAlerts] = useState<AlertResponse[]>([]);
-  const [currentSpecialStatus, setCurrentSpecialStatus] =
-    useState<SpecialStatusResponse | null>(null);
 
   const [isDecisionModalOpen, setIsDecisionModalOpen] = useState(false);
   const [isCascadeModalOpen, setIsCascadeModalOpen] = useState(false);
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
-
+  const { data: engineerCameras = [] } = useGetCamerasQuery(
+    selectedProjectId ?? skipToken,
+  );
   const [isPlanCaughtUp, setIsPlanCaughtUp] = useState(false);
   const [timeLostHours, setTimeLostHours] = useState(8);
   const [responsibleParty, setResponsibleParty] = useState(
     "Генподрядная организация / Бригада",
   );
 
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState("");
   const [statusMessage, setStatusMessage] = useState<{
     type: "success" | "error";
     text: string;
@@ -96,134 +73,93 @@ export const EngineerPage: React.FC = () => {
     }
   }, [urlProjectId]);
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchProjects = async () => {
-      setIsLoading(true);
-      setErrorMessage("");
-      try {
-        const res = await fetchWithAuth(`/api/v1/projects`);
-        const list = await parseJsonResponse(res, null);
+  const {
+    data: availableProjects = [],
+    isLoading: isLoadingProjects,
+    isError: isProjectsError,
+  } = useGetProjectsQuery();
 
-        if (!list || !Array.isArray(list)) {
-          throw new Error(
-            "Не удалось получить список объектов со строительного сервера",
-          );
-        }
+  const { data: rawProject, refetch: refetchProject } = useGetProjectByIdQuery(
+    selectedProjectId ?? skipToken,
+  );
 
-        if (isMounted) {
-          setAvailableProjects(list);
-        }
-      } catch (err: any) {
-        if (isMounted) {
-          setErrorMessage(err.message || "Ошибка подключения к реестру");
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
+  const { data: schedules = [], refetch: refetchSchedules } =
+    useGetSchedulesQuery(selectedProjectId ?? skipToken, {
+      pollingInterval: 5000,
+      skipPollingIfUnfocused: true,
+    });
+
+  const { data: equipmentTypes = [] } = useGetEquipmentTypesQuery();
+
+  const { data: liveSummary = null, refetch: refetchSummary } =
+    useGetLiveSummaryQuery(selectedProjectId ?? skipToken, {
+      pollingInterval: 5000,
+      skipPollingIfUnfocused: true,
+    });
+
+  const { data: activeAlert = null, refetch: refetchActiveAlert } =
+    useGetActiveAlertQuery(selectedProjectId ?? skipToken, {
+      pollingInterval: 5000,
+      skipPollingIfUnfocused: true,
+    });
+
+  const { data: _alertsData = [], refetch: refetchAlertsList } =
+    useGetAlertsListQuery(
+      selectedProjectId
+        ? { projectId: selectedProjectId, limit: 50 }
+        : skipToken,
+      {
+        pollingInterval: 5000,
+        skipPollingIfUnfocused: true,
+      },
+    );
+
+  const { data: currentSpecialStatus = null, refetch: refetchSpecStatus } =
+    useGetCurrentSpecialStatusQuery(selectedProjectId ?? skipToken, {
+      pollingInterval: 5000,
+      skipPollingIfUnfocused: true,
+    });
+
+  const [submitOrangeReport, { isLoading: isSubmittingOrange }] =
+    useSubmitOrangeReportMutation();
+  const [closeSpecialStatusWindow, { isLoading: isClosingWindow }] =
+    useCloseSpecialStatusWindowMutation();
+
+  const isProcessing = isSubmittingOrange || isClosingWindow;
+
+  const project: ProjectData | null = useMemo(() => {
+    const fallback = availableProjects.find((p) => p.id === selectedProjectId);
+    const finalData = rawProject || fallback;
+    if (!finalData) return null;
+
+    return {
+      id: finalData.id,
+      name: finalData.name || "Объект капитального строительства",
+      address: finalData.address || "Адрес не указан",
+      type_id: finalData.type_id,
+      status: finalData.schedule_status || finalData.status || "ACTIVE",
     };
-
-    fetchProjects();
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  }, [rawProject, availableProjects, selectedProjectId]);
 
   const loadProjectData = useCallback(async () => {
-    if (!selectedProjectId) {
-      setProject(null);
-      setSchedules([]);
-      setLiveSummary(null);
-      setActiveAlert(null);
-      setAllOpenAlerts([]);
-      return;
-    }
-
-    try {
-      const [
-        projRes,
-        schedRes,
-        eqRes,
-        summaryData,
-        alertData,
-        specStatusData,
-        alertsListRes,
-      ] = await Promise.all([
-        fetchWithAuth(`/api/v1/projects/${selectedProjectId}`),
-        fetchWithAuth(`/api/v1/projects/${selectedProjectId}/schedules`),
-        fetchWithAuth(`/api/v1/dictionaries/equipment-types`),
-        engineerApi.getLiveSummary(selectedProjectId).catch(() => null),
-        engineerApi.getActiveAlert(selectedProjectId).catch(() => null),
-        engineerApi
-          .getCurrentSpecialStatus(selectedProjectId)
-          .catch(() => null),
-        fetchWithAuth(
-          `/api/v1/alerts?project_id=${selectedProjectId}&limit=50`,
-        ).catch(() => null),
-      ]);
-
-      const projData = await parseJsonResponse(projRes, null);
-      const schedData = await parseJsonResponse(schedRes, []);
-      const eqData = await parseJsonResponse(eqRes, []);
-      const alertsData = alertsListRes
-        ? await parseJsonResponse(alertsListRes, [])
-        : [];
-
-      const fallbackProject = availableProjects.find(
-        (p) => p.id === selectedProjectId,
-      );
-      const finalData = projData || fallbackProject;
-
-      if (!finalData) {
-        throw new Error(
-          "ОКС не найден или у вас нет прав надзора по этому объекту",
-        );
-      }
-
-      setProject({
-        id: finalData.id,
-        name: finalData.name || "Объект капитального строительства",
-        address: finalData.address || "Адрес не указан",
-        type_id: finalData.type_id,
-        status: finalData.schedule_status || "ACTIVE",
-      });
-
-      setSchedules(Array.isArray(schedData) ? schedData : []);
-      setEquipmentTypes(Array.isArray(eqData) ? eqData : []);
-      setLiveSummary(summaryData);
-      setActiveAlert(alertData);
-      setCurrentSpecialStatus(specStatusData);
-
-      const openAlerts = Array.isArray(alertsData)
-        ? alertsData.filter((a: AlertResponse) => a.status !== "RESOLVED")
-        : [];
-      setAllOpenAlerts(openAlerts);
-    } catch (e: any) {
-      console.error("Ошибка загрузки данных инженера:", e);
-      setStatusMessage({
-        type: "error",
-        text: "Не удалось обновить статус мониторинга",
-      });
-    }
-  }, [selectedProjectId, availableProjects]);
-
-  useEffect(() => {
-    loadProjectData();
-  }, [loadProjectData]);
-
-  // Фоновое автообновление каждые 5 секунд
-  useEffect(() => {
     if (!selectedProjectId) return;
-
-    const intervalId = setInterval(() => {
-      if (document.hidden || isProcessing) return;
-      loadProjectData();
-    }, 5000);
-
-    return () => clearInterval(intervalId);
-  }, [selectedProjectId, isProcessing, loadProjectData]);
+    await Promise.all([
+      refetchProject(),
+      refetchSchedules(),
+      refetchSummary(),
+      refetchActiveAlert(),
+      refetchAlertsList(),
+      refetchSpecStatus(),
+    ]);
+  }, [
+    selectedProjectId,
+    refetchProject,
+    refetchSchedules,
+    refetchSummary,
+    refetchActiveAlert,
+    refetchAlertsList,
+    refetchSpecStatus,
+  ]);
 
   const handleSelectProject = (projId: string) => {
     setSelectedProjectId(projId);
@@ -232,51 +168,49 @@ export const EngineerPage: React.FC = () => {
 
   const handleBackToSelection = () => {
     setSelectedProjectId(null);
-    setProject(null);
-    setSchedules([]);
-    setLiveSummary(null);
     navigate("/engineer");
   };
 
   const handleSubmitOrangeReportAndClose = async () => {
-    if (isReadOnly || !currentSpecialStatus) return;
+    if (isReadOnly || !currentSpecialStatus || !selectedProjectId) return;
 
-    setIsProcessing(true);
     setStatusMessage(null);
 
     try {
-      await engineerApi.submitOrangeReport(currentSpecialStatus.id, {
-        is_plan_caught_up: isPlanCaughtUp,
-        time_lost_hours: Number(timeLostHours),
-        responsible_party: responsibleParty,
-        summary_meta: {
-          closed_by: "Инженер ПТО",
-          timestamp: new Date().toISOString(),
+      await submitOrangeReport({
+        windowId: currentSpecialStatus.id,
+        projectId: selectedProjectId,
+        payload: {
+          is_plan_caught_up: isPlanCaughtUp,
+          time_lost_hours: Number(timeLostHours),
+          responsible_party: responsibleParty,
+          summary_meta: {
+            closed_by: "Инженер ПТО",
+            timestamp: new Date().toISOString(),
+          },
         },
-      });
+      }).unwrap();
 
-      await engineerApi.closeSpecialStatusWindow(
-        currentSpecialStatus.id,
-        "Штрафной коридор завершен. Отчет передан в Департамент для начисления неустойки.",
-      );
+      await closeSpecialStatusWindow({
+        windowId: currentSpecialStatus.id,
+        projectId: selectedProjectId,
+        comment:
+          "Штрафной коридор завершен. Отчет передан в Департамент для начисления неустойки.",
+      }).unwrap();
 
       setStatusMessage({
         type: "success",
         text: "Оранжевый спецстатус закрыт, штрафной отчет зарегистрирован.",
       });
-
-      await loadProjectData();
     } catch (err: any) {
       setStatusMessage({
         type: "error",
-        text: err.message || "Ошибка отправки штрафного отчета",
+        text: extractApiError(err, "Ошибка отправки штрафного отчета"),
       });
-    } finally {
-      setIsProcessing(false);
     }
   };
 
-  if (isLoading) {
+  if (isLoadingProjects) {
     return (
       <div className="engineer-page">
         <Header />
@@ -323,7 +257,7 @@ export const EngineerPage: React.FC = () => {
                     <span className="project-selector-badge">
                       {p.status || "ACTIVE"}
                     </span>
-                    <img src={arrowRightIcon} alt="" className="btn-icon-svg" />
+                    <ArrowRightIcon className="btn-icon-svg" />
                   </div>
                 </div>
               ))}
@@ -342,7 +276,9 @@ export const EngineerPage: React.FC = () => {
           <div className="empty-state-container">
             <h2 className="empty-state-title">Ошибка загрузки ОКС</h2>
             <p className="empty-state-description">
-              {errorMessage || "Не удалось загрузить данные выбранного объекта"}
+              {isProjectsError
+                ? "Ошибка подключения к реестру"
+                : "Не удалось загрузить данные выбранного объекта"}
             </p>
             <button
               type="button"
@@ -366,8 +302,6 @@ export const EngineerPage: React.FC = () => {
     ""
   ).toUpperCase();
 
-  const openAlertsCount =
-    allOpenAlerts.length > 0 ? allOpenAlerts.length : activeAlert ? 1 : 0;
   const activeAlertParsed = activeAlert
     ? formatAlertDetails(activeAlert)
     : null;
@@ -377,10 +311,9 @@ export const EngineerPage: React.FC = () => {
       <Header />
 
       <div className="engineer-console-root">
-        {/* Баннер наблюдателя для Администратора */}
         {isReadOnly && (
           <div className="engineer-readonly-banner">
-            <img src={lockIcon} alt="" className="readonly-banner-icon" />
+            <LockIcon className="readonly-banner-icon" />
             <div className="readonly-banner-text">
               <strong>
                 Режим наблюдателя (Департамент градостроительной политики)
@@ -419,8 +352,8 @@ export const EngineerPage: React.FC = () => {
               onClick={() => setIsCameraModalOpen(true)}
               title="Управление видеокамерами объекта"
             >
-              <img src={cameraIcon} alt="" className="btn-icon-svg" />
-              <span>Видеокамеры ({project.camera_url ? "1+" : "0"})</span>
+              <CameraIcon className="btn-icon-svg" />
+              <span>Видеокамеры ({engineerCameras.length})</span>
             </button>
 
             <button
@@ -428,7 +361,7 @@ export const EngineerPage: React.FC = () => {
               className="btn-switch-project"
               onClick={handleBackToSelection}
             >
-              <img src={arrowLeftIcon} alt="" className="btn-icon-svg" />
+              <ArrowLeftIcon className="btn-icon-svg" />
               <span>Список объектов ({availableProjects.length})</span>
             </button>
           </div>
@@ -444,7 +377,6 @@ export const EngineerPage: React.FC = () => {
           </div>
         )}
 
-        {/* 1. Сетка показателей KPI */}
         <div className="engineer-kpi-grid">
           <div className="engineer-kpi-card">
             <span className="kpi-caption">Паспорт ОКС</span>
@@ -468,7 +400,11 @@ export const EngineerPage: React.FC = () => {
                       : "green"
                 }`}
               >
-                {alertLevel}
+                {alertLevel === "YELLOW"
+                  ? "Желтый (Внимание)"
+                  : alertLevel === "RED"
+                    ? "Красный (Эскалация)"
+                    : "Зеленый (В норме)"}
               </span>
 
               {specStatus === "PURPLE" && (
@@ -505,12 +441,14 @@ export const EngineerPage: React.FC = () => {
               {liveSummary?.current_stage?.days_remaining ?? 0} дн. ост.
             </div>
             <span className="kpi-sub-text">
-              {liveSummary?.current_stage?.name || "Подготовительный этап"}
+              {(liveSummary?.current_stage?.name || "Подготовительный этап")
+                .replace(/^\d+(\.\d+)*[-.\s]+/, "")
+                .trim()}
             </span>
           </div>
 
           <div className="engineer-kpi-card">
-            <span className="kpi-caption">Техника и Инциденты</span>
+            <span className="kpi-caption">Техника на объекте</span>
             <div className="console-eq-row">
               <div className="eq-unit">
                 <span className="eq-unit-val">
@@ -532,14 +470,12 @@ export const EngineerPage: React.FC = () => {
               </div>
             </div>
             <span className="kpi-sub-text">
-              Открытых алертов в очереди: <strong>{openAlertsCount}</strong>
+              {activeAlert ? "Зафиксировано отклонение" : "Отклонений нет"}
             </span>
           </div>
         </div>
 
-        {/* 2. Блок оперативного надзора и решений */}
         <div className="console-workflow-grid">
-          {/* Левая карточка: Активный инцидент */}
           <div
             className={`console-card ${
               activeAlert && activeAlert.status !== "RESOLVED"
@@ -553,9 +489,9 @@ export const EngineerPage: React.FC = () => {
                   ? activeAlertParsed.title
                   : "Оперативный надзор СМР"}
               </h3>
-              {openAlertsCount > 1 && (
+              {activeAlert && activeAlert.severity === "RED" && (
                 <span className="alert-queue-counter-tag">
-                  Инцидент 1 из {openAlertsCount} в очереди
+                  Критическое нарушение
                 </span>
               )}
             </div>
@@ -564,17 +500,20 @@ export const EngineerPage: React.FC = () => {
             activeAlertParsed &&
             activeAlert.status !== "RESOLVED" ? (
               <div className="alert-reason-detailed-box">
-                {/* Бейджи статуса */}
                 <div className="alert-reason-tags-row">
                   <span
                     className={`alert-tag-severity ${activeAlert.severity.toLowerCase()}`}
                   >
                     <span
-                      className={`status-dot ${activeAlert.severity.toLowerCase() === "red" ? "red" : "yellow"}`}
+                      className={`status-dot ${
+                        activeAlert.severity.toLowerCase() === "red"
+                          ? "red"
+                          : "yellow"
+                      }`}
                     />
                     {activeAlert.severity === "RED"
-                      ? "КРАСНЫЙ АЛЕРТ: ТРЕБУЕТСЯ РЕШЕНИЕ"
-                      : "ЖЁЛТЫЙ АЛЕРТ: ВРЕМЯ НА УСТРАНЕНИЕ"}
+                      ? "Красный уровень: требуется решение"
+                      : "Предупреждение: время на устранение"}
                   </span>
 
                   {activeAlertParsed.isCriticalPath && (
@@ -598,7 +537,6 @@ export const EngineerPage: React.FC = () => {
                   </span>
                 </div>
 
-                {/* Суть нарушения */}
                 <div className="real-alert-message">
                   <strong>Суть нарушения:</strong> {activeAlertParsed.message}
                 </div>
@@ -610,11 +548,7 @@ export const EngineerPage: React.FC = () => {
                     disabled={isReadOnly}
                     onClick={() => setIsDecisionModalOpen(true)}
                   >
-                    <img
-                      src={checkIcon}
-                      alt=""
-                      className="btn-icon-svg btn-icon-white"
-                    />
+                    <CheckIcon className="btn-icon-svg" />
                     <span>
                       {isReadOnly
                         ? "Режим чтения (Департамент)"
@@ -626,12 +560,11 @@ export const EngineerPage: React.FC = () => {
             ) : (
               <p className="console-card-desc">
                 Критических нарушений на объекте не зафиксировано. В случае
-                простоя техники или дефицита система откроет инцидент.
+                простоя техники или дефицита система сформирует инцидент.
               </p>
             )}
           </div>
 
-          {/* Правая карточка: Статус и управление сроками */}
           {specStatus === "PURPLE" ? (
             <div className="console-card purple-active">
               <div className="console-card-header">
@@ -742,7 +675,6 @@ export const EngineerPage: React.FC = () => {
           )}
         </div>
 
-        {/* 3. Диаграмма Ганта объекта */}
         <div className="console-gantt-container">
           <h3 className="console-gantt-title">
             Директивный график выполнения работ
@@ -759,7 +691,6 @@ export const EngineerPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Модальное окно вынесения решения по инциденту */}
       {isDecisionModalOpen && activeAlert && !isReadOnly && (
         <AlertDecisionModal
           alert={activeAlert}
@@ -769,7 +700,6 @@ export const EngineerPage: React.FC = () => {
         />
       )}
 
-      {/* Модальное окно каскадного сдвига сроков */}
       {isCascadeModalOpen && selectedProjectId && !isReadOnly && (
         <CascadeShiftModal
           projectId={selectedProjectId}
@@ -779,7 +709,6 @@ export const EngineerPage: React.FC = () => {
         />
       )}
 
-      {/* Модальное окно видеокамер площадки */}
       {isCameraModalOpen && selectedProjectId && (
         <CameraManagerModal
           projectId={selectedProjectId}

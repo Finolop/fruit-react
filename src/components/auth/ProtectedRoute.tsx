@@ -10,7 +10,9 @@ interface ProtectedRouteProps {
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
   const { user, isLoading } = useSelector((state: RootState) => state.auth);
 
-  if (isLoading) {
+  // Показываем прелоадер только при начальной загрузке без пользователя,
+  // чтобы фоновые обновления токена не размонтировали страницу
+  if (isLoading && !user) {
     return <div>Загрузка...</div>;
   }
 
@@ -26,7 +28,6 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ allowedRoles }) => {
       userRoles.includes(role.toLowerCase()),
     );
 
-    // Если роли нет — перенаправляем на корень "/", где RootRedirect отправит в свой раздел
     if (!hasPermission) {
       return <Navigate to="/" replace />;
     }

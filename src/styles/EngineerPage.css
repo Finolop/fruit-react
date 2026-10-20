@@ -797,3 +797,17 @@
     grid-template-columns: 1fr;
   }
 }
+
+.cascade-full-width-btn {
+  justify-content: center;
+  width: 100%;
+}
+
+.cascade-error-no-margin {
+  margin: 0;
+}
+
+.cascade-reason-textarea {
+  height: 60px;
+  min-height: 50px;
+}

@@ -8,8 +8,10 @@ import {
   getMe,
   AuthApiError,
 } from "../../api/apiAuth";
+import { rtkApi } from "../../api/rtkApi";
 
 import { User } from "../../types/auth";
+import type { RootState } from "../../store";
 
 interface AuthState {
   user: User | null;
@@ -17,6 +19,16 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
 }
+
+const normalizeUser = (user?: User | null): User | null => {
+  if (!user) return null;
+  return {
+    ...user,
+    roles: Array.isArray(user.roles)
+      ? user.roles.map((r) => r.toLowerCase())
+      : [],
+  };
+};
 
 const initialState: AuthState = {
   user: null,
@@ -32,26 +44,27 @@ export const loginThunk = createAsyncThunk(
   "auth/login",
   async (
     { email, password }: { email: string; password: string },
-    { rejectWithValue },
+    { dispatch, rejectWithValue },
   ) => {
     try {
       const response = await login(email, password);
+      const normalizedUser = normalizeUser(response.user);
 
-      // 1. Сохраняем токен авторизации для всех API запросов
       if (response.access_token) {
         localStorage.setItem("access_token", response.access_token);
         localStorage.setItem("token", response.access_token);
       }
 
-      // 2. Сохраняем системную роль
-      const primaryRole = response.user?.roles?.[0];
-      if (primaryRole) {
-        localStorage.setItem("userRole", primaryRole);
-      } else {
-        localStorage.setItem("userRole", "FOREMAN");
-      }
+      const primaryRole = normalizedUser?.roles?.[0];
+      localStorage.setItem("userRole", primaryRole || "foreman");
 
-      return response;
+      // Полностью сбрасываем кэш RTK Query от предыдущего аккаунта
+      dispatch(rtkApi.util.resetApiState());
+
+      return {
+        ...response,
+        user: normalizedUser ?? undefined,
+      };
     } catch (error) {
       if (error instanceof AuthApiError) {
         return rejectWithValue(error.message);
@@ -75,22 +88,29 @@ export const registerThunk = createAsyncThunk(
       first_name: string;
       last_name: string;
     },
-    { rejectWithValue },
+    { dispatch, rejectWithValue },
   ) => {
     try {
       const response = await register(email, password, first_name, last_name);
+      const normalizedUser = normalizeUser(response.user);
 
       if (response.access_token) {
         localStorage.setItem("access_token", response.access_token);
         localStorage.setItem("token", response.access_token);
       }
 
-      const primaryRole = response.user?.roles?.[0];
+      const primaryRole = normalizedUser?.roles?.[0];
       if (primaryRole) {
         localStorage.setItem("userRole", primaryRole);
       }
 
-      return response;
+      // Сбрасываем кэш при регистрации нового аккаунта
+      dispatch(rtkApi.util.resetApiState());
+
+      return {
+        ...response,
+        user: normalizedUser ?? undefined,
+      };
     } catch (error) {
       if (error instanceof AuthApiError) {
         return rejectWithValue(error.message);
@@ -112,7 +132,8 @@ export const restoreSessionThunk = createAsyncThunk(
         localStorage.setItem("token", access_token);
       }
 
-      const user = await getMe(access_token);
+      const rawUser = await getMe(access_token);
+      const user = normalizeUser(rawUser)!;
 
       const primaryRole = user?.roles?.[0];
       if (primaryRole) {
@@ -139,7 +160,7 @@ export const restoreSessionThunk = createAsyncThunk(
 
 export const logoutThunk = createAsyncThunk(
   "auth/logout",
-  async (_, { rejectWithValue }) => {
+  async (_, { dispatch, rejectWithValue }) => {
     try {
       await logout();
       return;
@@ -149,10 +170,11 @@ export const logoutThunk = createAsyncThunk(
       }
       return rejectWithValue("Ошибка выхода");
     } finally {
-      // Всегда очищаем локальные токены и роли
       localStorage.removeItem("access_token");
       localStorage.removeItem("token");
       localStorage.removeItem("userRole");
+      // Очищаем кэш данных при выходе из аккаунта
+      dispatch(rtkApi.util.resetApiState());
     }
   },
 );
@@ -247,6 +269,18 @@ const authSlice = createSlice({
       });
   },
 });
+
+export const selectUserRoles = (state: RootState): string[] =>
+  (state.auth.user?.roles || []).map((r) => r.toLowerCase());
+
+export const selectIsAdmin = (state: RootState): boolean =>
+  selectUserRoles(state).includes("admin");
+
+export const selectIsEngineer = (state: RootState): boolean =>
+  selectUserRoles(state).includes("engineer");
+
+export const selectIsForeman = (state: RootState): boolean =>
+  selectUserRoles(state).includes("foreman");
 
 export const { clearError, setAccessToken, clearAuth } = authSlice.actions;
 
